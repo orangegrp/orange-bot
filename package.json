@@ -9,5 +9,8 @@
     },
     "keywords": [],
     "author": "",
-    "license": "BSD-3"
+    "license": "BSD-3",
+    "dependencies": {
+        "orange-bot-base": "file:local_modules/orange-bot-base"
+    }
 }
