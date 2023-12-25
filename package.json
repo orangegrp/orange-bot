@@ -11,6 +11,10 @@
     "author": "",
     "license": "BSD-3",
     "dependencies": {
-        "orange-bot-base": "file:local_modules/orange-bot-base"
+        "chalk": "^5.3.0",
+        "discord.js": "^14.14.1",
+        "dotenv": "^16.3.1",
+        "orange-bot-base": "file:local_modules/orange-bot-base",
+        "orange-common-lib": "file:local_modules/orange-common-lib"
     }
 }
