@@ -1,2 +1,2 @@
-# orange-bot
+# orange🟠 Bot
 orange🟠 Discord Bot
