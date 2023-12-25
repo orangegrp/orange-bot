@@ -1,3 +1,6 @@
 [submodule "local_modules/orange-bot-base"]
 	path = local_modules/orange-bot-base
 	url = https://github.com/Order-332/orange-bot-base.git
+[submodule "local_modules/orange-common-lib"]
+	path = local_modules/orange-common-lib
+	url = https://github.com/Order-332/orange-common-lib.git
