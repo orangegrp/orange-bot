@@ -4,7 +4,7 @@ import { Bot } from "orange-bot-base";
 import { join, dirname } from "path";
 import dotenv from "dotenv";
 
-const logger = getLogger("main");
+const logger = getLogger("orange🟠 Bot");
 
 logger.info("Starting...");
 

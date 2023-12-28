@@ -15,18 +15,17 @@ enum ServerMessageType {
 
 type ServerPayload = ServerHelloReply | ServerAuth | ServerSessionInfo | ServerDataReply | ServerStatusReply | ServerError;
 
-type ServerHelloReply = {};
+type ServerHelloReply = null;
 
 type ServerAuth = { 
     msgType: ServerAuthMessageType,
-    session_id: string
+    session_id?: string
 };
 
 enum ServerAuthMessageType {
     LoginSuccess,
     LogoutSuccess,
-    LoginFailed,
-    LogoutFailed
+    LoginFailed
 };
 
 type ServerSessionInfo = {

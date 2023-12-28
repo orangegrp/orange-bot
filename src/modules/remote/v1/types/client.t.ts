@@ -14,13 +14,13 @@ enum ClientMessageType {
     ClientError
 };
 
-type ClientPayload = ClientHelloRequest | ClientAuth | ClientSessionInfo | ClientDataRequest | ClientStatusRequest | ClientError;
+type ClientPayload = ClientHelloRequest | ClientAuth | ClientSessionInfo | ClientDataRequest | ClientStatusRequest;
 
 type ClientHelloRequest = {};
 
 type ClientAuth = { 
     msgType: ClientAuthMessageType,
-    token?: string
+    token: string
 };
 
 enum ClientAuthMessageType {
@@ -59,9 +59,4 @@ type ClientDataPayload = any;
 
 type ClientStatusRequest = {
     msgId: string
-};
-
-type ClientError = {
-    message: string,
-    error?: Error
 };

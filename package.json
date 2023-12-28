@@ -26,5 +26,8 @@
         "orange-bot-base": "file:local_modules/orange-bot-base",
         "orange-common-lib": "file:local_modules/orange-common-lib",
         "ws": "^8.16.0"
+    },
+    "devDependencies": {
+        "@types/jsonwebtoken": "^9.0.5"
     }
 }
