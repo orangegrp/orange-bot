@@ -1,5 +1,5 @@
-import type { Bot, ResolveCommandArgs } from "orange-bot-base"
-import { ArgType, type Command } from "orange-bot-base/dist/command.js"
+import type { Bot, ResolveCommandArgs } from "orange-bot-base";
+import { ArgType, type Command } from "orange-bot-base/dist/command.js";
 
 
 const command = {
