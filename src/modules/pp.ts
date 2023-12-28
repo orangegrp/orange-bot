@@ -4,11 +4,11 @@ import { ArgType, type Command } from "orange-bot-base/dist/command.js"
 
 const command = {
     name: "pp",
-    description: "show pp",
+    description: "measure pp",
     args: {
-        orange: {
+        person: {
             type: ArgType.USER,
-            description: "person"
+            description: "person whose pp to measure"
         }
     }
 } satisfies Command
