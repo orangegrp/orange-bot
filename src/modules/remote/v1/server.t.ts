@@ -5,35 +5,36 @@ type ServerMessage = {
 };
 
 enum ServerMessageType {
-    HelloReply,
-    Authentication,
-    SessionInfo,
-    DataReply,
-    StatusReply
+    ServerHelloReply,
+    ServerAuth,
+    ServerSessionInfo,
+    ServerDataReply,
+    ServerStatusReply,
+    ServerError
 };
 
-type ServerPayload = HelloReply | Authentication | SessionInfo | DataReply | StatusReply | ServerError;
+type ServerPayload = ServerHelloReply | ServerAuth | ServerSessionInfo | ServerDataReply | ServerStatusReply | ServerError;
 
-type HelloReply = {};
+type ServerHelloReply = {};
 
-type Authentication = { 
-    msgType: AuthMessageType,
+type ServerAuth = { 
+    msgType: ServerAuthMessageType,
     session_id: string
 };
 
-enum AuthMessageType {
+enum ServerAuthMessageType {
     LoginSuccess,
     LogoutSuccess,
     LoginFailed,
     LogoutFailed
 };
 
-type SessionInfo = {
-    msgType: SessionMessageType,
-    payload: SessionPayload
+type ServerSessionInfo = {
+    msgType: ServerSessionMessageType,
+    payload: ServerSessionPayload
 };
 
-enum SessionMessageType {
+enum ServerSessionMessageType {
     SessionBeginSuccess,
     SessionBeginFailed,
     SessionExtendSuccess,
@@ -42,30 +43,30 @@ enum SessionMessageType {
     SessionEndFailed
 };
 
-type SessionPayload = {
+type ServerSessionPayload = {
     old_session_id?: string,
     new_session_id?: string,
     renew_in?: number
 };
 
-type DataReply = { 
-    status: StatusReply,
-    msgType: DataMessageType,
-    payload: DataPayload
+type ServerDataReply = { 
+    status: ServerStatusReply,
+    msgType: ServerDataMessageType,
+    payload: ServerDataPayload
 };
 
-enum DataMessageType {
+enum ServerDataMessageType {
     DataFetchDiscord,
     DataFetchSystemConfig,
     DataFetchUserConfig
 };
 
-type DataPayload = any;
+type ServerDataPayload = any;
 
-type StatusReply = {
+type ServerStatusReply = {
     success: boolean,
     message: string,
-    payload?: DataReply
+    payload?: ServerDataReply
 };
 
 type ServerError = {
