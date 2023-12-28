@@ -5,7 +5,12 @@
     "main": "dist/index.js",
     "type": "module",
     "scripts": {
-        "test": "echo \"Error: no test specified\" && exit 1"
+        "test": "echo \"Error: no test specified\" && exit 1",
+        "setup": "git submodule update --init --recursive && git pull --recurse-submodules && npm install && cd local_modules/orange-common-lib && npm install && cd ../orange-bot-base && npm install",
+        "build": "cd local_modules/orange-common-lib && tsc && cd ../orange-bot-base && tsc && cd ../.. && tsc",
+        "dev": "tsc && node dist/index.js",
+        "prod": "NODE_ENV=production node dist/index.js",
+        "prod-win": "set NODE_ENV=production && node dist/index.js"
     },
     "keywords": [],
     "author": "",
