@@ -1,7 +1,6 @@
 import type { Bot, ResolveCommandArgs } from "orange-bot-base";
 import { ArgType, type Command } from "orange-bot-base/dist/command.js";
 
-
 const command = {
     name: "pp",
     description: "measure pp",
@@ -11,7 +10,7 @@ const command = {
             description: "person whose pp to measure"
         }
     }
-} satisfies Command
+} satisfies Command;
 
 export default function(bot: Bot) {
     bot.commandManager.addCommand(command, (interaction, args: ResolveCommandArgs<typeof command>) => {
