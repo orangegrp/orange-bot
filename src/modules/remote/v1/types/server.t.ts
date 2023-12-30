@@ -7,13 +7,12 @@ type ServerMessage = {
 enum ServerMessageType {
     ServerHelloReply,
     ServerAuth,
-    ServerSessionInfo,
     ServerDataReply,
     ServerStatusReply,
     ServerError
 };
 
-type ServerPayload = ServerHelloReply | ServerAuth | ServerSessionInfo | ServerDataReply | ServerStatusReply | ServerError;
+type ServerPayload = ServerHelloReply | ServerAuth | ServerDataReply | ServerStatusReply | ServerError;
 
 type ServerHelloReply = null;
 
@@ -25,27 +24,7 @@ type ServerAuth = {
 enum ServerAuthMessageType {
     LoginSuccess,
     LogoutSuccess,
-    LoginFailed
-};
-
-type ServerSessionInfo = {
-    msgType: ServerSessionMessageType,
-    payload: ServerSessionPayload
-};
-
-enum ServerSessionMessageType {
-    SessionBeginSuccess,
-    SessionBeginFailed,
-    SessionExtendSuccess,
-    SessionExtendFailed,
-    SessionEndSuccess,
-    SessionEndFailed
-};
-
-type ServerSessionPayload = {
-    old_session_id?: string,
-    new_session_id?: string,
-    renew_in?: number
+    AuthFailed
 };
 
 type ServerDataReply = { 

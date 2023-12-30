@@ -4,6 +4,7 @@ import type { Bot } from "orange-bot-base";
 import { IncomingMessage } from 'http';
 import { VERSION, sendHello, sendError } from "./messages.js";
 import handleAuth from "./auth.js";
+import { validateSession } from "./session.js";
 
 const msgIdTest: RegExp = /^[a-z0-9]{16}$/;
 
@@ -25,11 +26,15 @@ function onMessage(ws: WebSocket, req: IncomingMessage, logger: Logger, bot: Bot
             case ClientMessageType.ClientAuth:
                 handleAuth(message, ws, req, logger, bot, msg);
                 break;
-            case ClientMessageType.ClientSessionInfo:
-                break;
             case ClientMessageType.ClientDataRequest:
+                if (!validateSession(ws, req, message.sessionId))
+                    throw new Error("Invalid session ID or IP mismatch! Cannot service the request.");
+                // TODO: Send data
                 break;
             case ClientMessageType.ClientStatusRequest:
+                if (!validateSession(ws, req, message.sessionId))
+                    throw new Error("Invalid session ID or IP mismatch! Cannot service the request.");
+                // TODO: Send data
                 break;
             default:
                 sendError("Unknown message type! Server will ignore the message.", ws);
@@ -38,6 +43,8 @@ function onMessage(ws: WebSocket, req: IncomingMessage, logger: Logger, bot: Bot
     } catch (err: any) {
         logger.error(err);
         sendError(`Unexpected error! The message reads: \"${err.message}\"`, ws);
+        ws.close();
+        req.destroy();
     }
 }
 
@@ -47,5 +54,5 @@ function onConnection(ws: WebSocket, req: IncomingMessage, logger: Logger, bot: 
 }
 
 export default function (wss: WebSocketServer, logger: Logger, bot: Bot) {
-    wss.on("connection", (ws, req) => onConnection(ws, req, logger.sublogger("onConnection"), bot));
+    wss.on("connection", (ws, req) => onConnection(ws, req, logger.sublogger("Remote WS > onConnection"), bot));
 }

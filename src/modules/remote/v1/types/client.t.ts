@@ -1,5 +1,6 @@
 type ClientMessage = { 
     msgId: string,
+    sessionId: string,
     version: string,
     msgType: ClientMessageType,
     payload: ClientPayload
@@ -8,13 +9,12 @@ type ClientMessage = {
 enum ClientMessageType {
     ClientHelloRequest,
     ClientAuth,
-    ClientSessionInfo,
     ClientDataRequest,
     ClientStatusRequest,
     ClientError
 };
 
-type ClientPayload = ClientHelloRequest | ClientAuth | ClientSessionInfo | ClientDataRequest | ClientStatusRequest;
+type ClientPayload = ClientHelloRequest | ClientAuth | ClientDataRequest | ClientStatusRequest;
 
 type ClientHelloRequest = {};
 
@@ -26,22 +26,6 @@ type ClientAuth = {
 enum ClientAuthMessageType {
     LoginRequest,
     LogoutRequest
-};
-
-type ClientSessionInfo = {
-    msgType: ClientSessionMessageType,
-    payload: ClientSessionPayload
-};
-
-enum ClientSessionMessageType {
-    SessionBegin,
-    SessionExtend,
-    SessionEnd
-};
-
-type ClientSessionPayload = {
-    current_session_id?: string,
-    token: string
 };
 
 type ClientDataRequest = { 
