@@ -1,9 +1,8 @@
 type ClientMessage = { 
-    msgId: string,
-    sessionId: string,
+    sessionId?: string,
     version: string,
     msgType: ClientMessageType,
-    payload: ClientPayload
+    payload?: ClientPayload
 };
 
 enum ClientMessageType {
@@ -42,5 +41,7 @@ enum ClientDataMessageType {
 type ClientDataPayload = any;
 
 type ClientStatusRequest = {
-    msgId: string
+    reqId: string
 };
+
+export { ClientMessage, ClientMessageType, ClientPayload, ClientHelloRequest, ClientAuth, ClientAuthMessageType, ClientDataRequest, ClientDataMessageType, ClientDataPayload, ClientStatusRequest };

@@ -1,7 +1,7 @@
 type ServerMessage = { 
     version: string,
     msgType: ServerMessageType,
-    payload: ServerPayload
+    payload?: ServerPayload
 };
 
 enum ServerMessageType {
@@ -29,6 +29,7 @@ enum ServerAuthMessageType {
 
 type ServerDataReply = { 
     status: ServerStatusReply,
+    reqId: string,
     msgType: ServerDataMessageType,
     payload: ServerDataPayload
 };
@@ -42,12 +43,20 @@ enum ServerDataMessageType {
 type ServerDataPayload = any;
 
 type ServerStatusReply = {
-    success: boolean,
-    message: string,
+    status: ServerStatus,
+    reqId: string,
     payload?: ServerDataReply
+};
+
+enum ServerStatus {
+    Success,
+    Fail,
+    Waiting
 };
 
 type ServerError = {
     message: string,
     error?: Error
 };
+
+export { ServerMessage, ServerMessageType, ServerPayload, ServerHelloReply, ServerAuth, ServerAuthMessageType, ServerDataReply, ServerDataMessageType, ServerStatus, ServerDataPayload, ServerStatusReply, ServerError };

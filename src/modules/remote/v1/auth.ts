@@ -4,7 +4,9 @@ import jwt from "jsonwebtoken";
 import type { Bot } from "orange-bot-base";
 import { IncomingMessage } from 'http';
 import { sendAuth } from "./messages.js";
-import { beginSession, endAllSessions, endSession, validateSession } from "./session.js";
+import { beginSession, endAllSessions, endSession, endSessionByIp, validateSession } from "./session.js";
+import { ServerAuth, ServerAuthMessageType } from "./types/server.t.js";
+import { ClientAuth, ClientAuthMessageType, ClientMessage } from "./types/client.t.js";
  
 function verifyToken(token: string, logger: Logger) {
     logger.verbose('Checking for REMOTE_SECRET environment variable ...');
@@ -43,7 +45,7 @@ export default function handleAuth(message: ClientMessage, ws: WebSocket, req: I
             session_id: beginSession(auth.token, ws, req)
         } as ServerAuth, ws);
 
-    } else if (auth.msgType === ClientAuthMessageType.LogoutRequest) {
+    } else if (auth.msgType === ClientAuthMessageType.LogoutRequest && message.sessionId) {
         if (!validateSession(ws, req, message.sessionId))
             throw new Error("Invalid session ID or IP mismatch! Cannot service the request.");
 
@@ -54,5 +56,13 @@ export default function handleAuth(message: ClientMessage, ws: WebSocket, req: I
         } as ServerAuth, ws);
 
         endAllSessions(auth.token);
+    } else {
+        logger.log("ClientAuthMessageType is invalid, sending AuthFailed ...");
+
+        sendAuth({
+            msgType: ServerAuthMessageType.AuthFailed
+        } as ServerAuth, ws);
+
+        endSessionByIp(req);
     }
 }

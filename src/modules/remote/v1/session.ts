@@ -2,6 +2,7 @@ import { getLogger } from "orange-common-lib";
 import { WebSocket } from "ws";
 import { IncomingMessage } from 'http';
 import { randomBytes } from "crypto";
+import { ClientDataRequest, ClientMessage } from "./types/client.t";
 
 const activeSessions = new Map<string, LoginSession>();
 const logger = getLogger("orange🟠 Bot").sublogger("Remote WS > Session Manager");
@@ -12,10 +13,11 @@ class LoginSession {
     private websocket: WebSocket;
     private original_request: IncomingMessage;
 
-    public client_requests: ClientMessage[] = [];
+    public client_requests: Map<string, ClientDataRequest>;
 
     constructor(tokem: string, ws: WebSocket, req: IncomingMessage) {
         logger.verbose(`Creating new session for ${req.socket.remoteAddress} ...`);
+        this.client_requests = new Map();
         this.token = tokem;
         this.websocket = ws;
         this.original_request = req;
@@ -62,6 +64,14 @@ function endSession(sessionId: string) {
         session.destroy();
 }
 
+function endSessionByIp(req: IncomingMessage) {
+    logger.verbose("endSessionByIp called.");
+    activeSessions.forEach((session) => {
+        if (session.checkIp(req))
+            session.destroy();
+    });
+}
+
 function endAllSessions(token: string) {
     logger.verbose("endAllSessions called.");
     activeSessions.forEach((session) => {
@@ -70,12 +80,12 @@ function endAllSessions(token: string) {
     });
 }
 
-function validateSession(ws: WebSocket, req: IncomingMessage, sessionId: string) {
+function validateSession(ws: WebSocket, req: IncomingMessage, sessionId: string | undefined) {
     logger.verbose("validateSession called.");
-    if (!activeSessions.has(sessionId))
+    if (!activeSessions.has(sessionId ?? ''))
         return false;
 
-    let session = activeSessions.get(sessionId);
+    let session = activeSessions.get(sessionId ?? '');
 
     if (!session)
         return false;
@@ -87,8 +97,8 @@ function validateSession(ws: WebSocket, req: IncomingMessage, sessionId: string)
     return true;
 }
 
-function getSession(sessionId: string) {
-    return activeSessions.get(sessionId);
+function getSession(sessionId: string | undefined) {
+    return activeSessions.get(sessionId || '');
 }
 
-export { beginSession, endSession, endAllSessions, validateSession, getSession };
+export { beginSession, endSession, endSessionByIp, endAllSessions, validateSession, getSession };
