@@ -12,6 +12,8 @@ class LoginSession {
     private websocket: WebSocket;
     private original_request: IncomingMessage;
 
+    public client_requests: ClientMessage[] = [];
+
     constructor(tokem: string, ws: WebSocket, req: IncomingMessage) {
         logger.verbose(`Creating new session for ${req.socket.remoteAddress} ...`);
         this.token = tokem;
@@ -85,4 +87,8 @@ function validateSession(ws: WebSocket, req: IncomingMessage, sessionId: string)
     return true;
 }
 
-export { beginSession, endSession, endAllSessions, validateSession };
+function getSession(sessionId: string) {
+    return activeSessions.get(sessionId);
+}
+
+export { beginSession, endSession, endAllSessions, validateSession, getSession };
