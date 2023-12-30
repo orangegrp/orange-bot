@@ -10,7 +10,10 @@
         "build": "cd local_modules/orange-common-lib && tsc && cd ../orange-bot-base && tsc && cd ../.. && tsc",
         "dev": "tsc && node dist/index.js",
         "prod": "NODE_ENV=production node dist/index.js",
-        "prod-win": "set NODE_ENV=production && node dist/index.js"
+        "prod-win": "set NODE_ENV=production && node dist/index.js",
+        "gen-secret": "node -e \"console.log(require('crypto').randomBytes(32).toString('hex'))\"",
+        "gen-token": "node -e \"console.log(require('jsonwebtoken').sign({id: process.argv[2]}, process.argv[1], {expiresIn:'1y'}))\"",
+        "verify-token": "node -e \"console.log(require('jsonwebtoken').verify(process.argv[1], process.argv[2]))\""
     },
     "keywords": [],
     "author": "",
@@ -19,7 +22,12 @@
         "chalk": "^5.3.0",
         "discord.js": "^14.14.1",
         "dotenv": "^16.3.1",
+        "jsonwebtoken": "^9.0.2",
         "orange-bot-base": "file:local_modules/orange-bot-base",
-        "orange-common-lib": "file:local_modules/orange-common-lib"
+        "orange-common-lib": "file:local_modules/orange-common-lib",
+        "ws": "^8.16.0"
+    },
+    "devDependencies": {
+        "@types/jsonwebtoken": "^9.0.5"
     }
 }

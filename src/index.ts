@@ -1,12 +1,12 @@
-import { Client, GatewayIntentBits } from "discord.js"
-import { getLogger } from "orange-common-lib"
-import { Bot } from "orange-bot-base"
-import { join, dirname } from "path"
-import dotenv from "dotenv"
+import { Client, GatewayIntentBits } from "discord.js";
+import { getLogger } from "orange-common-lib";
+import { Bot } from "orange-bot-base";
+import { join, dirname } from "path";
+import dotenv from "dotenv";
 
-const logger = getLogger("main")
+const logger = getLogger("orange🟠 Bot");
 
-logger.info("Starting...")
+logger.info("Starting...");
 
 dotenv.config()
 
@@ -15,13 +15,13 @@ const client = new Client({
 });
 
 
-const bot = new Bot(client, "?")
+const bot = new Bot(client, "?");
 
-const moduleDir = join(dirname(import.meta.url), "modules")
-bot.loadModules(moduleDir)
+const moduleDir = join(dirname(import.meta.url), "modules");
+bot.loadModules(moduleDir);
 
-client.login(process.env.BOT_TOKEN!)
+client.login(process.env.BOT_TOKEN!);
 
 client.on("ready", () => {
     logger.info("Logged in as " + client.user?.username)
-})
+});

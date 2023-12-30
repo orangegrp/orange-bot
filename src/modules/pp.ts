@@ -1,7 +1,6 @@
 import type { Bot, ResolveCommandArgs } from "orange-bot-base";
 import { ArgType, type Command } from "orange-bot-base/dist/command.js";
 
-
 const command = {
     name: "pp",
     description: "measure pp",
@@ -11,15 +10,15 @@ const command = {
             description: "person whose pp to measure"
         }
     }
-} satisfies Command
+} satisfies Command;
 
 export default function(bot: Bot) {
     bot.commandManager.addCommand(command, (interaction, args: ResolveCommandArgs<typeof command>) => {
-        interaction.reply(pp());
-    })
+        interaction.reply({ content: pp(args.person?.id), allowedMentions: { users: [] } });
+    });
 }
 
-function pp(min: number = 1, max: number = 50) {
+function pp(id: string | undefined, min: number = 1, max: number = 50) {
     const count = Math.floor(Math.random() * (max - min)) + min;
 
     let p = '8';
@@ -28,6 +27,9 @@ function pp(min: number = 1, max: number = 50) {
         p += '=';
 
     p += 'D';
+
+    if (id)
+        return `<@${id}>'s pp ${p}`;
 
     return p;
 }
