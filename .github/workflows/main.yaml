@@ -37,7 +37,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: a4004/orange-crs
+          images: a4004/orange-bot
       
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
