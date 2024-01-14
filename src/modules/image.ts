@@ -26,6 +26,8 @@ export default function(bot: Bot) {
     bot.commandManager.addCommand(command, async (interaction, args) => {
         const html = IMAGE_STYLE_HTML + args.html;
 
+        await interaction.deferReply();
+
         try {
             logger.info("Generating image...");
 
@@ -36,12 +38,12 @@ export default function(bot: Bot) {
 
             if (!(image instanceof Buffer)) throw new Error("idk");
             
-            await interaction.reply({files: [new AttachmentBuilder(image, { name: "image.png" })]});
+            await interaction.editReply({files: [new AttachmentBuilder(image, { name: "image.png" })]});
 
             logger.info("image sent.");
         }
         catch {
-            interaction.reply("Image generation failed.");
+            interaction.editReply("Image generation failed.");
         }
     });
 }
