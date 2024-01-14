@@ -15,12 +15,12 @@ const client = new Client({
 });
 
 
-const bot = new Bot(client, "?");
+const bot = new Bot(client, "?", process.env.BOT_TOKEN!);
 
 const moduleDir = join(dirname(import.meta.url), "modules");
 bot.loadModules(moduleDir);
 
-client.login(process.env.BOT_TOKEN!);
+bot.login();
 
 client.on("ready", () => {
     logger.info("Logged in as " + client.user?.username)
