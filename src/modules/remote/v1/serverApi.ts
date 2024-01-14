@@ -2,19 +2,21 @@ import { Logger } from "orange-common-lib";
 import { WebSocketServer, WebSocket, RawData } from "ws";
 import type { Bot } from "orange-bot-base";
 import { IncomingMessage } from 'http';
-import { VERSION, sendHello, sendError } from "./messages.js";
+import { VERSION, sendHello, sendError, sendStatus } from "./messages.js";
 import handleAuth from "./auth.js";
-
-const msgIdTest: RegExp = /^[a-z0-9]{16}$/;
-
+import { getSession, validateSession } from "./session.js";
+import { ClientDataRequest, ClientMessage, ClientMessageType, ClientStatusRequest } from "./types/client.t.js";
+import { randomBytes } from "crypto";
+import { ClientStatus } from "discord.js";
+import { ServerStatus } from "./types/server.t.js";
 
 function onMessage(ws: WebSocket, req: IncomingMessage, logger: Logger, bot: Bot, msg: RawData) {
     logger.verbose(`Message received: ${msg.toString()}`);
     try {
-        let message = JSON.parse(msg.toString()) as ClientMessage;
+        const message = JSON.parse(msg.toString()) as ClientMessage;
+        const requestId = randomBytes(32).toString("hex");
+        const session = getSession(message.sessionId);
 
-        if (!msgIdTest.test(message.msgId))
-            throw new Error("Illegal message ID! The client message has been rejected.");
         if (message.version !== VERSION)
             throw new Error("Client/Server version mismatch! The client message has been rejected.");
 
@@ -25,11 +27,30 @@ function onMessage(ws: WebSocket, req: IncomingMessage, logger: Logger, bot: Bot
             case ClientMessageType.ClientAuth:
                 handleAuth(message, ws, req, logger, bot, msg);
                 break;
-            case ClientMessageType.ClientSessionInfo:
-                break;
             case ClientMessageType.ClientDataRequest:
+                if (!session || !validateSession(ws, req, message.sessionId))
+                    throw new Error("Invalid session ID or IP mismatch! Cannot service the request.");         
+                const requestData = message.payload as ClientDataRequest;  
+                session.client_requests.set(requestId, requestData);
+                
+                // TODO
+
+                session.client_requests.delete(requestId);
                 break;
             case ClientMessageType.ClientStatusRequest:
+                if (!session || !validateSession(ws, req, message.sessionId))
+                    throw new Error("Invalid session ID or IP mismatch! Cannot service the request.");            
+                    const request = message.payload as ClientStatusRequest;
+                    const originalRequest = session.client_requests.get(request.reqId);
+                    
+                    if (originalRequest) {
+                        sendStatus(ServerStatus.Waiting, ws);
+                        return;
+                    } else {
+                        sendStatus(ServerStatus.Success, ws);
+                    }
+    
+                    session.client_requests.delete(requestId);
                 break;
             default:
                 sendError("Unknown message type! Server will ignore the message.", ws);
@@ -38,6 +59,8 @@ function onMessage(ws: WebSocket, req: IncomingMessage, logger: Logger, bot: Bot
     } catch (err: any) {
         logger.error(err);
         sendError(`Unexpected error! The message reads: \"${err.message}\"`, ws);
+        ws.close();
+        req.destroy();
     }
 }
 
@@ -47,5 +70,5 @@ function onConnection(ws: WebSocket, req: IncomingMessage, logger: Logger, bot: 
 }
 
 export default function (wss: WebSocketServer, logger: Logger, bot: Bot) {
-    wss.on("connection", (ws, req) => onConnection(ws, req, logger.sublogger("onConnection"), bot));
+    wss.on("connection", (ws, req) => onConnection(ws, req, logger.sublogger("Remote WS > onConnection"), bot));
 }

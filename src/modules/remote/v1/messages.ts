@@ -1,4 +1,5 @@
 import { WebSocket } from "ws";
+import { ServerAuth, ServerError, ServerMessage, ServerMessageType, ServerStatus, ServerStatusReply } from "./types/server.t.js";
 
 const VERSION = "1.0.0";
 
@@ -32,4 +33,15 @@ function sendError(error: string, ws: WebSocket) {
     } as ServerMessage));
 }
 
-export { sendAuth, sendHello, sendError, VERSION }
+function sendStatus(status: ServerStatus, ws: WebSocket) {
+    ws.send(JSON.stringify({
+        version: VERSION,
+        msgType: ServerMessageType.ServerStatusReply,
+        payload:
+            {
+                status: status
+            } as ServerStatusReply
+    } as ServerMessage));
+}
+
+export { sendAuth, sendHello, sendError, sendStatus, VERSION }

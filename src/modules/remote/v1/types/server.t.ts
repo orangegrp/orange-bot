@@ -1,19 +1,18 @@
 type ServerMessage = { 
     version: string,
     msgType: ServerMessageType,
-    payload: ServerPayload
+    payload?: ServerPayload
 };
 
 enum ServerMessageType {
     ServerHelloReply,
     ServerAuth,
-    ServerSessionInfo,
     ServerDataReply,
     ServerStatusReply,
     ServerError
 };
 
-type ServerPayload = ServerHelloReply | ServerAuth | ServerSessionInfo | ServerDataReply | ServerStatusReply | ServerError;
+type ServerPayload = ServerHelloReply | ServerAuth | ServerDataReply | ServerStatusReply | ServerError;
 
 type ServerHelloReply = null;
 
@@ -25,31 +24,12 @@ type ServerAuth = {
 enum ServerAuthMessageType {
     LoginSuccess,
     LogoutSuccess,
-    LoginFailed
-};
-
-type ServerSessionInfo = {
-    msgType: ServerSessionMessageType,
-    payload: ServerSessionPayload
-};
-
-enum ServerSessionMessageType {
-    SessionBeginSuccess,
-    SessionBeginFailed,
-    SessionExtendSuccess,
-    SessionExtendFailed,
-    SessionEndSuccess,
-    SessionEndFailed
-};
-
-type ServerSessionPayload = {
-    old_session_id?: string,
-    new_session_id?: string,
-    renew_in?: number
+    AuthFailed
 };
 
 type ServerDataReply = { 
     status: ServerStatusReply,
+    reqId: string,
     msgType: ServerDataMessageType,
     payload: ServerDataPayload
 };
@@ -63,12 +43,20 @@ enum ServerDataMessageType {
 type ServerDataPayload = any;
 
 type ServerStatusReply = {
-    success: boolean,
-    message: string,
+    status: ServerStatus,
+    reqId: string,
     payload?: ServerDataReply
+};
+
+enum ServerStatus {
+    Success,
+    Fail,
+    Waiting
 };
 
 type ServerError = {
     message: string,
     error?: Error
 };
+
+export { ServerMessage, ServerMessageType, ServerPayload, ServerHelloReply, ServerAuth, ServerAuthMessageType, ServerDataReply, ServerDataMessageType, ServerStatus, ServerDataPayload, ServerStatusReply, ServerError };
