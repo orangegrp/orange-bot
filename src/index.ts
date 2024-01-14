@@ -1,8 +1,10 @@
+import dotenv from "dotenv";
+dotenv.config();
+
 import { Client, GatewayIntentBits } from "discord.js";
 import { getLogger } from "orange-common-lib";
 import { Bot } from "orange-bot-base";
 import { join, dirname } from "path";
-import "dotenv/config";
 
 const logger = getLogger("orange🟠 Bot");
 
