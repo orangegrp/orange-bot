@@ -1,4 +1,4 @@
-import type { Bot, ResolveCommandArgs } from "orange-bot-base";
+import type { Bot } from "orange-bot-base";
 import { ArgType, type Command } from "orange-bot-base/dist/command.js";
 
 const command = {
@@ -13,7 +13,7 @@ const command = {
 } satisfies Command;
 
 export default function(bot: Bot) {
-    bot.commandManager.addCommand(command, (interaction, args: ResolveCommandArgs<typeof command>) => {
+    bot.commandManager.addCommand(command, (interaction, args) => {
         interaction.reply({ content: pp(args.person?.id), allowedMentions: { users: [] } });
     });
 }
