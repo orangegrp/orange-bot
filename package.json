@@ -7,6 +7,7 @@
     "scripts": {
         "test": "echo \"Error: no test specified\" && exit 1",
         "setup": "git submodule update --init --recursive --remote && git submodule update --remote && git pull && npm install && cd local_modules/orange-common-lib && npm install && cd ../orange-bot-base && npm install",
+        "sync-modules": "git submodule sync --recursive && git -c protocol.version=2 submodule update --init --force --depth=1 --recursive",
         "build": "cd local_modules/orange-common-lib && tsc && cd ../orange-bot-base && tsc && cd ../.. && tsc",
         "dev": "tsc && node dist/index.js",
         "prod": "NODE_ENV=production node dist/index.js",
