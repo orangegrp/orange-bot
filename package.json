@@ -24,6 +24,7 @@
         "dotenv": "^16.3.1",
         "jsonwebtoken": "^9.0.2",
         "node-html-to-image": "^4.0.0",
+        "node-ssh": "^13.1.0",
         "orange-bot-base": "file:local_modules/orange-bot-base",
         "orange-common-lib": "file:local_modules/orange-common-lib",
         "ws": "^8.16.0"
