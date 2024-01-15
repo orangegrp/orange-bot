@@ -65,8 +65,7 @@ class CodeRunner {
                 .substring(0, Math.min(1000, (reply['data']['compile']['output'] as string).length)).replace('```', '`\u200b`\u200b`') : '';
             const exitCode: number = reply['data']['run']['code'];
 
-            return { processOutput, compilerOutput, exitCode };
-
+            return { processOutput, compilerOutput, exitCode, jobId: reply["id"] };
         }
         catch (err) {
             this.logger.warn(`Failed to process a coderunner request due to an error. ${err}`);

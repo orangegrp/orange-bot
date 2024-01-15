@@ -6,7 +6,8 @@ type CodeRunnerOptions = {
 type CodeRunnerJobResult = {
     processOutput: string,
     compilerOutput: string,
-    exitCode: number
+    exitCode: number,
+    jobId: string
 }
 
 export { CodeRunnerOptions, CodeRunnerJobResult };
