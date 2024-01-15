@@ -7,7 +7,6 @@ import handleAuth from "./auth.js";
 import { getSession, validateSession } from "./session.js";
 import { ClientDataRequest, ClientMessage, ClientMessageType, ClientStatusRequest } from "./types/client.t.js";
 import { randomBytes } from "crypto";
-import { ClientStatus } from "discord.js";
 import { ServerStatus } from "./types/server.t.js";
 
 function onMessage(ws: WebSocket, req: IncomingMessage, logger: Logger, bot: Bot, msg: RawData) {
