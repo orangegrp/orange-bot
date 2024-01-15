@@ -1,7 +1,7 @@
 version: "3.8"
 
 services:
-  orange-crs:
+  orange-bot:
     container_name: orange-bot
     image: a4004/orange-bot
     restart: unless-stopped
