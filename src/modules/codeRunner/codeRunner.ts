@@ -60,9 +60,9 @@ class CodeRunner {
 
             // this is all unsafe volk...
             const processOutput: string = (reply['data']['run']['output'] as string)
-                .substring(0, Math.min(1000, (reply['data']['run']['output'] as string).length)).replace('```', '`\u200b`\u200b`');
+                .substring(0, Math.min(1000, (reply['data']['run']['output'] as string).length)).replace(/```/g, '`\u200b`\u200b`');
             const compilerOutput: string = reply['data']['compile'] != undefined ? reply['data']['compile']['output']
-                .substring(0, Math.min(1000, (reply['data']['compile']['output'] as string).length)).replace('```', '`\u200b`\u200b`') : '';
+                .substring(0, Math.min(1000, (reply['data']['compile']['output'] as string).length)).replace(/```/g, '`\u200b`\u200b`') : '';
             const exitCode: number = reply['data']['run']['code'];
 
             return { processOutput, compilerOutput, exitCode, jobId: reply["id"] };
