@@ -28,9 +28,11 @@
         "node-ssh": "^13.1.0",
         "orange-bot-base": "file:local_modules/orange-bot-base",
         "orange-common-lib": "file:local_modules/orange-common-lib",
+        "sha256": "^0.2.0",
         "ws": "^8.16.0"
     },
     "devDependencies": {
-        "@types/jsonwebtoken": "^9.0.5"
+        "@types/jsonwebtoken": "^9.0.5",
+        "@types/sha256": "^0.2.2"
     }
 }
