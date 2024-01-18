@@ -42,7 +42,8 @@ export default function(bot: Bot) {
 
             logger.info("image sent.");
         }
-        catch {
+        catch (err: any) {
+            logger.error(err);
             interaction.editReply("Image generation failed.");
         }
     });
