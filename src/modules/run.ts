@@ -1,4 +1,5 @@
-import { CacheType, ChatInputCommandInteraction, EmbedBuilder, PermissionsBitField as Perms } from "discord.js";
+import { AttachmentBuilder, EmbedBuilder, PermissionsBitField as Perms } from "discord.js";
+import type { CacheType, ChatInputCommandInteraction, InteractionEditReplyOptions } from "discord.js";
 import { getLogger } from "orange-common-lib";
 import type { Bot } from "orange-bot-base";
 import { CommandExecutor } from "./linux-run/commandExecutor.js";
@@ -98,14 +99,44 @@ export default async function(bot: Bot) {
     async function handleLinuxRun(interaction: ChatInputCommandInteraction<CacheType>, command: string) {
         await interaction.deferReply();
 
-        const output = await executor.runCommand(command);
+        let lastMessage = "";
+        let outputBuffer = "";
+        let lastEdit = Date.now();
+        let paused = false;
 
-        if (output.output) {
-            interaction.editReply("```" + output.output.stdout + output.output.stderr + "```");
+        const output = await executor.runCommand(command, onOutput);
+
+        function onOutput(output: string) {
+            outputBuffer += output;
+            if (Date.now() - lastEdit < 1000 || paused) return;
+            
+            if (outputBuffer.length > 1000) {
+                interaction.editReply(formatOutput(lastMessage + "\nThe rest of the output will be sent as an attachment."));
+                paused = true;
+                return;
+            }
+            interaction.editReply(formatOutput(outputBuffer));
+            lastMessage = outputBuffer;
         }
-        else {
-            interaction.editReply("error: " + (output.error as any).message);
+        function formatOutput(output: string, finished: boolean = false, exitCode?: number | string, useFile?: boolean): InteractionEditReplyOptions {
+            return { 
+                embeds: [{
+                    title: `${finished ? "ran" : "running"} command \`${command}\``,
+                    description: "```" + (useFile ? "Command output in attachment." : output) + "```" + (finished ? `\nexit code: ${exitCode}` : ""),
+                    timestamp: new Date().toISOString()
+                }],
+                files: useFile ? [
+                    new AttachmentBuilder(Buffer.from(outputBuffer), { name: "output.txt" })
+                ] : undefined
+            };
         }
+
+        if (outputBuffer.length > 1000) {
+            interaction.editReply(formatOutput(outputBuffer, true, output.output?.code || "unknown", true));
+            return;
+        }
+
+        interaction.editReply(formatOutput(outputBuffer, true, output.output?.code || "unknown", false));
     }
     async function handleCodeRun(interaction: ChatInputCommandInteraction<CacheType>, code: string, language: string) {
         if (!codeRunner.checkLang(language)) {
