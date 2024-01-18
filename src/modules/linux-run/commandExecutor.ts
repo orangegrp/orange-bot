@@ -89,6 +89,8 @@ class CommandExecutor {
         // commands as array 
         const commands = typeof command === "string" ? [command] : command
 
+        commands.splice(0, 0, "trap '' INT;");
+
         commands[commands.length - 1] += "&";
         commands.push("child=$!")
 
