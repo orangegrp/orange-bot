@@ -117,8 +117,12 @@ class CommandExecutor {
 
         // evil bash magic 
         commands.splice(0, 0, `${random_fn}() { local pid=$1; shift; wait $pid && exit $?; }`);
-        commands[1] = `eval "${commands[1].replace(/['"`\\]/g, '\\$&')}" &`; 
-        //commands[commands.length - 1] += "&";
+
+        // ⚠️ NOT SECURE CODE DO NOT USE ⚠️
+        //commands[commands.length - 1] = `eval "${commands[commands.length - 1]}" &`;
+        // 🔒 Secure Version 🔒
+        commands[commands.length - 1] = `eval "${commands[commands.length - 1].replace(/['"`\\]/g, '\\$&')}" &`; 
+
         commands.push("child=$!");
         commands.push(`trap '${random_fn} "$child"; exit' CHLD`);
 
