@@ -105,7 +105,7 @@ class CommandExecutor {
             eval <USER ENTERED SCRIPT HERE> &       // execute the user entered script in the background
             child=$!                                // get the pid of the script
             trap 'jh_000000 "$child"; exit' CHLD    // set the trap (this will be called once the script finishes, is killed, etc)
-            
+
             ...
             // kill stuff that topias wrote
         */
@@ -115,9 +115,9 @@ class CommandExecutor {
         const random_fn = `jh_${crypto.randomBytes(8).toString('hex')}`;
         this.logger.verbose(`Generating secure trap function name = ${random_fn} ...`);
 
-        // evil bash magic
+        // evil bash magic 
         commands.splice(0, 0, `${random_fn}() { local pid=$1; shift; wait $pid && exit $?; }`);
-        commands[1] = `eval "${commands[1].replace(/(['"`\\])/g, '\\$1')}" &`;
+        commands[1] = `eval "${commands[1].replace(/['"`\\]/g, '\\$&')}" &`; 
         //commands[commands.length - 1] += "&";
         commands.push("child=$!");
         commands.push(`trap '${random_fn} "$child"; exit' CHLD`);
