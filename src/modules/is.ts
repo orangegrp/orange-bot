@@ -38,7 +38,7 @@ export default function(bot: Bot) {
 }
 
 function magic(s: string) {
-    // count number if "not" and "never" to see if the result should be inverted
+    // count number of "not" and "never" to see if the result should be inverted
     const invert = s.split(" ").filter(word => word.match(/not|never/)).length % 2 == 1;
     // remove the "not" and "never", sha256 the string
     s = sha256(s.replace(/ ?(?:not|never) ?/g, ""));
