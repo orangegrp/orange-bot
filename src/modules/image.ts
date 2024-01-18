@@ -9,7 +9,9 @@ import { execSync } from 'child_process';
 function isAlpine() {
     try {
         const os_info = execSync('uname -o', { encoding: 'utf-8' });
-        return os_info.trim().toLocaleLowerCase().includes('alpine');
+        const is_alpine = os_info.trim().toLocaleLowerCase().includes('alpine');
+        logger.log(`Alpine detected: ${is_alpine ? 'Yes': 'No'} ${os_info}`);
+        return 
     } catch (error) {
         return false;
     }
