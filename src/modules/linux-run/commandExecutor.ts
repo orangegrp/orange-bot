@@ -88,11 +88,13 @@ class CommandExecutor {
 
         // commands as array 
         const commands = typeof command === "string" ? [command] : command
-
-        commands.splice(0, 0, "trap '' INT;");
-
-        commands[commands.length - 1] += "&";
-        commands.push("child=$!")
+    
+        // evil bash magic
+        commands.splice(0, 0, "job_handler() { local pid=$1; shift; wait $pid && exit $?; }");
+        commands[1] = `eval "${commands[1].replace(/(['"`\\])/g, '\\$1')}" &`;
+        //commands[commands.length - 1] += "&";
+        commands.push("child=$!");
+        commands.push(`trap 'job_handler "$child"; exit' CHLD`);
 
         // commands to Readable
         const stdin = this.readableFromArray(commands);

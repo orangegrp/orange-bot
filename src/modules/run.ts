@@ -131,12 +131,20 @@ export default async function(bot: Bot) {
             };
         }
 
+        let exitCode = "Unknown";
+
+        if (output.output !== undefined) {
+            if (Number(output.output.code) !== Number.NaN) {
+                exitCode = `${output.output.code}`;
+            }
+        }
+
         if (outputBuffer.length > 1000) {
-            interaction.editReply(formatOutput(outputBuffer, true, output.output?.code || "unknown", true));
+            interaction.editReply(formatOutput(outputBuffer, true, exitCode, true));
             return;
         }
 
-        interaction.editReply(formatOutput(outputBuffer, true, output.output?.code || "unknown", false));
+        interaction.editReply(formatOutput(outputBuffer, true, exitCode, false));
     }
     async function handleCodeRun(interaction: ChatInputCommandInteraction<CacheType>, code: string, language: string) {
         if (!codeRunner.checkLang(language)) {
