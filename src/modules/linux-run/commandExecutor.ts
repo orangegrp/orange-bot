@@ -90,6 +90,28 @@ class CommandExecutor {
         // commands as array 
         const commands = typeof command === "string" ? [command] : command
         
+        /// EXPLANATION OF THIS BLACK MAGIC
+        // bash has a 'trap' feature which captures the signals and exit codes of a child script.
+        // so what happens when a script is run is this: (note this example is like a bash file not a one liner that is used here)
+
+        /*
+            // trap function
+            jh_000000() {
+                local pid=$1; shift                 // get the pid of the user entered script
+                wait $pid                           // wait for the script to finish
+                exit $?                             // exit this host script with the same code of the script that was just run
+            }
+
+            eval <USER ENTERED SCRIPT HERE> &       // execute the user entered script in the background
+            child=$!                                // get the pid of the script
+            trap 'jh_000000 "$child"; exit' CHLD    // set the trap (this will be called once the script finishes, is killed, etc)
+            
+            ...
+            // kill stuff that topias wrote
+        */
+
+        // then as a result the call from `timeout -k 2s 6s bash` will be returned.
+
         const random_fn = `jh_${crypto.randomBytes(8).toString('hex')}`;
         this.logger.verbose(`Generating secure trap function name = ${random_fn} ...`);
 
