@@ -48,7 +48,7 @@ export default function (bot: Bot) {
             logger.info("Generating image...");
 
             const image = await nodeHtmlToImage({
-                puppeteerArgs: { executablePath: isAlpine() ? '/usr/bin/chromium-browser' : undefined, args: ['--no-sandbox', '--headless', '--disable-gpu'] },
+                puppeteerArgs: { executablePath: isAlpine() ? '/usr/bin/chromium-browser' : undefined, args: ['--headless', '--disable-gpu'] },
                 html: html,
                 transparent: true, waitUntil: "networkidle0",
             });
