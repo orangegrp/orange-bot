@@ -1,19 +1,19 @@
 import { ArgType, type Command } from "orange-bot-base/dist/command.js";
-import nodeHtmlToImage from 'node-html-to-image';
+import nodeHtmlToImage from "node-html-to-image";
 import type { Bot } from "orange-bot-base";
 import { getLogger } from "orange-common-lib";
-import { AttachmentBuilder } from 'discord.js'
-
-import { execSync } from 'child_process';
+import { AttachmentBuilder } from "discord.js"
+import { execSync } from "child_process";
 
 function isAlpine() {
     try {
-        const os_info = execSync('uname -v', { encoding: 'utf-8' });
-        const is_alpine = os_info.trim().toLocaleLowerCase().includes('alpine');
-        logger.log(`Alpine detected: ${is_alpine ? 'Yes': 'No'} System: ${os_info}`);
+        const os_info = execSync("uname -v", { encoding: "utf-8" });
+        const is_alpine = os_info.trim().toLocaleLowerCase().includes("alpine");
+        logger.verbose(`Alpine detected: ${is_alpine ? "Yes": "No"} System: ${os_info}`);
         return is_alpine;
-    } catch (error) {
-        logger.warn(`Failed to grab system info. Probably not a linux system....`);
+    } catch (error: any) {
+        logger.error(error);
+        logger.warn("Failed to grab system info. Probably not a Linux system.");
         return false;
     }
 }
@@ -21,10 +21,8 @@ function isAlpine() {
 
 const logger = getLogger("image");
 
-
-
-const IMAGE_STYLE_HTML = `<link href='https://fonts.googleapis.com/css2?family=Open+Sans&display=swap' rel='stylesheet'>
-                          <style> body { padding: 5px; height: fit-content; width: fit-content; font-family: 'Open Sans', sans-serif; color: whitesmoke; }</style>`
+const IMAGE_STYLE_HTML = `<link href="https://fonts.googleapis.com/css2?family=Open+Sans&display=swap" rel="stylesheet">
+                          <style> body { padding: 5px; height: fit-content; width: fit-content; font-family: "Open Sans", sans-serif; color: whitesmoke; }</style>`
 
 const command = {
     name: "image",
@@ -48,7 +46,7 @@ export default function (bot: Bot) {
             logger.info("Generating image...");
 
             const image = await nodeHtmlToImage({
-                puppeteerArgs: { executablePath: isAlpine() ? '/usr/bin/chromium-browser' : undefined, args: ['--headless', '--disable-gpu'] },
+                puppeteerArgs: { executablePath: isAlpine() ? "/usr/bin/chromium-browser" : undefined, args: ["--headless", "--disable-gpu"] },
                 html: html,
                 transparent: true, waitUntil: "networkidle0",
             });
