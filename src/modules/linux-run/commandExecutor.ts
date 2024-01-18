@@ -1,7 +1,8 @@
 
 import { NodeSSH, type SSHExecCommandResponse } from "node-ssh"
 import type { Logger } from "orange-common-lib";
-import { Readable } from "stream"
+import { Readable } from "stream";
+import crypto from "crypto";
 
 
 const PROCESS_COMMAND = `sudo -S bash -c 'ps -o exe= -u \${SSH_USER}'`
@@ -88,13 +89,17 @@ class CommandExecutor {
 
         // commands as array 
         const commands = typeof command === "string" ? [command] : command
-    
+        
+        const random_fn = `jh_${crypto.randomBytes(8).toString('hex')}`;
+        this.logger.verbose(`Generating secure trap function name = ${random_fn} ...`);
+
         // evil bash magic
-        commands.splice(0, 0, "job_handler() { local pid=$1; shift; wait $pid && exit $?; }");
+        commands.splice(0, 0, `${random_fn}() { local pid=$1; shift; wait $pid && exit $?; }`);
         commands[1] = `eval "${commands[1].replace(/(['"`\\])/g, '\\$1')}" &`;
         //commands[commands.length - 1] += "&";
         commands.push("child=$!");
-        commands.push(`trap 'job_handler "$child"; exit' CHLD`);
+        commands.push(`trap '${random_fn} "$child"; exit' CHLD`);
+
 
         // commands to Readable
         const stdin = this.readableFromArray(commands);
