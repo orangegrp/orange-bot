@@ -4,7 +4,20 @@ import type { Bot } from "orange-bot-base";
 import { getLogger } from "orange-common-lib";
 import { AttachmentBuilder } from 'discord.js'
 
+import { execSync } from 'child_process';
+
+function isAlpine() {
+    try {
+        const os_info = execSync('uname -o', { encoding: 'utf-8' });
+        return os_info.trim().toLocaleLowerCase().includes('alpine');
+    } catch (error) {
+        return false;
+    }
+}
+
+
 const logger = getLogger("image");
+
 
 
 const IMAGE_STYLE_HTML = `<link href='https://fonts.googleapis.com/css2?family=Open+Sans&display=swap' rel='stylesheet'>
@@ -22,7 +35,7 @@ const command = {
     }
 } satisfies Command;
 
-export default function(bot: Bot) {
+export default function (bot: Bot) {
     bot.commandManager.addCommand(command, async (interaction, args) => {
         const html = IMAGE_STYLE_HTML + args.html;
 
@@ -32,13 +45,14 @@ export default function(bot: Bot) {
             logger.info("Generating image...");
 
             const image = await nodeHtmlToImage({
+                puppeteerArgs: { executablePath: isAlpine() ? '/usr/bin/chromium-browser' : undefined, args: ['--no-sandbox', '--headless', '--disable-gpu'] },
                 html: html,
                 transparent: true, waitUntil: "networkidle0",
             });
 
             if (!(image instanceof Buffer)) throw new Error("idk");
-            
-            await interaction.editReply({files: [new AttachmentBuilder(image, { name: "image.png" })]});
+
+            await interaction.editReply({ files: [new AttachmentBuilder(image, { name: "image.png" })] });
 
             logger.info("image sent.");
         }
