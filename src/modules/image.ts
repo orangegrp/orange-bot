@@ -11,8 +11,9 @@ function isAlpine() {
         const os_info = execSync('uname -o', { encoding: 'utf-8' });
         const is_alpine = os_info.trim().toLocaleLowerCase().includes('alpine');
         logger.log(`Alpine detected: ${is_alpine ? 'Yes': 'No'} ${os_info}`);
-        return 
+        return is_alpine;
     } catch (error) {
+        logger.warn(`Failed to grab system info. Probably not a linux system....`);
         return false;
     }
 }
