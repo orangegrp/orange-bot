@@ -1,13 +1,18 @@
-FROM a4004/orange-bot-drti
-WORKDIR /opt
-COPY . .
+FROM a4004/orange-bot-drti:latest
+
+COPY . /home/container/orange-bot
+WORKDIR /home/container/orange-bot
+
 RUN npm ci
-WORKDIR /opt/local_modules/orange-common-lib
+WORKDIR /home/container/orange-bot/local_modules/orange-common-lib
 RUN npm ci
 RUN npm run build
-WORKDIR /opt/local_modules/orange-bot-base
+WORKDIR /home/container/orange-bot/local_modules/orange-bot-base
 RUN npm ci
 RUN npm run build
-WORKDIR /opt
+WORKDIR /home/container/orange-bot
 RUN npm run build
+
+USER container
+ENV USER=container HOME=/home/container
 CMD npm run prod

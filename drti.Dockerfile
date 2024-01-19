@@ -1,10 +1,10 @@
-FROM ubuntu:22.04
-WORKDIR /opt
-RUN apt update
-RUN apt install -y curl
-RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - 
-RUN apt install -y nodejs
-RUN node -v && npm -v
-RUN apt install -y gconf-service libasound2 libatk1.0-0 libc6 libcairo2 libcups2 libdbus-1-3 libexpat1 libfontconfig1 libgcc1 libgconf-2-4 libgdk-pixbuf2.0-0 libglib2.0-0 libgtk-3-0 libnspr4 libpango-1.0-0 libpangocairo-1.0-0 libstdc++6 libx11-6 libx11-xcb1 libxcb1 libxcomposite1 libxcursor1 libxdamage1 libxext6 libxfixes3 libxi6 libxrandr2 libxrender1 libxss1 libxtst6 ca-certificates fonts-liberation libappindicator1 libnss3 lsb-release xdg-utils wget
+FROM node:20-alpine3.19
+RUN adduser --disabled-password --home /home/container container
+RUN echo https://dl-cdn.alpinelinux.org/alpine/v3.19/main > /etc/apk/repositories
+RUN echo https://dl-cdn.alpinelinux.org/alpine/v3.19/community >> /etc/apk/repositories
+RUN echo @edge https://dl-cdn.alpinelinux.org/alpine/edge/community >> /etc/apk/repositories
+RUN echo @edge https://dl-cdn.alpinelinux.org/alpine/edge/main >> /etc/apk/repositories
+WORKDIR /home/container
+RUN apk add --no-cache --update udev ttf-freefont chromium@edge nss@edge fontconfig pango-dev libxcursor libxdamage cups-libs dbus-libs libxrandr libxscrnsaver libc6-compat
 RUN npm install -g typescript
 CMD ["echo", "orange🟠 Docker Runtime Image (DRTI)"]
