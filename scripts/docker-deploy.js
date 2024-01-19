@@ -18,7 +18,7 @@ const TARGET_IMAGE = process.argv[4] || "a4004/orange-bot";
 const login_cmd = `docker login -u ${process.env.DOCKER_USERNAME} --password-stdin`;
 const buildx_init_cmd = `docker buildx create --use`;
 const buildx_build_cmd = `docker buildx build --platform linux/amd64,linux/arm64 -t ${TARGET_IMAGE}:${DEPLOY_VERSION} -t ${TARGET_IMAGE}:latest -f ${DOCKER_FILE} --push .`;
-const buildx_cleanup = `docker buildx rm && docker buildx rm --all-inactive`;
+const buildx_cleanup = `docker buildx stop && docker buildx rm --all-inactive --force && docker buildx prune --force`;
 
 const start_time = new Date();
 const active_pids = [];
@@ -75,6 +75,7 @@ function runCommand(command, args, options) {
         });
 
         child.on('close', (code) => {
+            active_pids.splice(active_pids.findIndex((pid) => pid === child.pid), 1);
             if (code === 0) {
                 resolve(output);
             } else {

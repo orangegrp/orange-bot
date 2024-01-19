@@ -3,7 +3,7 @@ version: "3.8"
 services:
   orange-bot:
     container_name: orange-bot
-    image: a4004/orange-bot
+    image: a4004/orange-bot:latest
     restart: unless-stopped
     network_mode: "host"
     env_file:
