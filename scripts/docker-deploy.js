@@ -268,7 +268,7 @@ async function step1_purge() {
 
 async function main() {
     console.log("orange🟠 docker-deploy.js Script\n");
-    console.log("⚠️ Steps 1 through 3 are currently DISABLED for orange-bot builds pending potential fixes or deprecation.\n");
+    console.log("⚠️  Steps 1 through 3 are currently DISABLED for orange-bot builds pending potential fixes or deprecation.\n");
 
     if (process.argv.includes("/drti") || process.argv.includes('/d')) {
         console.log("Executing script ...\n");
