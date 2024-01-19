@@ -1,6 +1,6 @@
 FROM a4004/orange-bot-drti:latest
 
-COPY . /home/container/orange-bot
+COPY --chown=container:container . /home/container/orange-bot
 WORKDIR /home/container/orange-bot
 
 RUN npm ci
