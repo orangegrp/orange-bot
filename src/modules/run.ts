@@ -21,7 +21,7 @@ const CODERUNNER_API_KEY = process.env.CODERUNNER_API_KEY;
 
 const runCommand = {
     name: "run",
-    description: "runs a code or a linux command",
+    description: "runs code or a linux command",
     options: {
         linux: {
             description: "runs a linux command",
