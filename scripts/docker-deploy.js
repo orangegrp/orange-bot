@@ -16,14 +16,14 @@ const TARGET_IMAGE = process.argv[4] || "a4004/orange-bot";
 
 const login_cmd = `docker login -u ${process.env.DOCKER_USERNAME} --password-stdin`;
 const buildx_init_cmd = `docker buildx create --use`;
-const buildx_build_cmd = `docker buildx build --platform linux/amd64,linux/arm64 -t a4004/${TARGET_IMAGE}:${DEPLOY_VERSION} -f ${DOCKER_FILE} --push .`;
+const buildx_build_cmd = `docker buildx build --platform linux/amd64,linux/arm64 -t ${TARGET_IMAGE}:${DEPLOY_VERSION} -t ${TARGET_IMAGE}:latest -f ${DOCKER_FILE} --push .`;
 
 function showSpinner(task) {
     const spinner = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
     let i = 0;
   
     return setInterval(() => {
-        process.stdout.write(`\r${task} ${spinner[i]}`);
+        process.stdout.write(`\r${task} `.replace('>', spinner[i]));
         i = (i + 1) % spinner.length;
     }, 100);
 }
@@ -94,8 +94,8 @@ async function main() {
 
     console.log(buildx_build_cmd);
 
-    if (DEPLOY_VERSION === "latest" && process.argv[2] !== "--no-version") {
-        console.warn("⚠️  No version specified for deployment! Use npm run docker-deploy --no-version to continue anyway. Aborting the build operation.");
+    if (DEPLOY_VERSION === "latest") {
+        console.warn("⚠️  No version specified for deployment! Aborting the build operation.");
         process.exit(1);
     }
 
