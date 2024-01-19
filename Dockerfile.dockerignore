@@ -1,0 +1,14 @@
+.env
+.gitconfig
+.gitignore
+.gitmodules
+docker-compose.yaml
+Dockerfile
+drti.Dockerfile
+LICENSE
+README.md
+.github
+.vscode
+dist
+node_modules
+scripts
