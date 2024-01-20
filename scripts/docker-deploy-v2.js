@@ -2,6 +2,8 @@ import "dotenv/config";
 import { spawn } from "child_process";
 import { clearInterval } from "timers";
 import crypto from "crypto";
+import fs from "fs";
+import path from "path";
 
 const buildx_container_name = `orange-${crypto.randomBytes(4).toString('hex')}`;
 const start_time = new Date();
@@ -25,7 +27,7 @@ function unshowSpinner(spinner, status) {
     process.stdout.write(`\r${status}\x1b[K\n`);
 }
 
-function showCommand(step, steps, cmd, args) {
+function showStep(step, steps, cmd, args) {
     console.log(`${step}/${steps} > ${cmd} ${args !== undefined ? args.join(" ") : ""}`);
 }
 
@@ -61,23 +63,42 @@ function runCommand(command, args, options) {
     steps: 7,
     commands: [
         { name: "", args: [] },
+    ],
+    functions: [
+        { name: "", func: () => {} },
     ]
     description: "",
-    input: undefined
+    input: "",
+    cwd: ""
 }
 */
 
 async function executeStep(stage) {
-    for (let command of stage.commands) {
-        showCommand(stage.step, stage.steps, command.name, command.args);
+    if (stage.commands) {
+        for (let command of stage.commands) {
+            showStep(stage.step, stage.steps, command.name, command.args);
+        }
+    }
+    if (stage.functions) {
+        for (let _function of stage.functions) {
+            showStep(stage.step, stage.steps, _function.name);
+        }
     }
 
     task = showSpinner(`${stage.step}/${stage.steps} > ${stage.description}`);
 
     try {
-        for (let command of stage.commands) {
-            await runCommand(command.name, command.args, { stdio: 'pipe', shell: true, input: stage.input });
+        if (stage.commands) {
+            for (let command of stage.commands) {
+                await runCommand(command.name, command.args, { stdio: 'pipe', shell: true, input: stage.input, cwd: stage.cwd });
+            }
         }
+        if (stage.functions) {
+            for (let _function of stage.functions) {
+                await _function.func();
+            }
+        }
+
         unshowSpinner(task, `✅ ${stage.description} completed!`);
         return true;
     } catch (err) {
@@ -167,7 +188,7 @@ async function buildx_init(step, steps) {
             { name: name, args: args },
         ],
         description: "Initialise Docker buildx environment",
-        input: undefined
+        
     });
 }
 
@@ -191,7 +212,7 @@ async function buildx_build(step, steps, target_img, version, dockerfile) {
             { name: name, args: args },
         ],
         description: "Run Docker buildx build for multiarch",
-        input: undefined
+        
     });
 }
 
@@ -223,8 +244,167 @@ async function buildx_cleanup(step, steps) {
             { name: name, args: args_3 },
         ],
         description: "Cleanup Docker buildx environment",
-        input: undefined
+        
     });
+}
+
+async function purge_dockerDir(step, steps, dockerDir) {
+    const func1 = async () => {
+        fs.rmSync(dockerDir, { recursive: true, force: true });
+    }
+    const func2 = async () => {
+        if (!fs.existsSync(dockerDir)) {
+            fs.mkdirSync(dockerDir);
+        }
+    }
+
+    return await executeStep({
+        step: step,
+        steps: steps,
+        functions: [
+            { name: `DELETE "${dockerDir}"`, func: func1 },
+            { name: `CREATE DIR "${dockerDir}"`, func: func2 },
+        ], 
+        description: "Purge docker output directory",
+    });
+}
+
+async function copy_localmodules(step, steps, modulesDir, dockerDir) {
+    const func1 = async () => {
+        const target = path.resolve(dockerDir, "local_modules");
+        if (!fs.existsSync(target)) {
+            fs.mkdirSync(target);
+        }
+        fs.cpSync(modulesDir, target, { recursive: true, force: true });
+    }
+    const func2 = async () => {
+        const target = path.join(dockerDir, "local_modules", "orange-common-lib", "dist");
+        if (fs.existsSync(target)) {
+            fs.rmSync(target, { recursive: true, force: true });   
+        }
+    }
+    const func3 = async () => {
+        const target = path.join(dockerDir, "local_modules", "orange-bot-base", "dist");
+        if (fs.existsSync(target)) {
+            fs.rmSync(target, { recursive: true, force: true });   
+        }
+    }
+    const func4 = async () => {
+        const target = path.join(dockerDir, "local_modules", "orange-common-lib", "tsconfig.buildinfo")
+        if (fs.existsSync(target)) {
+            fs.rmSync(target, { force: true });
+        }
+    }
+    const func5 = async () => {
+        const target = path.join(dockerDir, "local_modules", "orange-bot-base", "tsconfig.buildinfo")
+        if (fs.existsSync(target)) {
+            fs.rmSync(target, { force: true });
+        }
+    }
+
+    return await executeStep({
+        step: step,
+        steps: steps,
+        functions: [
+            { name: `COPY local_modules INTO "${dockerDir}"`, func: func1 },
+            { name: `DELETE dist FOR orange-common-lib`, func: func2 },
+            { name: `DELETE dist FOR orange-bot-base`, func: func3 },
+            { name: `DELETE tsconfig.buildinfo FOR orange-common-lib`, func: func4 },
+            { name: `DELETE tsconfig.buildinfo FOR orange-bot-base`, func: func5 },
+        ], 
+        description: "Copy and clean local modules",
+    });
+}
+
+async function copy_rootfiles(step, steps, srcDir, rootFiles, dockerDir) {
+    const func1 = async () => {
+        const target = path.resolve(dockerDir, "src");
+        if (!fs.existsSync(target)) {
+            fs.mkdirSync(target);
+        }
+        fs.cpSync(srcDir, target, { recursive: true, force: true });
+    }
+    const func2 = async () => {
+        for (const file of rootFiles) {
+            fs.copyFileSync(file, path.join(dockerDir, path.basename(file)));
+        }
+    }
+
+    return await executeStep({
+        step: step,
+        steps: steps,
+        functions: [
+            { name: `COPY "${srcDir}" INTO "${dockerDir}"`, func: func1 },
+            { name: `COPY "${rootFiles.join(", ")}" INTO "${dockerDir}"`, func: func2 },
+        ],
+        description: "Copy project files",
+    });
+}
+
+async function install_packages(step, steps, dockerDir) {
+    const name = "npm";
+    const args = [
+        "ci"
+    ];
+
+    return await executeStep({
+        step: step,
+        steps: steps,
+        commands: [
+            { name: name, args: args },
+        ],
+        description: "Install packages",
+        cwd: dockerDir
+    });
+}
+
+async function build_project(step, steps, dockerDir) {
+    const name = "tsc";
+    const args = [
+        "--sourceMap false",
+        "--removeComments",
+        "--downlevelIteration",
+        "--target es2016",
+        "--esModuleInterop",
+        "--module es2022",
+        "--moduleResolution node",
+        "--project tsconfig.json",
+    ];
+
+    const result_1 = await executeStep({
+        step: step,
+        steps: steps,
+        commands: [
+            { name: name, args: args },
+            { name: "npm", args: ["dedup"] },
+        ],
+        description: "Build project 1/3 (orange-common-lib)",
+        cwd: path.join(dockerDir, "local_modules", "orange-common-lib"),
+    });
+
+    const result_2 = await executeStep({
+        step: step,
+        steps: steps,
+        commands: [
+            { name: name, args: args },
+            { name: "npm", args: ["dedup"] },
+        ],
+        description: "Build project 2/3 (orange-bot-base)",
+        cwd: path.join(dockerDir, "local_modules", "orange-bot-base"),
+    });
+
+    const result_3 = await executeStep({
+        step: step,
+        steps: steps,
+        commands: [
+            { name: name, args: args },
+            { name: "npm", args: ["dedup"] },
+        ],
+        description: "Build project 3/3 (orange-bot)",
+        cwd: dockerDir
+    });
+
+    return result_1 && result_2 && result_3;
 }
 
 async function main() {
@@ -232,33 +412,60 @@ async function main() {
 
     console.log("Executing script ...\n");
 
-    let DEPLOY_VERSION = "";
+    let DEPLOY_VERSION = process.argv[3] || "latest";
     let DOCKER_FILE = "";
     let TARGET_IMAGE = "";
 
     if (process.argv.includes("/drti") || process.argv.includes('/d')) {
         DOCKER_FILE = "./drti.Dockerfile";
         TARGET_IMAGE = "a4004/orange-bot-drti";
+
+        if (!await docker_login(1, 4, process.env.DOCKER_USERNAME, process.env.DOCKER_PASSWORD))
+            return;
+        if (!await buildx_init(2, 4))
+            return;
+        if (!await buildx_build(3, 4, TARGET_IMAGE, DEPLOY_VERSION, DOCKER_FILE))
+            return;
+        if (!await buildx_cleanup(4, 4))
+            return;
     }
     else if (process.argv.includes("/bot") || process.argv.includes('/b')) {
         DOCKER_FILE = "./Dockerfile";
-        TARGET_IMAGE = "a4004/orange-bot";     
+        TARGET_IMAGE = "a4004/orange-bot";    
+
+        const DOCKER_DIR = path.resolve("./docker");
+        const LMODULES_DIR = path.resolve("./local_modules");
+        const SRC_DIR = path.resolve("./src");
+        const ROOT_FILES = [
+            path.resolve("./tsconfig.json"),
+            path.resolve("./package.json"),
+            path.resolve("./package-lock.json"),
+            path.resolve("./entrypoint.sh")
+        ];
+
+        if (!await purge_dockerDir(1, 9, DOCKER_DIR))
+            return;
+        if (!await copy_localmodules(2, 9, LMODULES_DIR, DOCKER_DIR))
+            return;
+        if (!await copy_rootfiles(3, 9, SRC_DIR, ROOT_FILES, DOCKER_DIR))
+            return;
+        if (!await install_packages(4, 9, DOCKER_DIR))
+            return;
+        if (!await build_project(5, 9, DOCKER_DIR))
+            return;
+        if (!await docker_login(6, 9, process.env.DOCKER_USERNAME, process.env.DOCKER_PASSWORD))
+            return;
+        if (!await buildx_init(7, 9))
+            return;
+        if (!await buildx_build(8, 9, TARGET_IMAGE, DEPLOY_VERSION, DOCKER_FILE))
+            return;
+        if (!await buildx_cleanup(9, 9))
+            return;
     } 
     else {
         console.log("Usage: npm run docker-deploy </bot | /b | /drti | /d> <version>");
         process.exit(0);
     }
-
-    DEPLOY_VERSION = process.argv[3] || "latest";
-
-    if (!await docker_login(1, 4, process.env.DOCKER_USERNAME, process.env.DOCKER_PASSWORD))
-        return;
-    if (!await buildx_init(2, 4))
-        return;
-    if (!await buildx_build(3, 4, TARGET_IMAGE, DEPLOY_VERSION, DOCKER_FILE))
-        return;
-    if (!await buildx_cleanup(4, 4))
-        return;
 
     const end_time = new Date();
     const delta = end_time - start_time;
