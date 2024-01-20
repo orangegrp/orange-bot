@@ -5,7 +5,7 @@
     "main": "dist/index.js",
     "type": "module",
     "scripts": {
-        "docker-deploy": "node scripts/docker-deploy-v1.js",
+        "docker-deploy": "node scripts/docker-deploy-v2.js",
         "setup": "git submodule update --init && npm install && cd local_modules/orange-common-lib && npm install && cd ../orange-bot-base && npm install",
         "sync-modules-gh-actions": "git submodule sync --recursive && git -c protocol.version=2 submodule update --init --force --depth=1 --recursive",
         "build": "cd local_modules/orange-common-lib && tsc && cd ../orange-bot-base && tsc && cd ../.. && tsc",

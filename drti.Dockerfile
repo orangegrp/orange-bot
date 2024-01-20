@@ -7,8 +7,16 @@ RUN echo https://dl-cdn.alpinelinux.org/alpine/v3.19/community >> /etc/apk/repos
 RUN echo @edge https://dl-cdn.alpinelinux.org/alpine/edge/community >> /etc/apk/repositories
 RUN echo @edge https://dl-cdn.alpinelinux.org/alpine/edge/main >> /etc/apk/repositories
 
-RUN apk add --no-cache --update bash udev ttf-freefont chromium@edge nss@edge
+RUN apk add --no-cache --update bash chromium@edge nss@edge wget
 
-RUN npm install -g typescript
+ARG TARGETPLATFORM
+RUN ["/bin/bash", "-c", "if [ \"$TARGETPLATFORM\" = \"linux/amd64\" ]; then \
+      wget https://github.com/Yelp/dumb-init/releases/download/v1.2.5/dumb-init_1.2.5_x86_64 -O /usr/local/bin/dumb-init; \
+    elif [ \"$TARGETPLATFORM\" = \"linux/arm64\" ]; then \
+      wget https://github.com/Yelp/dumb-init/releases/download/v1.2.5/dumb-init_1.2.5_aarch64 -O /usr/local/bin/dumb-init; \
+    fi"]
 
-CMD ["echo", "orange🟠 Docker Runtime Image (DRTI)"]
+RUN rm -rf /var/cache/apk/* /tmp/*
+RUN chmod +x /usr/local/bin/dumb-init
+
+ENTRYPOINT ["dumb-init", "--"]
