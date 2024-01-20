@@ -91,7 +91,6 @@ async function executeStep(stage) {
 
 async function sigintHandler() {
     clearInterval(task);
-    showCommand(0, 0, )
     task = showSpinner("❗> Stopping builds");
 
     try {      
