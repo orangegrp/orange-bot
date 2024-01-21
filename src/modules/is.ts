@@ -4,11 +4,11 @@ import sha256 from "sha256";
 
 const command = {
     name: "is",
-    description: "answers if something is",
+    description: "Answers if something is",
     args: {
         question: {
             type: ArgType.STRING,
-            description: "question to answer yes or no to",
+            description: "Question to answer yes or no to",
             required: true
         }
     }
@@ -16,11 +16,11 @@ const command = {
 
 const responses = [
     "**Absolutely not.**",
-    "No.",
+    "**No.**",
+    "**Maybe.**",
     "**Absolutely.**",
-    "Yes."
+    "**Yes.**"
 ];
-
 
 export default function(bot: Bot) {
     bot.addCommand(command, (interaction, args) => {
@@ -28,7 +28,7 @@ export default function(bot: Bot) {
             .toLowerCase()         // lowercase
             .trim()                // remove leading or trailing spaces
             .replace(/ +/g, " ")   // remove duplicate spaces
-            .replace(/`/g, "\`")   // escape backtick
+            .replace(/`/g, "\u1fef")   // escape backtick
             .replace(/is +/g, ""); // make sure question doesn't start with "is" (duplicate is)
 
         const response = `<@!${interaction.user.id}> asked: \`is ${question}\`\nAnswer: ${magic(question)}`;

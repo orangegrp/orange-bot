@@ -5,6 +5,7 @@ import type { Bot } from "orange-bot-base";
 import { CommandExecutor } from "./linux-run/commandExecutor.js";
 import { ArgType, type Command } from "orange-bot-base/dist/command.js";
 import { CodeRunner } from "./codeRunner/codeRunner.js";
+import { languages } from "./codeRunner/languages.js";
 
 const logger = getLogger("linux");
 
@@ -21,29 +22,29 @@ const CODERUNNER_API_KEY = process.env.CODERUNNER_API_KEY;
 
 const runCommand = {
     name: "run",
-    description: "runs code or a linux command",
+    description: "Execute code or a Linux command",
     options: {
         linux: {
-            description: "runs a linux command",
+            description: "Run a Linux command",
             args: {
                 command: {
                     type: ArgType.STRING,
-                    description: "command to run",
+                    description: "Command to run",
                     required: true
                 }
             }
         },
         code: {
-            description: "runs code",
+            description: "Execute code",
             args: {
                 code: {
                     type: ArgType.STRING,
-                    description: "code to run",
+                    description: "Code to execute",
                     required: true
                 },
                 language: {
                     type: ArgType.STRING,
-                    description: "language of the code",
+                    description: "Programming language",
                     required: true
                 }
             }
@@ -104,6 +105,8 @@ export default async function(bot: Bot) {
         let lastEdit = Date.now();
         let paused = false;
 
+        const start_time = Date.now();
+
         const output = await executor.runCommand(command, onOutput);
 
         function onOutput(output: string) {
@@ -111,7 +114,7 @@ export default async function(bot: Bot) {
             if (Date.now() - lastEdit < 1000 || paused) return;
             
             if (outputBuffer.length > 1000) {
-                interaction.editReply(formatOutput(lastMessage + "\nThe rest of the output will be sent as an attachment."));
+                interaction.editReply(formatOutput(lastMessage + "\nCommand output is too long. The rest of the output will be sent as an attachment."));
                 paused = true;
                 return;
             }
@@ -119,10 +122,13 @@ export default async function(bot: Bot) {
             lastMessage = outputBuffer;
         }
         function formatOutput(output: string, finished: boolean = false, exitCode?: number | string, useFile?: boolean): InteractionEditReplyOptions {
+            const run_time = ((Date.now() - start_time) / 1000).toFixed(1);
+
             return { 
                 embeds: [{
-                    title: `${finished ? "ran" : "running"} command \`${command}\``,
-                    description: "```" + (useFile ? "Command output in attachment." : output) + "```" + (finished ? `\nexit code: ${exitCode}` : ""),
+                    title: `${finished ? "Finished running" : "Running"} command \`${command}\` (${run_time}s).`,
+                    description: "```" + (useFile ? "Command output in attachment." : output) + "```" + (finished ? `\nExit code: ${exitCode}` : ""),
+                    footer: { text: `Powered by Topias Linux-Run` },
                     timestamp: new Date().toISOString()
                 }],
                 files: useFile ? [
@@ -148,20 +154,24 @@ export default async function(bot: Bot) {
     }
     async function handleCodeRun(interaction: ChatInputCommandInteraction<CacheType>, code: string, language: string) {
         if (!codeRunner.checkLang(language)) {
-            await interaction.reply(`not a recognized language: "${language}"`);
+            await interaction.reply(`The language you specified, "${language}", is not supported. Supported languages: ${languages.map(l => `\`${l}\``).join(", ")}`);
             return;
         }
 
         await interaction.deferReply();
+
+        const start_time = Date.now();
         
         const result = await codeRunner.runCode(code, language);
 
+        const run_time = ((Date.now() - start_time) / 1000).toFixed(1);
+
         const embed = new EmbedBuilder({
-            title: `:computer: Job completed.`,
-            description: result.processOutput.length > 0 ? `\`\`\`${result.processOutput}\`\`\`` : 'No output received.',
-            author: { name: `Job ID: ${result.jobId}` },
-            footer: { text: `Job owner: ${interaction.user.username}` },
-            timestamp: Date.now(),
+            title: `Executed \`${language}\` code (${run_time}s).`,
+            author: { name: `Run ID: ${result.jobId}` },
+            description: (result.processOutput.length > 0 ? `\`\`\`${result.processOutput}\`\`\`` : 'No output received.') + `\nExit code: ${result.exitCode}`,
+            footer: { text: `Powered by orange Code Runner Server API v1` },
+            timestamp: new Date().toISOString(),
         });
 
         await interaction.editReply({ embeds: [embed] });

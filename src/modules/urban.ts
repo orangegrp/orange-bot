@@ -1,13 +1,14 @@
+import { EmbedBuilder } from "discord.js";
 import type { Bot } from "orange-bot-base";
 import { ArgType, type Command } from "orange-bot-base/dist/command.js";
 
 const command = {
     name: "urban",
-    description: "get urban dictionary definition for a word",
+    description: "Get Urban dictionary definition for a word",
     args: {
         word: {
             type: ArgType.STRING,
-            description: "word (or phrase) to define"
+            description: "Word or phrase"
         }
     }
 } as const satisfies Command;
@@ -38,8 +39,8 @@ export default function(bot: Bot) {
 
         if (!body.list[0]) {
             interaction.reply({embeds: [{
-                title: "urban dictionary",
-                description: "definition "
+                title: `Urban dictionary - "${args.word}"`,
+                description: "No definition found for that term. Try another term, or check the spelling of the term you entered."
             }]});
             return;
         }
@@ -48,7 +49,7 @@ export default function(bot: Bot) {
 
         definition.definition = definition.definition?.replace(/\[([\w\s]+)\]/g, (_, word: string) => `[${word}](http://${word.replace(/\s/g, "-")}.urbanup.com/)`);
         
-        interaction.reply({embeds: [{
+        const embed = new EmbedBuilder({
             title: "Urban dictionary - " + definition.word,
             url: definition.permalink,
             description: definition.definition,
@@ -56,6 +57,16 @@ export default function(bot: Bot) {
             footer: definition.author ? {
                 text: definition.author,
             } : undefined
-        }]});
+        }); 
+
+        if (definition.example !== undefined && definition.example.length > 0) {
+            embed.addFields( { name: "Example", value: definition.example.replace(/\[([\w\s]+)\]/g, (_, word: string) => `[${word}](http://${word.replace(/\s/g, "-")}.urbanup.com/)`) } );
+        }
+
+        if (definition.thumbs_up && definition.thumbs_down) {
+            embed.addFields({ name: 'Rating', value: `:thumbsup: ${definition.thumbs_up} :thumbsdown: ${definition.thumbs_down}`} );
+        }
+
+        interaction.reply({embeds: [embed]});
     });
 }

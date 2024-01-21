@@ -26,12 +26,12 @@ const IMAGE_STYLE_HTML = `<link href="https://fonts.googleapis.com/css2?family=O
 
 const command = {
     name: "image",
-    description: "renders html to an image",
+    description: "Renders HTML to an image using Chromium",
     args: {
         html: {
             type: ArgType.STRING,
             required: true,
-            description: "html to render"
+            description: "HTML to render"
         }
     }
 } satisfies Command;
