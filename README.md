@@ -6,4 +6,3 @@ Head over to the [meta repo](https://github.com/Order-332/orange) for help on ge
 
 # orange🟠 Bot
 orange🟠 Discord Bot
-
