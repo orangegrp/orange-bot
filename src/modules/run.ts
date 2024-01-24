@@ -1,9 +1,9 @@
 import { AttachmentBuilder, EmbedBuilder, PermissionsBitField as Perms } from "discord.js";
 import type { CacheType, ChatInputCommandInteraction, InteractionEditReplyOptions } from "discord.js";
 import { getLogger } from "orange-common-lib";
-import type { Bot } from "orange-bot-base";
+import type { Bot, Command } from "orange-bot-base";
 import { CommandExecutor } from "./linux-run/commandExecutor.js";
-import { ArgType, type Command } from "orange-bot-base/dist/command.js";
+import { ArgType } from "orange-bot-base";
 import { CodeRunner } from "./codeRunner/codeRunner.js";
 import { languages } from "./codeRunner/languages.js";
 

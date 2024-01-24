@@ -1,6 +1,6 @@
-import { ArgType, type Command } from "orange-bot-base/dist/command.js";
+import { ArgType } from "orange-bot-base";
 import nodeHtmlToImage from "node-html-to-image";
-import type { Bot } from "orange-bot-base";
+import type { Bot, Command } from "orange-bot-base";
 import { getLogger } from "orange-common-lib";
 import { AttachmentBuilder } from "discord.js"
 import { execSync } from "child_process";

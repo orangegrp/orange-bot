@@ -1,5 +1,5 @@
-import type { Bot } from "orange-bot-base";
-import { ArgType, type Command } from "orange-bot-base/dist/command.js";
+import type { Bot, Command } from "orange-bot-base";
+import { ArgType } from "orange-bot-base";
 import sha256 from "sha256";
 
 const command = {

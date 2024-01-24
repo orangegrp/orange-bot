@@ -1,6 +1,6 @@
 import { EmbedBuilder } from "discord.js";
-import type { Bot } from "orange-bot-base";
-import { ArgType, type Command } from "orange-bot-base/dist/command.js";
+import type { Bot, Command } from "orange-bot-base";
+import { ArgType } from "orange-bot-base";
 
 const command = {
     name: "urban",
