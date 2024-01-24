@@ -29,11 +29,12 @@ export default function(bot: Bot) {
             .trim()                // remove leading or trailing spaces
             .replace(/ +/g, " ")   // remove duplicate spaces
             .replace(/`/g, "\u1fef")   // escape backtick
-            .replace(/is +/g, ""); // make sure question doesn't start with "is" (duplicate is)
+            .replace(/^is +/, ""); // make sure question doesn't start with "is" (duplicate is)
         
         const does = question.startsWith("does");
+        question.replace(/^does +/, "");
 
-        const response = `<@!${interaction.user.id}> asked: \`${does ? "" : "is"} ${question}\`\nAnswer: ${magic(question)}`;
+        const response = `<@!${interaction.user.id}> asked: \`${does ? "does" : "is"} ${question}\`\nAnswer: ${magic(question)}`;
 
         interaction.reply({ embeds: [{ description: response }], allowedMentions: { users: [], roles: [] } });
     })
