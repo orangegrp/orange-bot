@@ -1,7 +1,7 @@
-import { ArgType, type Command } from "orange-bot-base/dist/command.js";
+import { ArgType } from "orange-bot-base";
 import { EmbedBuilder, InteractionEditReplyOptions, InteractionReplyOptions } from "discord.js";
 import { decode } from "html-entities";
-import type { Bot } from "orange-bot-base";
+import type { Bot, Command } from "orange-bot-base";
 import { getLogger } from "orange-common-lib";
 
 function removeHtmlTagsAndDecode(str: string | undefined, limitLength: number = -1): string | undefined {
