@@ -14,7 +14,7 @@ const command = {
 
 export default function(bot: Bot) {
     bot.commandManager.addCommand(command, (interaction, args) => {
-        interaction.reply({ content: pp(args.person?.id), allowedMentions: { users: [] } });
+        bot.noPingReply(interaction, { content: pp(args.person?.id || interaction.user.id) });
     });
 }
 
