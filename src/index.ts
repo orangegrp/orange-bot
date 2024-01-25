@@ -41,7 +41,7 @@ MessagePayload.create = (target, options) => {
                 //@ts-ignore
                 embed.data.color = 0xff6723;
             }
-            else if ("title" in embed || "description" in embed && !embed.color) {
+            else if (("title" in embed || "description" in embed) && !embed.color) {
                 embed.color = 0xff6723;
             }
         }
