@@ -7,7 +7,7 @@ import { ArgType } from "orange-bot-base";
 import { CodeRunner } from "./codeRunner/codeRunner.js";
 import { languages } from "./codeRunner/languages.js";
 
-const logger = getLogger("linux");
+const logger = getLogger("/run");
 
 
 const SSH_HOST = process.env.SSH_HOST || "";
@@ -36,16 +36,36 @@ const runCommand = {
         },
         code: {
             description: "Execute code",
-            args: {
-                code: {
-                    type: ArgType.STRING,
-                    description: "Code to execute",
-                    required: true
+            options: {
+                file: {
+                    description: "Execute code from an attachment",
+                    args: {
+                        file: {
+                            type: ArgType.ATTACHMENT,
+                            description: "Code to execute",
+                            required: true
+                        },
+                        language: {
+                            type: ArgType.STRING,
+                            description: "Programming language",
+                            required: true
+                        }
+                    }
                 },
-                language: {
-                    type: ArgType.STRING,
-                    description: "Programming language",
-                    required: true
+                string: {
+                    description: "Execute code from a string",
+                    args: {
+                        code: {
+                            type: ArgType.STRING,
+                            description: "Code to execute",
+                            required: true
+                        },
+                        language: {
+                            type: ArgType.STRING,
+                            description: "Programming language",
+                            required: true
+                        }
+                    }
                 }
             }
         }
@@ -89,11 +109,40 @@ export default async function(bot: Bot) {
     });
 
     bot.addCommand(runCommand, async (interaction, args) => {
+        console.log(args);
         if (args.subCommand == "linux") {
             await handleLinuxRun(interaction, args.command);
         }
         else {
-            await handleCodeRun(interaction, args.code, args.language);
+            if (args.subCommand == "file") {
+                const url = args.file.attachment?.url;
+                if (!url) {
+                    await bot.replyWithError(interaction, "Attachment not found.", logger);
+                    return;
+                }
+
+                try {
+                    const res = await fetch(url);
+                    if (!res.ok) {
+                        await bot.replyWithError(interaction, `Error fetching attachment (${res.status}).`, logger);
+                        return;
+                    }
+                    var code = await res.text();
+                }
+                catch (e: any) {
+                    await bot.replyWithError(interaction, `Error fetching attachment.`, logger);
+                    logger.error("args:");
+                    logger.object(args);
+                    logger.error("error:");
+                    logger.error(e);
+                    return;
+                }
+
+                await handleCodeRun(interaction, code, args.language);
+            }
+            else {
+                await handleCodeRun(interaction, args.code, args.language);
+            }
         }
     });
 
