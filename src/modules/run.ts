@@ -109,7 +109,6 @@ export default async function(bot: Bot) {
     });
 
     bot.addCommand(runCommand, async (interaction, args) => {
-        console.log(args);
         if (args.subCommand == "linux") {
             await handleLinuxRun(interaction, args.command);
         }
