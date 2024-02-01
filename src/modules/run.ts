@@ -175,7 +175,7 @@ export default async function(bot: Bot) {
             return { 
                 embeds: [{
                     title: `${finished ? "Finished running" : "Running"} command \`${command}\` (${run_time}s).`,
-                    description: "```" + (useFile ? "Command output in attachment." : output) + "```" + (finished ? `\nExit code: ${exitCode}` : ""),
+                    description: (useFile ? "Command output in attachment." : output.length > 0 ? `\`\`\`${output}\`\`\`` : "Command output is empty.") + (finished ? `\nExit code: ${exitCode}` : ""),
                     footer: { text: `Powered by Topias Linux-Run` },
                     timestamp: new Date().toISOString()
                 }],
