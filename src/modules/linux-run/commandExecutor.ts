@@ -117,19 +117,16 @@ class CommandExecutor {
 
         // evil bash magic 
         commands.splice(0, 0, `${random_fn}() { local ec=$?; local pid=$1; shift; wait $pid && exit $ec; }`);
-
-        // ⚠️ NOT SECURE CODE DO NOT USE ⚠️
-        //commands[commands.length - 1] = `eval "${commands[commands.length - 1]}" &`;
-        // 🔒 Secure Version 🔒
         commands[commands.length - 1] = `eval "trap '' CHLD; ${commands[commands.length - 1].replace(/['"`\\]/g, '\\$&')}" &`; 
 
         commands.push("child=$!");
         commands.push(`trap '${random_fn} "$child"; exit' CHLD`);
+
         // commands to Readable
         const stdin = this.readableFromArray(commands);
 
         // 5 second timeout to kill the child process
-        setTimeout(() => {
+        setTimeout(() => {            
             stdin.push("{ kill -s SIGINT $child; kill -s SIGINT $$; } 2>/dev/null\n");
         }, 5000);
 

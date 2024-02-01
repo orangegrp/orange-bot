@@ -36,37 +36,33 @@ const runCommand = {
         },
         code: {
             description: "Execute code",
-            options: {
-                file: {
-                    description: "Execute code from an attachment",
-                    args: {
-                        file: {
-                            type: ArgType.ATTACHMENT,
-                            description: "Code to execute",
-                            required: true
-                        },
-                        language: {
-                            type: ArgType.STRING,
-                            description: "Programming language",
-                            required: true
-                        }
-                    }
+            args: {
+                language: {
+                    type: ArgType.STRING,
+                    description: "Programming language",
+                    required: true
+                },    
+                snippet: {
+                    type: ArgType.STRING,
+                    description: "Code snippet to execute",
+                    required: false
                 },
-                string: {
-                    description: "Execute code from a string",
-                    args: {
-                        code: {
-                            type: ArgType.STRING,
-                            description: "Code to execute",
-                            required: true
-                        },
-                        language: {
-                            type: ArgType.STRING,
-                            description: "Programming language",
-                            required: true
-                        }
-                    }
-                }
+                file: {
+                    type: ArgType.ATTACHMENT,
+                    description: "Source file to execute",
+                    required: false
+                },
+                method: {
+                    type: ArgType.STRING,
+                    description: "Source method (Default: Snippet)",
+                    required: false,
+                    choices: [
+                        { name: "Snippet", value: "snippet" },
+                        { name: "File", value: "file" },
+                        { name: "File + Snippet", value: "file+snippet" },
+                        { name: "Snippet + File", value: "snippet+file" }
+                    ]
+                },
             }
         }
     }
@@ -113,7 +109,10 @@ export default async function(bot: Bot) {
             await handleLinuxRun(interaction, args.command);
         }
         else {
-            if (args.subCommand == "file") {
+            let source_code = "";
+            let file_content = "";
+
+            if (args.file) {
                 const url = args.file.attachment?.url;
                 if (!url) {
                     await bot.replyWithError(interaction, "Attachment not found.", logger);
@@ -126,7 +125,8 @@ export default async function(bot: Bot) {
                         await bot.replyWithError(interaction, `Error fetching attachment (${res.status}).`, logger);
                         return;
                     }
-                    var code = await res.text();
+
+                    file_content = await res.text();
                 }
                 catch (e: any) {
                     await bot.replyWithError(interaction, `Error fetching attachment.`, logger);
@@ -136,12 +136,29 @@ export default async function(bot: Bot) {
                     logger.error(e);
                     return;
                 }
+            }
 
-                await handleCodeRun(interaction, code, args.language);
+            switch (args.method) {
+                case "file+snippet":
+                    source_code += file_content;
+                    source_code += "\n";
+                    source_code += args.snippet;
+                    break;
+                case "snippet+file":
+                    source_code += args.snippet;
+                    source_code += "\n";
+                    source_code += file_content;
+                    break;
+                case "file":
+                    source_code += file_content;
+                    break;
+                default:
+                case "snippet":
+                    source_code += args.snippet;
+                    break;
             }
-            else {
-                await handleCodeRun(interaction, args.code, args.language);
-            }
+
+            await handleCodeRun(interaction, source_code, args.language);
         }
     });
 
