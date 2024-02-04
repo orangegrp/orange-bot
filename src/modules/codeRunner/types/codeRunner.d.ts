@@ -10,4 +10,28 @@ type CodeRunnerJobResult = {
     jobId: string
 }
 
-export { CodeRunnerOptions, CodeRunnerJobResult };
+type PistonReply = {
+    language: string,
+    version: string,
+    run: {
+        stdout: string,
+        stderr: string,
+        output: string,
+        code: number,
+        signal: number,
+    },
+    compile?: {
+        stdout: string,
+        stderr: string,
+        output: string,
+        code: number,
+        signal: number
+    }
+};
+
+type CrsReply = {
+    id: string,
+    data: PistonReply
+};
+
+export { CodeRunnerOptions, CodeRunnerJobResult, CrsReply, PistonReply };

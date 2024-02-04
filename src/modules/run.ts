@@ -60,7 +60,7 @@ const runCommand = {
                         { name: "Snippet", value: "snippet" },
                         { name: "File", value: "file" },
                         { name: "File + Snippet", value: "file+snippet" },
-                        { name: "Snippet + File", value: "snippet+file" }
+                        { name: "Snippet + File (Default)", value: "snippet+file" }
                     ]
                 },
                 stdin: {
@@ -150,21 +150,37 @@ export default async function(bot: Bot) {
 
             switch (args.method) {
                 case "file+snippet":
-                    source_code += file_content;
+                    if (file_content)
+                        source_code += file_content;
                     source_code += "\n";
-                    source_code += args.snippet;
+                    if (args.snippet)
+                        source_code += args.snippet;
                     break;
                 case "snippet+file":
-                    source_code += args.snippet;
+                    if (args.snippet)
+                        source_code += args.snippet;
                     source_code += "\n";
-                    source_code += file_content;
+                    if (file_content)
+                        source_code += file_content;
                     break;
                 case "file":
-                    source_code += file_content;
+                    if (file_content)
+                        source_code += file_content;
+                    break;
+                case "snippet":
+                    if (args.snippet)
+                        source_code += args.snippet;
                     break;
                 default:
-                case "snippet":
-                    source_code += args.snippet;
+                    if (args.snippet && file_content) {
+                        source_code += args.snippet;
+                        source_code += "\n";
+                        source_code += file_content;
+                    } else if (args.snippet) {
+                        source_code += args.snippet;
+                    } else if (file_content) {
+                        source_code += file_content;
+                    }
                     break;
             }
 
@@ -277,7 +293,7 @@ export default async function(bot: Bot) {
         const embed = new EmbedBuilder({
             title: `Executed \`${language}\` code (${run_time}s).`,
             author: { name: `Run ID: ${result.jobId}` },
-            description: (result.processOutput.length > 0 ? `\`\`\`${result.processOutput}\`\`\`` : 'No output received.') + `\nExit code: ${result.exitCode}`,
+            description: (result.processOutput.length > 0 ? `\`\`\`\n${result.processOutput}\`\`\`` : 'No output received.') + `\nExit code: ${result.exitCode}`,
             footer: { text: `Powered by orange Code Runner Server API v1` },
             timestamp: new Date().toISOString(),
         });

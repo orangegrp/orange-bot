@@ -1,8 +1,8 @@
-import { CodeRunnerJobResult, CodeRunnerOptions } from "./types/codeRunner";
+import { CodeRunnerJobResult, CodeRunnerOptions, CrsReply } from "./types/codeRunner";
 import { Logger, getLogger } from "orange-common-lib";
 import { languages, languageAliases } from "./languages.js";
 import type { Language, LanguageAlias } from "./languages.js";
-
+import util from "util";
 
 class CodeRunnerError extends Error {
     constructor(message: string) {
@@ -69,14 +69,15 @@ class CodeRunner {
 
             const reply = await response.json();
 
-            // this is all unsafe volk...
-            const processOutput: string = (reply['data']['run']['output'] as string)
-                .substring(0, Math.min(1000, (reply['data']['run']['output'] as string).length)).replace(/`/g, '\u1fef');
-            const compilerOutput: string = reply['data']['compile'] != undefined ? reply['data']['compile']['output']
-                .substring(0, Math.min(1000, (reply['data']['compile']['output'] as string).length)).replace(/`/g, '\u1fef') : '';
-            const exitCode: number = reply['data']['run']['code'];
+            this.logger.verbose(util.inspect(reply, { showHidden: false, depth: null }));
 
-            return { processOutput, compilerOutput, exitCode, jobId: reply["id"] };
+            const { id, data } = reply as CrsReply;
+
+            const processOutput: string = data.run.output.replace(/`/g, '\u1fef');
+            const compilerOutput: string = data.compile ? data.compile.output.replace(/`/g, '\u1fef') : '';
+            const exitCode: number = data.run.code;
+
+            return { processOutput: processOutput, compilerOutput: compilerOutput, exitCode: exitCode, jobId: id };
         }
         catch (err) {
             this.logger.warn(`Failed to process a coderunner request due to an error. ${err}`);
