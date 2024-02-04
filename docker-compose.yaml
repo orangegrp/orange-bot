@@ -4,6 +4,8 @@ services:
   orange-bot:
     container_name: orange-bot
     image: a4004/orange-bot:latest
+    cap_add:
+      - SYS_ADMIN
     restart: unless-stopped
     network_mode: "host"
     env_file:
