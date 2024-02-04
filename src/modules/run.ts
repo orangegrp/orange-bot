@@ -270,7 +270,7 @@ export default async function(bot: Bot) {
 
         const start_time = Date.now();
         
-        const result = await codeRunner.runCode(code, language, stdin, argv.split(""));
+        const result = await codeRunner.runCode(code, language, stdin, argv.split(" "));
 
         const run_time = ((Date.now() - start_time) / 1000).toFixed(1);
 
