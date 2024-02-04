@@ -1,7 +1,7 @@
 import { CodeRunnerJobResult, CodeRunnerOptions } from "./types/codeRunner";
 import { Logger, getLogger } from "orange-common-lib";
-import { languages } from "./languages.js";
-import type { Language } from "./languages.js";
+import { languages, languageAliases } from "./languages.js";
+import type { Language, LanguageAlias } from "./languages.js";
 
 
 class CodeRunnerError extends Error {
@@ -27,16 +27,27 @@ class CodeRunner {
     checkLang(language: string): language is Language {
         return languages.includes(language as Language);
     }
+
+    /**
+     * verifies that a language is a valid language
+     * @param language language name
+     * @returns { boolean } is language valid
+     */
+    checkLangAlias(language: string): language is LanguageAlias {
+        return languageAliases.includes(language as LanguageAlias);
+    }
+
     /**
      * run code
      * @param code code to run
      * @param language language of the code
      * @returns result of running
      */
-    async runCode(code: string, language: Language, stdin?: string): Promise<CodeRunnerJobResult> {
-        if (!languages.includes(language)) {
+    async runCode(code: string, language: Language | LanguageAlias, stdin?: string, argv?: string[]): Promise<CodeRunnerJobResult> {
+        if (!languages.includes(language as Language) && !languageAliases.includes(language as LanguageAlias)) {
             throw new TypeError(`"${language}" is not a supported language`);
         }
+
         try {
             const response = await fetch(`https://${this.options.server}/api/v1/execute`, {
                 headers: {
@@ -47,7 +58,7 @@ class CodeRunner {
                     code: code,
                     lang: language,
                     stdin: stdin, 
-                    args: [] 
+                    args: argv
                 }), 
                 method: 'POST'
             });

@@ -5,7 +5,7 @@ import type { Bot, Command } from "orange-bot-base";
 import { CommandExecutor } from "./linux-run/commandExecutor.js";
 import { ArgType } from "orange-bot-base";
 import { CodeRunner } from "./codeRunner/codeRunner.js";
-import { languages } from "./codeRunner/languages.js";
+import { languages, languageAliasMap } from "./codeRunner/languages.js";
 
 const logger = getLogger("/run");
 
@@ -54,7 +54,7 @@ const runCommand = {
                 },
                 method: {
                     type: ArgType.STRING,
-                    description: "Source method (Default: Snippet)",
+                    description: "Source method (Default: Auto-Detect)",
                     required: false,
                     choices: [
                         { name: "Snippet", value: "snippet" },
@@ -63,11 +63,21 @@ const runCommand = {
                         { name: "Snippet + File", value: "snippet+file" }
                     ]
                 },
+                stdin: {
+                    type: ArgType.STRING,
+                    description: "Input to stdin",
+                    required: false
+                },
+                argv: {
+                    type: ArgType.STRING,
+                    description: "Arguments",
+                    required: false
+                }
             }
         }
     }
     
-} satisfies Command
+} satisfies Command;
 
 
 export default async function(bot: Bot) {
@@ -158,7 +168,7 @@ export default async function(bot: Bot) {
                     break;
             }
 
-            await handleCodeRun(interaction, source_code, args.language);
+            await handleCodeRun(interaction, source_code, args.language, args.stdin ?? "", args.argv ?? "");
         }
     });
 
@@ -217,9 +227,42 @@ export default async function(bot: Bot) {
 
         interaction.editReply(formatOutput(outputBuffer, true, exitCode, false));
     }
-    async function handleCodeRun(interaction: ChatInputCommandInteraction<CacheType>, code: string, language: string) {
-        if (!codeRunner.checkLang(language)) {
+    async function handleCodeRun(interaction: ChatInputCommandInteraction<CacheType>, code: string, language: string, stdin: string, argv: string) {
+        /*
+        function splitArrayIntoQuarters(arr: string[]) {
+            const quarterSize = Math.ceil(arr.length / 4);
+            const quarters = [];
+        
+            for (let i = 0; i < arr.length; i += quarterSize) {
+                const quarter = arr.slice(i, i + quarterSize);
+                quarters.push(quarter);
+            }
+        
+            return quarters;
+        }
+        */
+
+        if (!codeRunner.checkLang(language) && !codeRunner.checkLangAlias(language)) {
             await interaction.reply(`The language you specified, "${language}", is not supported. Supported languages: ${languages.map(l => `\`${l}\``).join(", ")}`);
+            
+            /*
+            let response = [];
+            for (const l in languageAliasMap) {
+                if (languageAliasMap[l].length > 0)
+                    response.push(`• \`${l}\` (${languageAliasMap[l].map(l => `\`${l}\``).join(", ")})`);
+                else
+                    response.push(`• \`${l}\``);
+            }
+            await interaction.reply(`The language you specified, "${language}", is not supported. Supported languages:\n`);
+
+            if (interaction.channel) {
+                const chunked = splitArrayIntoQuarters(response);
+                for (const chunk of chunked) {
+                    await interaction.channel?.send({ content: chunk.join("\n") });
+                }
+            }
+            */
+
             return;
         }
 
@@ -227,7 +270,7 @@ export default async function(bot: Bot) {
 
         const start_time = Date.now();
         
-        const result = await codeRunner.runCode(code, language);
+        const result = await codeRunner.runCode(code, language, stdin, argv.split(""));
 
         const run_time = ((Date.now() - start_time) / 1000).toFixed(1);
 
