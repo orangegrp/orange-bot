@@ -5,9 +5,9 @@ import type { Bot, Command } from "orange-bot-base";
 import { CommandExecutor } from "./linux-run/commandExecutor.js";
 import { ArgType } from "orange-bot-base";
 import { CodeRunner } from "./codeRunner/codeRunner.js";
-import { languages } from "./codeRunner/languages.js";
+import { languages, languageAliasMap } from "./codeRunner/languages.js";
 
-const logger = getLogger("linux");
+const logger = getLogger("/run");
 
 
 const SSH_HOST = process.env.SSH_HOST || "";
@@ -37,21 +37,47 @@ const runCommand = {
         code: {
             description: "Execute code",
             args: {
-                code: {
-                    type: ArgType.STRING,
-                    description: "Code to execute",
-                    required: true
-                },
                 language: {
                     type: ArgType.STRING,
                     description: "Programming language",
                     required: true
+                },    
+                snippet: {
+                    type: ArgType.STRING,
+                    description: "Code snippet to execute",
+                    required: false
+                },
+                file: {
+                    type: ArgType.ATTACHMENT,
+                    description: "Source file to execute",
+                    required: false
+                },
+                method: {
+                    type: ArgType.STRING,
+                    description: "Source method (Default: Auto-Detect)",
+                    required: false,
+                    choices: [
+                        { name: "Snippet", value: "snippet" },
+                        { name: "File", value: "file" },
+                        { name: "File + Snippet", value: "file+snippet" },
+                        { name: "Snippet + File", value: "snippet+file" }
+                    ]
+                },
+                stdin: {
+                    type: ArgType.STRING,
+                    description: "Input to stdin",
+                    required: false
+                },
+                argv: {
+                    type: ArgType.STRING,
+                    description: "Arguments",
+                    required: false
                 }
             }
         }
     }
     
-} satisfies Command
+} satisfies Command;
 
 
 export default async function(bot: Bot) {
@@ -93,7 +119,56 @@ export default async function(bot: Bot) {
             await handleLinuxRun(interaction, args.command);
         }
         else {
-            await handleCodeRun(interaction, args.code, args.language);
+            let source_code = "";
+            let file_content = "";
+
+            if (args.file) {
+                const url = args.file.attachment?.url;
+                if (!url) {
+                    await bot.replyWithError(interaction, "Attachment not found.", logger);
+                    return;
+                }
+
+                try {
+                    const res = await fetch(url);
+                    if (!res.ok) {
+                        await bot.replyWithError(interaction, `Error fetching attachment (${res.status}).`, logger);
+                        return;
+                    }
+
+                    file_content = await res.text();
+                }
+                catch (e: any) {
+                    await bot.replyWithError(interaction, `Error fetching attachment.`, logger);
+                    logger.error("args:");
+                    logger.object(args);
+                    logger.error("error:");
+                    logger.error(e);
+                    return;
+                }
+            }
+
+            switch (args.method) {
+                case "file+snippet":
+                    source_code += file_content;
+                    source_code += "\n";
+                    source_code += args.snippet;
+                    break;
+                case "snippet+file":
+                    source_code += args.snippet;
+                    source_code += "\n";
+                    source_code += file_content;
+                    break;
+                case "file":
+                    source_code += file_content;
+                    break;
+                default:
+                case "snippet":
+                    source_code += args.snippet;
+                    break;
+            }
+
+            await handleCodeRun(interaction, source_code, args.language, args.stdin ?? "", args.argv ?? "");
         }
     });
 
@@ -127,7 +202,7 @@ export default async function(bot: Bot) {
             return { 
                 embeds: [{
                     title: `${finished ? "Finished running" : "Running"} command \`${command}\` (${run_time}s).`,
-                    description: "```" + (useFile ? "Command output in attachment." : output) + "```" + (finished ? `\nExit code: ${exitCode}` : ""),
+                    description: (useFile ? "Command output in attachment." : output.length > 0 ? `\`\`\`${output}\`\`\`` : "Command output is empty.") + (finished ? `\nExit code: ${exitCode}` : ""),
                     footer: { text: `Powered by Topias Linux-Run` },
                     timestamp: new Date().toISOString()
                 }],
@@ -152,9 +227,42 @@ export default async function(bot: Bot) {
 
         interaction.editReply(formatOutput(outputBuffer, true, exitCode, false));
     }
-    async function handleCodeRun(interaction: ChatInputCommandInteraction<CacheType>, code: string, language: string) {
-        if (!codeRunner.checkLang(language)) {
+    async function handleCodeRun(interaction: ChatInputCommandInteraction<CacheType>, code: string, language: string, stdin: string, argv: string) {
+        /*
+        function splitArrayIntoQuarters(arr: string[]) {
+            const quarterSize = Math.ceil(arr.length / 4);
+            const quarters = [];
+        
+            for (let i = 0; i < arr.length; i += quarterSize) {
+                const quarter = arr.slice(i, i + quarterSize);
+                quarters.push(quarter);
+            }
+        
+            return quarters;
+        }
+        */
+
+        if (!codeRunner.checkLang(language) && !codeRunner.checkLangAlias(language)) {
             await interaction.reply(`The language you specified, "${language}", is not supported. Supported languages: ${languages.map(l => `\`${l}\``).join(", ")}`);
+            
+            /*
+            let response = [];
+            for (const l in languageAliasMap) {
+                if (languageAliasMap[l].length > 0)
+                    response.push(`• \`${l}\` (${languageAliasMap[l].map(l => `\`${l}\``).join(", ")})`);
+                else
+                    response.push(`• \`${l}\``);
+            }
+            await interaction.reply(`The language you specified, "${language}", is not supported. Supported languages:\n`);
+
+            if (interaction.channel) {
+                const chunked = splitArrayIntoQuarters(response);
+                for (const chunk of chunked) {
+                    await interaction.channel?.send({ content: chunk.join("\n") });
+                }
+            }
+            */
+
             return;
         }
 
@@ -162,7 +270,7 @@ export default async function(bot: Bot) {
 
         const start_time = Date.now();
         
-        const result = await codeRunner.runCode(code, language);
+        const result = await codeRunner.runCode(code, language, stdin, argv.split(" "));
 
         const run_time = ((Date.now() - start_time) / 1000).toFixed(1);
 
