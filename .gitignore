@@ -131,3 +131,7 @@ docker
 .pnp.*
 
 *.env
+
+certs/
+
+config/
