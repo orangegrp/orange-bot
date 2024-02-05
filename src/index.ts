@@ -6,6 +6,8 @@ import { getLogger } from "orange-common-lib";
 import { Bot } from "orange-bot-base";
 import { join, dirname } from "path";
 
+const version = process.env.npm_package_version || "this is for development";
+
 const logger = getLogger("orange🟠 Bot");
 
 logger.info("Starting...");
@@ -17,7 +19,7 @@ const client = new Client({
 const INSTANCE_NAME = process.env.INSTANCE_NAME;
 if (!INSTANCE_NAME) throw new Error("Environment variable \"INSTANCE_NAME\" is not set!");
 
-const bot = new Bot(client, INSTANCE_NAME, "?", process.env.BOT_TOKEN!);
+const bot = new Bot(client, INSTANCE_NAME, version, "?", process.env.BOT_TOKEN!);
 
 const moduleDir = join(dirname(import.meta.url), "modules");
 bot.loadModules(moduleDir);
