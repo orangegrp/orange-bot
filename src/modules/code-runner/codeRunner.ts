@@ -1,7 +1,7 @@
 import { CodeRunnerJobResult, CodeRunnerOptions, CrsReply } from "./types/codeRunner";
 import { Logger, getLogger } from "orange-common-lib";
 import { languages, languageAliases } from "./languages.js";
-import type { Language, LanguageAlias } from "./languages.js";
+import type { CrsRunEnvInfo, Language, LanguageAlias } from "./languages.js";
 import util from "util";
 
 class CodeRunnerError extends Error {
@@ -43,7 +43,7 @@ class CodeRunner {
      * @param language language of the code
      * @returns result of running
      */
-    async runCode(code: string, language: Language | LanguageAlias, stdin?: string, argv?: string[]): Promise<CodeRunnerJobResult> {
+    async runCodeV1(code: string, language: Language | LanguageAlias, stdin?: string, argv?: string[]): Promise<CodeRunnerJobResult> {
         if (!languages.includes(language as Language) && !languageAliases.includes(language as LanguageAlias)) {
             throw new TypeError(`"${language}" is not a supported language`);
         }
@@ -57,6 +57,54 @@ class CodeRunner {
                 body: JSON.stringify({ 
                     code: code,
                     lang: language,
+                    stdin: stdin, 
+                    args: argv
+                }), 
+                method: 'POST'
+            });
+
+            if (response.status !== 200) {
+                throw new CodeRunnerError(`CodeRunner service responded with ${response.status}`);
+            }
+
+            const reply = await response.json();
+
+            this.logger.verbose(util.inspect(reply, { showHidden: false, depth: null }));
+
+            const { id, data } = reply as CrsReply;
+
+            const processOutput: string = data.run.output.replace(/`/g, '\u1fef');
+            const compilerOutput: string = data.compile ? data.compile.output.replace(/`/g, '\u1fef') : '';
+            const exitCode: number = data.run.code;
+
+            return { processOutput: processOutput, compilerOutput: compilerOutput, exitCode: exitCode, jobId: id };
+        }
+        catch (err) {
+            this.logger.warn(`Failed to process a coderunner request due to an error. ${err}`);
+            throw new CodeRunnerError(`CodeRunner failed for mystery reasons`);
+        }
+    }
+
+
+        /**
+     * run code
+     * @param code code to run
+     * @param language language of the code
+     * @returns result of running
+     */
+    async runCodeV2(code: string, runtime: CrsRunEnvInfo, stdin?: string, argv?: string[]): Promise<CodeRunnerJobResult> {
+
+        try {
+            const response = await fetch(`https://${this.options.server}/api/v2/execute`, {
+                headers: {
+                    'Authorization': this.options.apiKey,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ 
+                    code: code,
+                    lang: runtime.language,
+                    version: runtime.version,
+                    runtime: runtime.runtime,
                     stdin: stdin, 
                     args: argv
                 }), 

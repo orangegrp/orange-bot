@@ -5,7 +5,7 @@ import type { Bot, Command } from "orange-bot-base";
 import { CommandExecutor } from "./linux-run/commandExecutor.js";
 import { ArgType } from "orange-bot-base";
 import { CodeRunner } from "./code-runner/codeRunner.js";
-import { languages, languageAliasMap } from "./code-runner/languages.js";
+import { getClosestMatches, getRunEnvInfo, languages } from "./code-runner/languages.js";
 
 const logger = getLogger("/run");
 
@@ -38,11 +38,19 @@ const runCommand = {
         code: {
             description: "Execute code",
             args: {
+                /*
                 language: {
                     type: ArgType.STRING,
                     description: "Programming language",
                     required: true
                 },    
+                */
+                runtime: {
+                    type: ArgType.STRING,
+                    description: "Runtime environment (runtime, programming language, version)",
+                    required: true,
+                    autocomplete: true
+                },
                 snippet: {
                     type: ArgType.STRING,
                     description: "Code snippet to execute",
@@ -74,12 +82,6 @@ const runCommand = {
                     description: "Arguments",
                     required: false
                 },
-                environment: {
-                    type: ArgType.STRING,
-                    description: "Runtime environment (runtime, language, version)",
-                    required: false,
-                    autocomplete: true
-                }
             }
         }
     }
@@ -111,6 +113,7 @@ export default async function(bot: Bot) {
         apiKey: CODERUNNER_API_KEY,
     }, logger);
 
+    
     bot.addChatCommand("runreboot", async (msg, args) => {
         await executor.reboot();
         msg.channel.send("rebooting.");
@@ -119,6 +122,28 @@ export default async function(bot: Bot) {
     bot.addChatCommand("runcleanup", async (msg, args) => {
         await executor.cleanUp();
         msg.channel.send("cleanup done.");
+    });
+
+    bot.client.on("interactionCreate", async interaction => {
+        if (interaction.isAutocomplete()) {
+            const option = interaction.options.getFocused(true);
+            logger.verbose(`Autocomplete for /${interaction.commandName} ${option.name}: ${option.value}`);
+            if (interaction.commandName !== "run" && option.name !== "runtime") {
+                logger.verbose(`Ignoring autocomplete for /${interaction.commandName} ${option.name}: ${option.value}`);
+                return;
+            }
+             
+            let choices = await getClosestMatches(option.value);
+
+            await interaction.respond(
+                choices.map(choice =>
+                    ({
+                        name: choice,
+                        value: choice
+                    })
+                )
+            )
+        } 
     });
 
     bot.addCommand(runCommand, async (interaction, args) => {
@@ -191,7 +216,7 @@ export default async function(bot: Bot) {
                     break;
             }
 
-            await handleCodeRun(interaction, source_code, args.language, args.stdin ?? "", args.argv ?? "");
+            await handleCodeRun(interaction, source_code, args.runtime, args.stdin ?? "", args.argv ?? "");
         }
     });
 
@@ -250,58 +275,23 @@ export default async function(bot: Bot) {
 
         interaction.editReply(formatOutput(outputBuffer, true, exitCode, false));
     }
-    async function handleCodeRun(interaction: ChatInputCommandInteraction<CacheType>, code: string, language: string, stdin: string, argv: string) {
-        /*
-        function splitArrayIntoQuarters(arr: string[]) {
-            const quarterSize = Math.ceil(arr.length / 4);
-            const quarters = [];
-        
-            for (let i = 0; i < arr.length; i += quarterSize) {
-                const quarter = arr.slice(i, i + quarterSize);
-                quarters.push(quarter);
-            }
-        
-            return quarters;
-        }
-        */
 
-        if (!codeRunner.checkLang(language) && !codeRunner.checkLangAlias(language)) {
-            await interaction.reply(`The language you specified, "${language}", is not supported. Supported languages: ${languages.map(l => `\`${l}\``).join(", ")}`);
-            
-            /*
-            let response = [];
-            for (const l in languageAliasMap) {
-                if (languageAliasMap[l].length > 0)
-                    response.push(`• \`${l}\` (${languageAliasMap[l].map(l => `\`${l}\``).join(", ")})`);
-                else
-                    response.push(`• \`${l}\``);
-            }
-            await interaction.reply(`The language you specified, "${language}", is not supported. Supported languages:\n`);
-
-            if (interaction.channel) {
-                const chunked = splitArrayIntoQuarters(response);
-                for (const chunk of chunked) {
-                    await interaction.channel?.send({ content: chunk.join("\n") });
-                }
-            }
-            */
-
-            return;
-        }
+    async function handleCodeRun(interaction: ChatInputCommandInteraction<CacheType>, code: string, runtime: string, stdin: string, argv: string) {
+        const runtime_info = getRunEnvInfo(runtime);
 
         await interaction.deferReply();
 
         const start_time = Date.now();
         
-        const result = await codeRunner.runCode(code, language, stdin, argv.split(" "));
+        const result = await codeRunner.runCodeV2(code, runtime_info, stdin, argv.split(" "));
 
         const run_time = ((Date.now() - start_time) / 1000).toFixed(1);
 
         const embed = new EmbedBuilder({
-            title: `Executed \`${language}\` code (${run_time}s).`,
+            title: `Executed \`${runtime_info.language}\` code (${run_time}s).`,
             author: { name: `Run ID: ${result.jobId}` },
             description: (result.processOutput.length > 0 ? `\`\`\`\n${result.processOutput}\`\`\`` : 'No output received.') + `\nExit code: ${result.exitCode}`,
-            footer: { text: `Powered by orange Code Runner Server API v1` },
+            footer: { text: `Runtime: ${runtime} • Powered by orange Code Runner Server API v2` },
             timestamp: new Date().toISOString(),
         });
 

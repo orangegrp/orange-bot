@@ -1,3 +1,8 @@
+import { CachedLookup } from "orange-bot-base";
+import { getLogger } from "orange-common-lib";
+
+const logger = getLogger("code-runner-languages");
+
 const languages = [
     "awk", "bash", "befunge93", "brachylog", "brainfuck", "bqn", "c", "c++", "cjam", "clojure",
     "cobol", "coffeescript", "cow", "crystal", "csharp", "csharp.net", "d", "dart", "dash",
@@ -28,95 +33,159 @@ const languageAliases = [
     "rs", "sm", "sc", "st", "sqlite", "sql", "swift", "ts", "node-ts", "tsc", "typescript5", "ts5", "v", "yeethon3", "zig"
 ] as const;
 
-const languageAliasMap: Record<string, string[]> = {
-    "matl": [],
-    "bash": ["sh"],
-    "befunge93": ["b93"],
-    "bqn": [],
-    "brachylog": [],
-    "brainfuck": ["bf"],
-    "cjam": [],
-    "clojure": ["clojure", "clj"],
-    "cobol": ["cob"],
-    "coffeescript": ["coffeescript", "coffee"],
-    "cow": ["cow"],
-    "crystal": ["crystal", "cr"],
-    "dart": [],
-    "dash": ["dash"],
-    "basic.net": ["basic", "visual-basic", "visual-basic.net", "vb", "vb.net", "vb-dotnet", "dotnet-vb", "basic-dotnet", "dotnet-basic"],
-    "fsharp.net": ["fsharp", "fs", "f#", "fs.net", "f#.net", "fsharp-dotnet", "fs-dotnet", "f#-dotnet", "dotnet-fsharp", "dotnet-fs", "dotnet-fs"],
-    "csharp.net": ["csharp", "c#", "cs", "c#.net", "cs.net", "c#-dotnet", "cs-dotnet", "csharp-dotnet", "dotnet-c#", "dotnet-cs", "dotnet-csharp"],
-    "fsi": ["fsx", "fsharp-interactive", "f#-interactive", "dotnet-fsi", "fsi-dotnet", "fsi.net"],
-    "dragon": [],
-    "elixir": ["elixir", "exs"],
-    "emacs": ["emacs", "el", "elisp"],
-    "emojicode": ["emojic"],
-    "erlang": ["erlang", "erl", "escript"],
-    "file": ["executable", "elf", "binary"],
-    "forte": ["forter"],
-    "forth": ["gforth"],
-    "freebasic": ["bas", "fbc", "basic", "qbasic", "quickbasic"],
-    "awk": ["gawk"],
-    "c": ["gcc"],
-    "c++": ["cpp", "g++"],
-    "d": ["gdc"],
-    "fortran": ["fortran", "f90"],
-    "go": ["go", "golang"],
-    "golfscript": ["golfscript"],
-    "groovy": ["groovy", "gvy"],
-    "haskell": ["haskell", "hs"],
-    "husk": [],
-    "iverilog": ["verilog", "vvp"],
-    "japt": ["japt"],
-    "java": [],
-    "jelly": [],
-    "julia": ["jl"],
-    "kotlin": ["kt"],
-    "lisp": ["lisp", "cl", "sbcl", "commonlisp"],
-    "llvm_ir": ["llvm", "llvm-ir", "ll"],
-    "lolcode": ["lol", "lci"],
-    "lua": [],
-    "csharp": ["mono", "mono-csharp", "mono-c#", "mono-cs", "c#", "cs"],
-    "basic": ["vb", "mono-vb", "mono-basic", "visual-basic", "visual basic"],
-    "nasm": ["asm", "nasm32"],
-    "nasm64": ["asm64"],
-    "nim": [],
-    "javascript": ["node-javascript", "node-js", "javascript", "js"],
-    "ocaml": ["ocaml", "ml"],
-    "octave": ["matlab", "m"],
-    "osabie": ["osabie", "05AB1E", "usable"],
-    "paradoc": ["paradoc"],
-    "pascal": ["freepascal", "pp", "pas"],
-    "perl": ["pl"],
-    "php": [],
-    "ponylang": ["pony", "ponyc"],
-    "prolog": ["prolog", "plg"],
-    "pure": [],
-    "powershell": ["ps", "pwsh", "ps1"],
-    "pyth": ["pyth"],
-    "python": ["py", "py3", "python3", "python3.12"],
-    "racket": ["rkt"],
-    "raku": ["raku", "rakudo", "perl6", "p6", "pl6"],
-    "retina": ["ret"],
-    "rockstar": ["rock", "rocky"],
-    "rscript": ["r"],
-    "ruby": ["ruby3", "rb"],
-    "rust": ["rs"],
-    "samarium": ["sm"],
-    "scala": ["sc"],
-    "smalltalk": ["st"],
-    "sqlite3": ["sqlite", "sql"],
-    "swift": ["swift"],
-    "typescript": ["ts", "node-ts", "tsc", "typescript5", "ts5"],
-    "vlang": ["v"],
-    "vyxal": [],
-    "yeethon": ["yeethon3"],
-    "zig": [],
-};
-
 type Language = typeof languages extends readonly (infer T)[] ? T : never
 type LanguageAlias = typeof languageAliases extends readonly (infer T)[] ? T : never
-type LanguageMap = typeof languageAliasMap extends readonly (infer T)[] ? T : never
 
-export { languages, languageAliases, languageAliasMap };
-export type { Language, LanguageAlias, LanguageMap }
+// string format: language-runtime-version OR language-version
+
+type PistonRuntimes = {
+    language: string,
+    version: string,
+    aliases: string[],
+    runtime?: string,
+}[];
+
+const crsLanguages: CachedLookup<null, string[]> = new CachedLookup(async () => await getLanguages());
+
+function damerauLevenshtein(a: string, b: string, bonus: number = 2): number {
+    const lenA = a.length;
+    const lenB = b.length;
+    const dist: number[][] = Array(lenA +  1).fill(null).map(() => Array(lenB +  1).fill(null));
+
+    if (a === b) {
+        return -(a.length * bonus);
+    }
+
+    if (b > a) {
+        return b.length;
+    }
+
+    for (let i =  0; i <= lenA; i++) {
+        dist[i][0] = i;
+    }
+    for (let j =  0; j <= lenB; j++) {
+        dist[0][j] = j;
+    }
+
+    for (let i =  1; i <= lenA; i++) {
+        for (let j =  1; j <= lenB; j++) {
+            let cost = a[i - 1] === b[j - 1] ?   0 :   1;
+            let minDist = dist[i - 1][j] + 1; // deletion
+            let tempDist = dist[i][j - 1] + 1; // insertion
+            let substitution = dist[i - 1][j - 1] + cost; // substitution
+
+            if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) {
+                tempDist = dist[i - 2][j - 2] + cost;
+            }
+
+            minDist = Math.min(minDist, tempDist, substitution);
+
+            if (i === 1 && j === 1 && a[0] === b[0]) {
+                minDist -= bonus;
+            }
+        
+            dist[i][j] = minDist;
+        }
+    }
+
+    return dist[lenA][lenB];
+}
+
+async function getClosestMatches(language: string): Promise<string[]> {
+    const max_suggestions = 25;
+
+    let similarity_threshold = 10;
+    let exact_match: string | undefined = "";
+    let closest_envs: { env: string, distance: number }[] = [];
+    let envs = await crsLanguages.get(null);
+
+    if (!envs) {
+        logger.warn("Error getting languages");
+        return [];
+    }
+
+    for (const env of envs) {
+        if (language === env) {
+            return [env];
+        }
+
+        const query_items = language.includes("-") ? language.split("-") : language.split(' ');
+        const env_items = env.split('-');
+
+        if (query_items.length > env_items.length) {
+            continue;
+        }
+
+        let d = 0;
+
+        for (let i = 0; i < env_items.length; i++) {
+            for (let j = 0; j < query_items.length; j++) {
+                d += damerauLevenshtein(env_items[i].toLowerCase(), query_items[j].toLowerCase());
+            }
+        }
+
+        logger.verbose(`${env}, d: ${d}, for: ${language}`);
+
+        if (d <= similarity_threshold) {
+            closest_envs.push({ env: env, distance: d });
+        }
+    }
+
+    logger.verbose(`exact match: ${exact_match}`);
+
+    const closest25 = closest_envs.sort((a, b) => a.distance - b.distance).slice(0, max_suggestions).map(obj => obj.env);
+    logger.verbose(`closest_envs: ${closest25.join(', ')}`);
+    
+    return [... new Set(closest25)];
+}
+
+type CrsRunEnvInfo = { language: string, runtime?: string, version: string };
+
+function getRunEnvInfo(language: string): CrsRunEnvInfo {
+    const parts = language.split('-');
+
+    if (parts.length < 2) {
+        throw new Error(`Invalid language/environment string: ${language}`);
+    }
+
+    if (parts.length === 2) {
+        return {
+            language: parts[0],
+            version: parts[1]
+        }
+    } else {
+        return {
+            language: parts[0],
+            runtime: parts[1],
+            version: parts[2]
+        }
+    }
+}
+
+async function getLanguages(): Promise<string[]> {
+    let api_url = `https://${process.env.CODERUNNER_SERVER}/api/v2/info`;
+
+    const response = await fetch(api_url, {
+        headers: {
+            'Authorization': `${process.env.CODERUNNER_API_KEY}`,
+            'Content-Type': 'application/json'
+        }
+    });
+
+    const data = await response.json() as PistonRuntimes;
+
+    let result = [];
+
+    for (let env of data) {
+        if (env.runtime) {
+            result.push(`${env.language}-${env.runtime}-${env.version}`);
+        } else {
+            result.push(`${env.language}-${env.version}`);
+        }
+    } 
+
+    return result;
+}
+
+export { languages, languageAliases, crsLanguages, getRunEnvInfo, getClosestMatches };
+export type { Language, LanguageAlias, CrsRunEnvInfo };
