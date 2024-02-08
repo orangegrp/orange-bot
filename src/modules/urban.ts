@@ -5,6 +5,7 @@ import { ArgType } from "orange-bot-base";
 const command = {
     name: "urban",
     description: "Get Urban dictionary definition for a word",
+    notes: "This command uses a cloud service. Data you provide may be shared with Urban Dictionary LLC (:flag_us:), subject to their [terms](https://about.urbandictionary.com/tos/) and [privacy policy](https://about.urbandictionary.com/privacy/).",
     args: {
         word: {
             type: ArgType.STRING,

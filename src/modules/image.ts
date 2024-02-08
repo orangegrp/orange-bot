@@ -26,7 +26,8 @@ const IMAGE_STYLE_HTML = `<link href="https://fonts.googleapis.com/css2?family=O
 
 const command = {
     name: "image",
-    description: "Renders HTML to an image using Chromium",
+    description: "Renders HTML to an image using Chromium engine",
+    notes: "This command uses an external proprietary program. Data you provide will be processed by [Google Chrome](https://www.google.com/chrome/privacy/) (:flag_us:) on a server we control.",
     args: {
         html: {
             type: ArgType.STRING,

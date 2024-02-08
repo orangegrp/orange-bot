@@ -224,6 +224,7 @@ async function getCves(args: { keyword?: string | null, vendor?: string | null, 
 const command = {
     name: "cve",
     description: "CVE lookup utility",
+    notes: "This command uses a cloud service. Data you provide may be shared with [opencve.io](https://opencve.io) (:flag_fr:), subject to their [terms](https://www.opencve.io/terms).",
     options: {
         info: {
             description: "Lookup a CVE number",

@@ -23,6 +23,7 @@ const CODERUNNER_API_KEY = process.env.CODERUNNER_API_KEY;
 const runCommand = {
     name: "run",
     description: "Execute code or a Linux command",
+    notes: "This command uses additional services we control. Depending on the command, some encrypted data may transit through [Telia AB](https://www.teliacompany.com/en/articles/privacy) (:flag_fi:), or [DigitalOcean](https://www.digitalocean.com/legal/privacy-policy) (:flag_gb:).",
     options: {
         linux: {
             description: "Run a Linux command",

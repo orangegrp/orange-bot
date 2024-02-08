@@ -5,6 +5,7 @@ import { ArgType } from "orange-bot-base";
 const command = {
     name: "define",
     description: "Get the definition for a term",
+    notes: "This command uses a cloud service. Data you provide may be shared with multiple third parties, including [dictionaryapi.dev](https://dictionaryapi.dev/) (:flag_us:) and [Alphabet (Google)](https://policies.google.com/privacy) (:flag_us:).",
     args: {
         term: {
             type: ArgType.STRING,
