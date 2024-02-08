@@ -56,6 +56,7 @@ async function getDefinition(term: string): Promise<APIEmbed> {
         return {
             title: `No definition for ${term}`,
             description: 'Definition not found',
+            timestamp: new Date().toISOString()
         };
     }
     
@@ -82,7 +83,8 @@ async function getDefinition(term: string): Promise<APIEmbed> {
     return {
         title: `Definition of "${term}"`,
         description: body,
-        footer: { text: `Definitions from dictionaryapi.dev` }
+        footer: { text: `Word definitions from dictionaryapi.dev` },
+        timestamp: new Date().toISOString()
     }
 }
 

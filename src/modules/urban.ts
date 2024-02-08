@@ -41,7 +41,8 @@ export default function(bot: Bot) {
         if (!body.list[0]) {
             interaction.reply({embeds: [{
                 title: `Urban dictionary - "${args.word}"`,
-                description: "No definition found for that term. Try another term, or check the spelling of the term you entered."
+                description: "No definition found for that term. Try another term, or check the spelling of the term you entered.",
+                timestamp: new Date().toISOString()
             }]});
             return;
         }
@@ -55,9 +56,10 @@ export default function(bot: Bot) {
             url: definition.permalink,
             description: definition.definition,
             timestamp: definition.written_on,
-            footer: definition.author ? {
-                text: definition.author,
-            } : undefined
+            author: definition.author ? {
+                name: definition.author,
+            } : undefined,
+            footer: { text: `Content from urbandictionary.com. The views/opinions expressed are that of their respective authors` },
         }); 
 
         if (definition.example !== undefined && definition.example.length > 0) {

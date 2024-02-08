@@ -28,7 +28,6 @@ async function getCweInfo(cweid: string): Promise<InteractionReplyOptions> {
             return ( { embeds: [{
                 title: `CWE Search`,
                 description: `No CWE entries found that match "${cweid}"`,
-                footer: { text: `Data from opencve.io` },
                 timestamp: new Date().toISOString()
             }] });
         }
@@ -36,7 +35,8 @@ async function getCweInfo(cweid: string): Promise<InteractionReplyOptions> {
         const embed = new EmbedBuilder({
             title: `Information for ${data.id}`,
             description: removeHtmlTagsAndDecode(`### ${data.name}\n${data.description}`, 1512),
-            footer: { text: `Data from opencve.io` }
+            footer: { text: `Content for this search retrieved from opencve.io` },
+            timestamp: new Date().toISOString()
         });
 
         return { embeds: [embed] };
@@ -44,7 +44,6 @@ async function getCweInfo(cweid: string): Promise<InteractionReplyOptions> {
         return ( { embeds: [{
             title: `Something went wrong with the search`,
             description: err.message,
-            footer: { text: `Data from opencve.io` },
             timestamp: new Date().toISOString()
         }] });
     }
@@ -59,7 +58,6 @@ async function getCveInfo(cveid: string): Promise<InteractionReplyOptions> {
             return ( { embeds: [{
                 title: `CVE Search`,
                 description: `No CVE entries found that match "${cveid}"`,
-                footer: { text: `Data from opencve.io` },
                 timestamp: new Date().toISOString()
             }] });
         }
@@ -68,7 +66,8 @@ async function getCveInfo(cveid: string): Promise<InteractionReplyOptions> {
             title: `Information for ${data.id}`,
             description: removeHtmlTagsAndDecode(data.summary, 1024),
             url: `https://www.cve.org/CVERecord?id=${data.id}`,
-            footer: { text: `Data from opencve.io` }
+            footer: { text: `Content for this search retrieved from opencve.io` },
+            timestamp: new Date().toISOString()
         });
     
         if (data.cvss.v3 !== null) {
@@ -172,7 +171,6 @@ async function getCveInfo(cveid: string): Promise<InteractionReplyOptions> {
         return ( { embeds: [{
             title: `Something went wrong with the search`,
             description: err.message,
-            footer: { text: `Data from opencve.io` },
             timestamp: new Date().toISOString()
         }] });
     }
@@ -185,7 +183,6 @@ async function getCves(args: { keyword?: string | null, vendor?: string | null, 
             return ( { embeds: [{
                 title: `CVE Search`,
                 description: 'No CVEs found',
-                footer: { text: `Data from opencve.io` },
                 timestamp: new Date().toISOString()
             }] });
         }
@@ -195,7 +192,8 @@ async function getCves(args: { keyword?: string | null, vendor?: string | null, 
         const embed = new EmbedBuilder({
             title: `Top ${len} CVEs found`,
             description: "Can't find what you are looking for? Trying specifying the \`vendor\`, \`product\`, \`cvss\` or a different \`page\` number.",
-            footer: { text: `Data from opencve.io` }
+            footer: { text: `Content for this search retrieved from opencve.io.` },
+            timestamp: new Date().toISOString()
         });
     
         const buttons = new ActionRowBuilder<ButtonBuilder>();
@@ -303,7 +301,6 @@ export default function (bot: Bot) {
                 await interaction.reply({embeds: [{
                     title: `CVE Search`,
                     description: 'Please specify a vendor in addition to product',
-                    footer: { text: `Data from opencve.io` },
                     timestamp: new Date().toISOString()
                 }]});
             } else {
