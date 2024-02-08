@@ -73,6 +73,12 @@ const runCommand = {
                     type: ArgType.STRING,
                     description: "Arguments",
                     required: false
+                },
+                environment: {
+                    type: ArgType.STRING,
+                    description: "Runtime environment (runtime, language, version)",
+                    required: false,
+                    autocomplete: true
                 }
             }
         }
