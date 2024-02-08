@@ -4,8 +4,8 @@ import { getLogger } from "orange-common-lib";
 import type { Bot, Command } from "orange-bot-base";
 import { CommandExecutor } from "./linux-run/commandExecutor.js";
 import { ArgType } from "orange-bot-base";
-import { CodeRunner } from "./codeRunner/codeRunner.js";
-import { languages, languageAliasMap } from "./codeRunner/languages.js";
+import { CodeRunner } from "./code-runner/codeRunner.js";
+import { languages, languageAliasMap } from "./code-runner/languages.js";
 
 const logger = getLogger("/run");
 
