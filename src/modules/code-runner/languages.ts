@@ -45,7 +45,8 @@ type PistonRuntimes = {
     runtime?: string,
 }[];
 
-const crsLanguages: CachedLookup<null, string[]> = new CachedLookup(async () => await getLanguages());
+const crsLanguages: CachedLookup<null, string[]> = new CachedLookup(async () => await getLanguages(true));
+const pistonRuntimes: CachedLookup<null, PistonRuntimes> = new CachedLookup(async () => await getLanguages(false));
 
 function damerauLevenshtein(a: string, b: string, bonus: number = 2): number {
     const lenA = a.length;
@@ -139,30 +140,61 @@ async function getClosestMatches(language: string): Promise<string[]> {
     return [... new Set(closest25)];
 }
 
-type CrsRunEnvInfo = { language: string, runtime?: string, version: string };
+declare const CrsRunLanguageSymbol: unique symbol;
+type CrsRunLanguage = "" & { readonly [CrsRunLanguageSymbol]: typeof CrsRunLanguageSymbol };
+declare const CrsRunRuntimeSymbol: unique symbol;
+type CrsRunRuntime = "" & { readonly [CrsRunRuntimeSymbol]: typeof CrsRunRuntimeSymbol };
+declare const CrsRunVersionSymbol: unique symbol;
+type CrsRunVersion = "" & { readonly [CrsRunVersionSymbol]: typeof CrsRunVersionSymbol };
 
-function getRunEnvInfo(language: string): CrsRunEnvInfo {
-    const parts = language.split('-');
+type CrsRunEnvInfo = { 
+    readonly language: CrsRunLanguage, 
+    readonly runtime?: CrsRunRuntime, 
+    readonly version: CrsRunVersion
+};
+type CrsRunEnvInfoUnverified = { 
+    readonly language: string, 
+    readonly runtime?: string, 
+    readonly version: string
+};
 
-    if (parts.length < 2) {
-        throw new Error(`Invalid language/environment string: ${language}`);
+async function getRunEnvInfo(runEnvString: string): Promise<CrsRunEnvInfo | { error: string }> {
+    const parts = runEnvString.split('-');
+
+    if (parts.length !== 2 && parts.length !== 3) {
+        return { error: `Invalid language/environment string: ${runEnvString}` };
+    }
+    
+    const runEnv = {
+        language: parts[0],
+        version: (parts.length === 2) ? parts[1] : parts[2],
+        runtime: (parts.length === 3) ? parts[1] : undefined
+    };
+
+    const runtimes = await pistonRuntimes.get(null);
+
+    if (!runtimes) {
+        throw new Error("Known runtimes undefined.");
     }
 
-    if (parts.length === 2) {
-        return {
-            language: parts[0],
-            version: parts[1]
-        }
-    } else {
-        return {
-            language: parts[0],
-            runtime: parts[1],
-            version: parts[2]
-        }
+    if (!isRunEnv(runEnv, runtimes)) {
+        return { error: `Invalid language/environment string: ${runEnvString}` };
     }
+
+    return runEnv;
+}
+function isRunEnv(runEnv: CrsRunEnvInfoUnverified, runtimes: PistonRuntimes): runEnv is CrsRunEnvInfo {
+    for (const runtime of runtimes) {
+        if (runEnv.language !== runtime.language) continue;
+        if (runEnv.runtime !== runtime.runtime) continue;
+        if (runEnv.version !== runtime.version) continue;
+        return true;
+    }
+    return false;
 }
 
-async function getLanguages(): Promise<string[]> {
+
+async function getLanguages<T extends boolean>(strings: T): Promise<T extends true ? string[] : PistonRuntimes> {
     let api_url = `https://${process.env.CODERUNNER_SERVER}/api/v2/info`;
 
     const response = await fetch(api_url, {
@@ -174,17 +206,11 @@ async function getLanguages(): Promise<string[]> {
 
     const data = await response.json() as PistonRuntimes;
 
-    let result = [];
+    if (strings) {
+        return data.map(env => env.runtime ? `${env.language}-${env.runtime}-${env.version}` : `${env.language}-${env.version}`) as T extends true ? string[] : PistonRuntimes;
+    }
 
-    for (let env of data) {
-        if (env.runtime) {
-            result.push(`${env.language}-${env.runtime}-${env.version}`);
-        } else {
-            result.push(`${env.language}-${env.version}`);
-        }
-    } 
-
-    return result;
+    return data as T extends true ? string[] : PistonRuntimes;
 }
 
 export { languages, languageAliases, crsLanguages, getRunEnvInfo, getClosestMatches };

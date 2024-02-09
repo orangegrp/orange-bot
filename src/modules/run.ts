@@ -277,7 +277,12 @@ export default async function(bot: Bot) {
     }
 
     async function handleCodeRun(interaction: ChatInputCommandInteraction<CacheType>, code: string, runtime: string, stdin: string, argv: string) {
-        const runtime_info = getRunEnvInfo(runtime);
+        const runtime_info = await getRunEnvInfo(runtime);
+
+        if ("error" in runtime_info) {
+            await bot.replyWithError(interaction, runtime_info.error, logger);
+            return;
+        }
 
         await interaction.deferReply();
 
