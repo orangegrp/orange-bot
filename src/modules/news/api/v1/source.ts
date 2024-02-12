@@ -240,15 +240,15 @@ export default function (fastify: FastifyInstance, path: string, _logger: Logger
     fastify.post(path, { schema: { body: fastify_request_schema } }, post);     // add news source
     logger.ok(`Route POST ${path} registered.`);
 
-    logger.log(`Registering Fastify route DELETE  ${path} ...`);
+    logger.log(`Registering Fastify route DELETE ${path}/:id ...`);
     fastify.delete(`${path}/:id`, del);     // remove news source
-    logger.ok(`Route POST ${path} registered.`);
+    logger.ok(`Route DELETE ${path}/:id registered.`);
 
-    logger.log(`Registering Fastify route GET ${path} ...`);
+    logger.log(`Registering Fastify route GET ${path}/:id ...`);
     fastify.get(`${path}/:id`, get);     // get news source
-    logger.ok(`Route POST ${path} registered.`);
+    logger.ok(`Route GET ${path}/:id registered.`);
 
-    logger.log(`Registering Fastify route PUT ${path} ...`);
+    logger.log(`Registering Fastify route PUT ${path}/:id ...`);
     fastify.put(`${path}/:id`, { schema: { body: fastify_request_schema } }, put);     // update news source
-    logger.ok(`Route POST ${path} registered.`);
+    logger.ok(`Route DELETE ${path}/:id registered.`);
 }
