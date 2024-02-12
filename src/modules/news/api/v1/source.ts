@@ -2,7 +2,7 @@ import { FastifyInstance, FastifyReply, FastifyRequest, RouteShorthandOptions } 
 import crypto from "crypto";
 import { Logger } from "orange-common-lib";
 import { NewsSource } from "../../news.js";
-import { addSource, getSource } from "../../srcmgr.js";
+import { addSource, getSource, removeSource, updateSource } from "../../srcmgr.js";
 
 let logger: Logger;
 
@@ -99,7 +99,8 @@ type reply_schema = {
     success: boolean,
     source_id?: string
     message?: string,
-}
+    data?: NewsSource
+};
 
 function catchError(err: Error | any, req: FastifyRequest, reply: FastifyReply, method: string) {
     const request_id = req.headers["orange-application-request-id"] ?? crypto.randomBytes(16).toString("hex");
@@ -110,6 +111,91 @@ function catchError(err: Error | any, req: FastifyRequest, reply: FastifyReply, 
         success: false,
         message: err.message
     } as reply_schema);
+}
+
+
+function get(req: FastifyRequest<{Params: { id: string}}>, reply: FastifyReply) {
+    const req_id = req.headers["orange-application-request-id"];
+
+    try {
+        const { id } = req.params;
+
+        const source = getSource(id);
+
+        if (!source) {
+            reply.status(404).send({
+                request_id: req_id,
+                success: false,
+                message: "Source not found."
+            });
+        }
+
+        reply.status(200).send({
+            request_id: req_id,
+            success: true,
+            data: source
+        } as reply_schema);
+    } catch (err: Error | any) {
+        catchError(err, req, reply, "GET");
+    }
+}
+
+function del(req: FastifyRequest<{Params: { id: string}}>, reply: FastifyReply) {
+    const req_id = req.headers["orange-application-request-id"];
+
+    try {
+        const { id } = req.params;
+
+        if (!getSource(id)) {
+            reply.status(404).send({
+                request_id: req_id,
+                success: false,
+                message: "Source not found."
+            });
+        }
+
+        removeSource(id);
+
+        reply.status(200).send({
+            request_id: req_id,
+            success: true,
+            message: "Source deleted successfully."
+        } as reply_schema);
+    } catch (err: Error | any) {
+        catchError(err, req, reply, "DELETE");
+    }
+}
+
+function put(req: FastifyRequest<{Params: { id: string}}>, reply: FastifyReply) {
+    const req_id = req.headers["orange-application-request-id"];
+
+    try {
+        const { id } = req.params;
+
+        if (!getSource(id)) {
+            reply.status(404).send({
+                request_id: req_id,
+                success: false,
+                message: "Source not found."
+            });
+        }
+
+        const request_info: request_schema = req.body as request_schema;
+        const source: NewsSource = {
+            id: id,
+            ...request_info
+        };
+
+        updateSource(id, source);
+
+        reply.status(200).send({
+            request_id: req_id,
+            success: true,
+            message: "Source updated successfully."
+        } as reply_schema);
+    } catch (err: Error | any) {
+        catchError(err, req, reply, "PUT");
+    }
 }
 
 function post(req: FastifyRequest, reply: FastifyReply) {
@@ -133,8 +219,6 @@ function post(req: FastifyRequest, reply: FastifyReply) {
             return;
         }
 
-        
-
         addSource(source);
 
         reply.status(200).send({
@@ -153,6 +237,18 @@ export default function (fastify: FastifyInstance, path: string, _logger: Logger
     logger = _logger;
 
     logger.log(`Registering Fastify route POST ${path} ...`);
-    fastify.post(path, { schema: { body: fastify_request_schema } }, post);
+    fastify.post(path, { schema: { body: fastify_request_schema } }, post);     // add news source
+    logger.ok(`Route POST ${path} registered.`);
+
+    logger.log(`Registering Fastify route DELETE  ${path} ...`);
+    fastify.delete(`${path}/:id`, del);     // remove news source
+    logger.ok(`Route POST ${path} registered.`);
+
+    logger.log(`Registering Fastify route GET ${path} ...`);
+    fastify.get(`${path}/:id`, get);     // get news source
+    logger.ok(`Route POST ${path} registered.`);
+
+    logger.log(`Registering Fastify route PUT ${path} ...`);
+    fastify.put(`${path}/:id`, { schema: { body: fastify_request_schema } }, put);     // update news source
     logger.ok(`Route POST ${path} registered.`);
 }

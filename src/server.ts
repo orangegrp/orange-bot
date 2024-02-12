@@ -34,7 +34,7 @@ export default function(logger: Logger) {
 
     
     fastify.addHook("preHandler", (req, reply, next) => {
-        if (req.headers["content-type"] !== "application/json") {
+        if ((req.headers["content-type"] !== "application/json") && (req.method === "POST" || req.method === "PUT")) {
             reply.status(400).send();
             return;
         }
