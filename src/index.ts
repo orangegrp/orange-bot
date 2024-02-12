@@ -6,10 +6,10 @@ import { getLogger } from "orange-common-lib";
 import { Bot } from "orange-bot-base";
 import { join, dirname } from "path";
 
+import orange_api_server from "./server.js";
+
 const version = process.env.npm_package_version || "this is for development";
-
 const logger = getLogger("orange🟠 Bot");
-
 logger.info("Starting...");
 
 const client = new Client({
@@ -17,17 +17,20 @@ const client = new Client({
 });
 
 const INSTANCE_NAME = process.env.INSTANCE_NAME;
-if (!INSTANCE_NAME) throw new Error("Environment variable \"INSTANCE_NAME\" is not set!");
+if (!INSTANCE_NAME) 
+    throw new Error("Environment variable \"INSTANCE_NAME\" is not set!");
 
 const bot = new Bot(client, INSTANCE_NAME, version, "?", process.env.BOT_TOKEN!);
-
 const moduleDir = join(dirname(import.meta.url), "modules");
 bot.loadModules(moduleDir);
-
 bot.login();
 
 client.on("ready", () => {
-    logger.info("Logged in as " + client.user?.username)
+    logger.info("Logged in as " + client.user?.username);
+});
+
+client.once("ready", () => {
+    orange_api_server(logger.sublogger("orange mgmt api"));
 });
 
 
@@ -51,3 +54,4 @@ MessagePayload.create = (target, options) => {
     //@ts-ignore
     return MessagePayload.__create(target, options);
 }
+

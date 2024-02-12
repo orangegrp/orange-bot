@@ -26,18 +26,20 @@ enum NewsSourceMediaType {
 }
 
 type _validCrawlType = {
-    [NewsSourceType.FEED_RSS]: true,
-    [NewsSourceType.FEED_ATOM]: true,
-    [NewsSourceType.FEED_JSON]: true,
+    [NewsSourceType.FEED_RSS]: true | false,
+    [NewsSourceType.FEED_ATOM]: true | false,
+    [NewsSourceType.FEED_JSON]: true | false,
     [NewsSourceType.FEED_YTRSS]: false,
     [NewsSourceType.FEED_TG]: false
 };
   
 type NewsSource = {
+    id: string,
+    name: string,
     feedType: NewsSourceType,
     feedUrl: string,
     crawl: _validCrawlType[NewsSource["feedType"]],
-    crawlOpts: {
+    crawlOpts?: {
         openGraph: boolean,
         content: boolean,
         contentOpts: {
@@ -46,7 +48,7 @@ type NewsSource = {
         }
     }
     aiSummary: boolean,
-    aiSummaryOpts: {
+    aiSummaryOpts?: {
         maxContentLen: number,
         openAi: {
             assistantId: string
@@ -63,4 +65,14 @@ type NewsSource = {
     }
 };
 
-export type { NewsSource, NewsSourceMediaType, NewsSourceScore, NewsSourceType };
+type NewsConfig = {
+    enabled: boolean,
+    channel_id: string,
+    override?: {
+        crawl?: boolean,
+        aiSummary?: boolean
+    }
+    sources: NewsSource[]
+};
+
+export type { NewsSource, NewsSourceMediaType, NewsSourceScore, NewsSourceType, NewsConfig };
