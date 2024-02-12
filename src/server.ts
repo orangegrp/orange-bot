@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import { Logger } from "orange-common-lib";
 import news_source_v1 from "./modules/news/api/v1/source.js";
+import news_settings_v1 from "./modules/news/api/v1/settings.js";
 
 export default function(logger: Logger) {
     logger.info("orange🟠 Bot Admin API is starting!");
@@ -63,6 +64,7 @@ export default function(logger: Logger) {
 
     // ADD ROUTES HERE
     news_source_v1(fastify, "/modules/news/api/v1/source", logger.sublogger("API v1"));
+    news_settings_v1(fastify, "/modules/news/api/v1/settings", logger.sublogger("API v1"));
 
     logger.ok("Fastify routes registered.");
 

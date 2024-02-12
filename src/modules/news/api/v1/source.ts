@@ -93,7 +93,7 @@ const fastify_request_schema = {
     required: ["name","feedType", "feedUrl", "crawl", "aiSummary"]
 };
 
-type request_schema = Omit<NewsSource, "id"> & {};
+type request_schema = Omit<NewsSource, "id"> & { gid: string };
 type reply_schema = {
     request_id: string,
     success: boolean,
@@ -114,20 +114,20 @@ function catchError(err: Error | any, req: FastifyRequest, reply: FastifyReply, 
 }
 
 
-function get(req: FastifyRequest<{Params: { id: string}}>, reply: FastifyReply) {
+function get(req: FastifyRequest<{Params: { id: string, gid: string }}>, reply: FastifyReply) {
     const req_id = req.headers["orange-application-request-id"];
 
     try {
-        const { id } = req.params;
+        const { gid, id } = req.params;
 
-        const source = getSource(id);
+        const source = getSource(gid, id);
 
         if (!source) {
             reply.status(404).send({
                 request_id: req_id,
                 success: false,
                 message: "Source not found."
-            });
+            } as reply_schema);
         }
 
         reply.status(200).send({
@@ -140,21 +140,21 @@ function get(req: FastifyRequest<{Params: { id: string}}>, reply: FastifyReply) 
     }
 }
 
-function del(req: FastifyRequest<{Params: { id: string}}>, reply: FastifyReply) {
+function del(req: FastifyRequest<{Params: { id: string, gid: string }}>, reply: FastifyReply) {
     const req_id = req.headers["orange-application-request-id"];
 
     try {
-        const { id } = req.params;
+        const { gid, id } = req.params;
 
-        if (!getSource(id)) {
+        if (!getSource(gid, id)) {
             reply.status(404).send({
                 request_id: req_id,
                 success: false,
                 message: "Source not found."
-            });
+            } as reply_schema);
         }
 
-        removeSource(id);
+        removeSource(gid, id);
 
         reply.status(200).send({
             request_id: req_id,
@@ -166,18 +166,18 @@ function del(req: FastifyRequest<{Params: { id: string}}>, reply: FastifyReply) 
     }
 }
 
-function put(req: FastifyRequest<{Params: { id: string}}>, reply: FastifyReply) {
+function put(req: FastifyRequest<{Params: { id: string, gid: string }}>, reply: FastifyReply) {
     const req_id = req.headers["orange-application-request-id"];
 
     try {
-        const { id } = req.params;
+        const { gid, id } = req.params;
 
-        if (!getSource(id)) {
+        if (!getSource(gid, id)) {
             reply.status(404).send({
                 request_id: req_id,
                 success: false,
                 message: "Source not found."
-            });
+            } as reply_schema);
         }
 
         const request_info: request_schema = req.body as request_schema;
@@ -186,7 +186,7 @@ function put(req: FastifyRequest<{Params: { id: string}}>, reply: FastifyReply) 
             ...request_info
         };
 
-        updateSource(id, source);
+        updateSource(gid, id, source);
 
         reply.status(200).send({
             request_id: req_id,
@@ -198,10 +198,12 @@ function put(req: FastifyRequest<{Params: { id: string}}>, reply: FastifyReply) 
     }
 }
 
-function post(req: FastifyRequest, reply: FastifyReply) {
+function post(req: FastifyRequest<{Params: { gid: string }}>, reply: FastifyReply) {
     const req_id = req.headers["orange-application-request-id"];
 
     try {
+        const { gid } = req.params;
+
         const request_info: request_schema = req.body as request_schema;
         const src_id = crypto.randomBytes(4).toString("hex");
         
@@ -210,7 +212,7 @@ function post(req: FastifyRequest, reply: FastifyReply) {
             ...request_info
         };
 
-        if (getSource(source.id)) {
+        if (getSource(gid, source.id)) {
             reply.status(409).send({
                 request_id: req_id,
                 success: false,
@@ -219,7 +221,7 @@ function post(req: FastifyRequest, reply: FastifyReply) {
             return;
         }
 
-        addSource(source);
+        addSource(gid, source);
 
         reply.status(200).send({
             request_id: req_id,
@@ -236,19 +238,22 @@ function post(req: FastifyRequest, reply: FastifyReply) {
 export default function (fastify: FastifyInstance, path: string, _logger: Logger, opts?: RouteShorthandOptions) {
     logger = _logger;
 
-    logger.log(`Registering Fastify route POST ${path} ...`);
-    fastify.post(path, { schema: { body: fastify_request_schema } }, post);     // add news source
-    logger.ok(`Route POST ${path} registered.`);
+    const path_gid = `${path}/:gid`;
+    const path_gid_id = `${path}/:gid/:id`;
 
-    logger.log(`Registering Fastify route DELETE ${path}/:id ...`);
-    fastify.delete(`${path}/:id`, del);     // remove news source
-    logger.ok(`Route DELETE ${path}/:id registered.`);
+    logger.log(`Registering Fastify route POST ${path_gid}...`);
+    fastify.post(path_gid, { schema: { body: fastify_request_schema } }, post);     // add news source
+    logger.ok(`Route POST ${path_gid} registered.`);
 
-    logger.log(`Registering Fastify route GET ${path}/:id ...`);
-    fastify.get(`${path}/:id`, get);     // get news source
-    logger.ok(`Route GET ${path}/:id registered.`);
+    logger.log(`Registering Fastify route DELETE  ...`);
+    fastify.delete(path_gid_id, del);     // remove news source
+    logger.ok(`Route DELETE ${path_gid_id} registered.`);
 
-    logger.log(`Registering Fastify route PUT ${path}/:id ...`);
-    fastify.put(`${path}/:id`, { schema: { body: fastify_request_schema } }, put);     // update news source
-    logger.ok(`Route DELETE ${path}/:id registered.`);
+    logger.log(`Registering Fastify route GET ${path_gid_id} ...`);
+    fastify.get(path_gid_id, get);     // get news source
+    logger.ok(`Route GET ${path_gid_id} registered.`);
+
+    logger.log(`Registering Fastify route PUT ${path_gid_id} ...`);
+    fastify.put(path_gid_id, { schema: { body: fastify_request_schema } }, put);     // update news source
+    logger.ok(`Route PUT ${path_gid_id} registered.`);
 }

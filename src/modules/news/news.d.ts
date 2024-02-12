@@ -65,7 +65,7 @@ type NewsSource = {
     }
 };
 
-type NewsConfig = {
+type NewsGuildConfig = {
     enabled: boolean,
     channel_id: string,
     override?: {
@@ -75,4 +75,15 @@ type NewsConfig = {
     sources: NewsSource[]
 };
 
-export type { NewsSource, NewsSourceMediaType, NewsSourceScore, NewsSourceType, NewsConfig };
+type NewsConfig = {
+    enabled: boolean,
+    override?: {
+        crawl?: boolean,
+        aiSummary?: boolean
+    }
+    guilds: {
+        [id: string]: NewsGuildConfig
+    }
+};
+
+export type { NewsSource, NewsSourceMediaType, NewsSourceScore, NewsSourceType, NewsGuildConfig, NewsConfig };

@@ -1,6 +1,6 @@
 import path from "path";
 import fs from "fs";
-import { NewsConfig, NewsSource } from "./news";
+import { NewsGuildConfig, NewsConfig, NewsSource } from "./news";
 import { getLogger } from "orange-common-lib";
 import crypto from "crypto";
 
@@ -29,8 +29,7 @@ function initSources() {
 
         config = {
             enabled: false,
-            channel_id: "",
-            sources: []
+            guilds: {}
         }
 
         fs.writeFileSync(config_file_path, JSON.stringify(config));
@@ -48,61 +47,119 @@ function reloadSoruces() {
     initSources();
 }
 
-function addSource(source: NewsSource) {
+function addSource(gid: string, source: NewsSource) {
     if (config) {
         const source_hash = getSourceHashExceptId(source);
 
-        if (config.sources.find(s => getSourceHashExceptId(s) === source_hash)) {
+        if (config.guilds[gid].sources.find(s => getSourceHashExceptId(s) === source_hash)) {
             throw new Error("News source failed distinct hash validation check.");
         }
 
         logger.log(`Adding news source "${source.name}" with id "${source.id}" to ${config_file_path} ...`);
-        config.sources.push(source);
+        config.guilds[gid].sources.push(source);
         saveSources();
     } else {
         initSources();
-        addSource(source);
+        addSource(gid, source);
     }
 }
 
-function removeSource(source_id: string) {
+function removeSource(gid: string, source_id: string) {
     if (config) {
         logger.log(`Removing news source with id "${source_id}" from ${config_file_path} ...`);
-        config.sources = config.sources.filter(source => source.id !== source_id);
+        config.guilds[gid].sources = config.guilds[gid].sources.filter(source => source.id !== source_id);
         saveSources();
     } else {
         initSources();
-        removeSource(source_id);
+        removeSource(gid, source_id);
     }
 }
 
-function getSource(source_id: string): NewsSource | null {
+function getSource(gid: string, source_id: string): NewsSource | null {
     if (config) {
-        return config.sources.find(source => source.id === source_id) || null;
+        return config.guilds[gid].sources.find(source => source.id === source_id) || null;
     } else {
         initSources();
-        return getSource(source_id);
+        return getSource(gid, source_id);
     }
 }
 
-function getSources(): NewsSource[] | null {
+function getSources(gid: string): NewsSource[] | null {
     if (config) {
-        return config.sources;
+        return config.guilds[gid].sources;
     } else {
         initSources();
-        return getSources();
+        return getSources(gid);
     }
 }
 
-function updateSource(source_id: string, source: NewsSource) {
+function getSettings(): Omit<NewsConfig, "guilds"> {
+    return config ? config : function (): Omit<NewsConfig, "guilds"> { initSources(); return getSettings(); }();
+}
+
+function getGuildSettings(gid: string): Omit<NewsGuildConfig, "sources"> | null {
     if (config) {
-        logger.log(`Updating news source with id "${source_id}" in ${config_file_path} ...`);
-        config.sources = config.sources.map(s => s.id === source_id ? source : s);
+        return config.guilds[gid];
+    } else {
+        initSources();
+        return getGuildSettings(gid);
+    }
+}
+
+function updateSource(gid: string, source_id: string, source: NewsSource) {
+    if (config) {
+        logger.log(`Updating news source with id "${source_id}" in ${config_file_path} for guild ${gid }...`);
+        config.guilds[gid].sources = config.guilds[gid].sources.map(s => s.id === source_id ? source : s);
         saveSources();
     } else {
         initSources();
-        updateSource(source_id, source);
+        updateSource(gid, source_id, source);
     }
 }
 
-export { initSources, reloadSoruces, addSource, removeSource, getSource, getSources, updateSource };
+function setSettings(settings: Omit<NewsConfig, "guilds">) {
+    if (config) {
+        logger.log(`Updating news config in ${config_file_path} ...`);
+        Object.assign(config, settings);
+        saveSources();
+    } else {
+        initSources();
+        setSettings(settings);
+    }
+    saveSources();
+}
+
+function setGuildSettings(gid: string, settings: Omit<NewsGuildConfig, "sources">) {
+    if (config) {
+        logger.log(`Updating news config in ${config_file_path} for guild ${gid} ...`);
+        Object.assign(config.guilds[gid], settings);
+        saveSources();
+    } else {
+        initSources();
+        setGuildSettings(gid, settings);
+    }
+}
+
+function addGuild(gid: string, settings: NewsGuildConfig) {
+    if (config) {
+        logger.log(`Adding news config in ${config_file_path} for guild ${gid} ...`);
+        config.guilds[gid] = settings;
+        saveSources();
+    } else {
+        initSources();
+        addGuild(gid, settings);
+    }
+}
+
+function removeGuild(gid: string) {
+    if (config) {
+        logger.log(`Deleting news config in ${config_file_path} for guild ${gid} ...`);
+        delete config.guilds[gid];
+        saveSources();
+    } else {
+        initSources();
+        removeGuild(gid);
+    }
+}
+
+export { initSources, reloadSoruces, addSource, removeSource, getSource, getSources, updateSource, getSettings, setSettings, getGuildSettings, setGuildSettings, addGuild, removeGuild };
