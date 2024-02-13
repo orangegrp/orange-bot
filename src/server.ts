@@ -2,6 +2,7 @@ import Fastify from "fastify";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import { Logger } from "orange-common-lib";
+
 import news_source_v1 from "./modules/news/api/v1/source.js";
 import news_settings_v1 from "./modules/news/api/v1/settings.js";
 
@@ -13,6 +14,7 @@ export default function(logger: Logger) {
         logger: true,
         trustProxy: true
     });
+
 
     logger.ok("Fastify web server initialised.");
     logger.info("Fastify is using its own logger to print verbose messages to the console. For debugging purposes, please access the Docker console to view Fastify logs.");
@@ -35,6 +37,17 @@ export default function(logger: Logger) {
 
     
     fastify.addHook("preHandler", (req, reply, next) => {
+        reply.header("Access-Control-Allow-Origin", "*");
+        reply.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE");
+        reply.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+
+        console.log(req.body);
+
+        if (req.method === "OPTIONS") {
+            reply.send();
+            return;
+        }
+
         if ((req.headers["content-type"] !== "application/json") && (req.method === "POST" || req.method === "PUT")) {
             reply.status(400).send();
             return;

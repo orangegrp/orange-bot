@@ -121,6 +121,9 @@ function setSettings(settings: Omit<NewsConfig, "guilds">) {
     if (config) {
         logger.log(`Updating news config in ${config_file_path} ...`);
         Object.assign(config, settings);
+        if (!settings.override) {
+            config.override = null;
+        }
         saveSources();
     } else {
         initSources();
@@ -133,6 +136,9 @@ function setGuildSettings(gid: string, settings: Omit<NewsGuildConfig, "sources"
     if (config) {
         logger.log(`Updating news config in ${config_file_path} for guild ${gid} ...`);
         Object.assign(config.guilds[gid], settings);
+        if (!settings.override) {
+            config.guilds[gid].override = null;
+        }
         saveSources();
     } else {
         initSources();
