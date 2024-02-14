@@ -305,25 +305,27 @@ export default function (bot: Bot) {
                 }]});
             } else {
                 await interaction.deferReply();
+                const cwe = args.cwe ? args.cwe.trim() : undefined;
+                const cwe_param = cwe ? (cwe.startsWith("CWE-") ? cwe : "CWE-" + cwe): undefined;
                 await interaction.editReply(await getCves( {
                     keyword: args.keyword,
                     vendor: args.vendor,
                     product: args.product,
                     cvss: args.cvss,
-                    cwe: args.cwe
+                    cwe: cwe_param
                 }, args.page));
             }
         }
         else if (args.subCommand === "info") {
             await interaction.deferReply();
             const id = args.cveid.trim();
-            const param = !id.startsWith("CVE-") ? "CVE-" + id : id;
+            const param = id.startsWith("CVE-") ? id : "CVE-" + id;
             await interaction.editReply(await getCveInfo(param));
         }
         else if (args.subCommand === "cwe") {
             await interaction.deferReply();
             const id = args.cweid.trim();
-            const param = !id.startsWith("CWE-") ? "CWE-" + id : id;
+            const param = id.startsWith("CWE-") ? id : "CWE-" + id;
             await interaction.editReply(await getCweInfo(param));
         }
     });
