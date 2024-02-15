@@ -172,14 +172,16 @@ export default function (bot: Bot) {
             const total_cost = `**$${existing_account.total_cost.toFixed(4)}**`;
             const total_requests = `**${existing_account.total_requests}**`;
             const total_tokens = `**${existing_account.total_tokens}**`;
+            
             const ban_status = !existing_account.banned ? ":white_check_mark: **Account is active**" : ":warning: **Account is suspended**";
+            const other_status = existing_account.daily_cost >= existing_account.daily_cost_cap ? ":clock12: **Daily cap reached**" : undefined;
 
             await interaction.reply({
                 embeds: [
                     {
                         author: { name: `Account ID: ${existing_account.id}` },
                         description: `### Account information\n` +
-                            `Status: ` + ban_status + `\n` +
+                            `Status: ` + (other_status ?? ban_status) + `\n` +
                             `### Cost awareness\n` +
                             `Daily cap: ` + daily_cap + `\n` +
                             `Total requests: ` + total_requests + `\n` +
