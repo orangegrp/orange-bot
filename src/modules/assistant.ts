@@ -2,7 +2,7 @@ import { ArgType, Bot, Command } from "orange-bot-base";
 import { generate_no_context, generate_with_context } from "./gpt/openai.js";
 import { getLogger } from "orange-common-lib";
 import { APIEmbed, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, Message } from "discord.js";
-import { allowUser, getOraUser, updateOraUser, createOraUser, calculateCost, ora_user, initDb } from "./gpt/costmgr.js";
+import { allowUser, getOraUser, updateOraUser, createOraUser, calculateCost, ora_user, initDb, resetAllDailyCaps } from "./gpt/costmgr.js";
 
 const logger = getLogger("assistant");
 
@@ -23,8 +23,10 @@ const command = {
 
 const context_map: Map<string, string> = new Map();
 
-export default function (bot: Bot) {
-    initDb();
+export default async function (bot: Bot) {
+    await initDb();
+
+    setTimeout(() => resetAllDailyCaps(), 24 * 60 * 60 * 1000);
 
     bot.client.on("interactionCreate", async interaction => {
         if (interaction.isButton() && interaction.customId.startsWith("ora_")) {
@@ -198,98 +200,94 @@ export default function (bot: Bot) {
 
 
     bot.client.on("messageCreate", async msg => {
-        if (bot.client.user && (msg.reference && msg.reference.messageId && context_map.has(msg.reference?.messageId) || (msg.mentions.has(bot.client.user) && msg.content.startsWith(`<@${bot.client.user.id}>`)))) {
-            var existing_account: ora_user;
-            logger.log(msg.author.id);
+        if (!bot.client.user) {
+            logger.warn("bot.client.user not set! Cannot reply to AI request!");
+            return;
+        }
 
-            const allowed = await allowUser(msg.author.id);
+        const is_replying_to_context = msg.reference && msg.reference.messageId && context_map.has(msg.reference?.messageId);
+        const is_starting_new_ctx = msg.content.startsWith(`<@${bot.client.user.id}>`);
 
-            if (!allowed) {
-                return;
+        if (!is_replying_to_context && !is_starting_new_ctx) {
+            return;
+        }
+        
+        if (!(await allowUser(msg.author.id))) {
+            return;
+        }
+
+        const existing_account = await getOraUser(msg.author.id) as ora_user;
+        msg.channel.sendTyping();
+
+        const user = msg.author.displayName;
+        const id = msg.author.id;
+
+        var result: { response?: string, thread_id?: string, input_tokens?: number, output_tokens?: number, new_context?: boolean };
+
+        if (msg.reference && msg.reference.messageId && context_map.has(msg.reference.messageId)) {
+            logger.info(`Using previous context: ${context_map.get(msg.reference.messageId)}`);
+            result = await generate_with_context(context_map.get(msg.reference.messageId)!, user, id, msg.content.replace(/<@\d+>/g, '').trim(), "asst_c053PWqAKmuUgJ0whEjGpJzG");
+        } else {
+            result = await generate_no_context(user, id, msg.content.replace(/<@\d+>/g, '').trim(), "asst_c053PWqAKmuUgJ0whEjGpJzG");
+            logger.info(`Using new context: ${result.thread_id}`);
+        }
+
+        const sys_prompt_tokens = 269 + 25;
+        const input_tokens = result.input_tokens ?? 0;
+        const output_tokens = result.output_tokens ?? 0;
+
+        const { total_tokens, input_cost, output_cost, total_cost } = calculateCost(sys_prompt_tokens, input_tokens, output_tokens);
+
+        const cost_info = `Input cost: $${input_cost.toFixed(4)} (${input_tokens} tokens)\n` +
+            `Output cost: $${output_cost.toFixed(4)} (${output_tokens} tokens)\n` +
+            `Total cost: $${(total_cost).toFixed(4)} (${total_tokens} total tokens)`;
+        logger.info(cost_info);
+
+        if (result.response) {         
+            var embeds: APIEmbed[] = [];
+
+            if (result.new_context) {
+                embeds.push( { color: 0xffff00,  description: `This dialogue is in a new context window.` } );
             }
 
-            existing_account = await getOraUser(msg.author.id) as ora_user;
-                  
-            msg.channel.sendTyping();
-
-            const user = msg.author.displayName;
-            const id = msg.author.id;
-
-            var result: { response?: string, thread_id?: string, input_tokens?: number, output_tokens?: number, new_context?: boolean };
-
-            if (msg.reference && msg.reference.messageId && context_map.has(msg.reference.messageId)) {
-                logger.info(`Using previous context: ${context_map.get(msg.reference.messageId)}`);
-                result = await generate_with_context(context_map.get(msg.reference.messageId)!, user, id, msg.content.replace(/<@\d+>/g, '').trim(), "asst_c053PWqAKmuUgJ0whEjGpJzG");
-            } else {
-                result = await generate_no_context(user, id, msg.content.replace(/<@\d+>/g, '').trim(), "asst_c053PWqAKmuUgJ0whEjGpJzG");
-                logger.info(`Using new context: ${result.thread_id}`);
+            if (process.env.OPENAI_SHOW_PRICE && process.env.OPENAI_SHOW_PRICE === "true") {
+                embeds.push(
+                    {
+                        description: `This request: **$${total_cost.toFixed(4)}** (**${total_tokens}** tokens)\n` +
+                            `**$${(total_cost * 60).toFixed(2)}**/h\u00A0\u00A0` +
+                            `**$${(total_cost * 60 * 24).toFixed(2)}**/d\u00A0\u00A0` +
+                            `**$${(total_cost * 60 * 24 * 7).toFixed(2)}**/w\u00A0\u00A0` +
+                            `**$${(total_cost * 60 * 24 * 30).toFixed(2)}**/m\u00A0\u00A0` +
+                            `**$${(total_cost * 60 * 24 * 365).toFixed(2)}**/y`,
+                        footer: { text: `${input_tokens} tokens in \u00A0\u00A0 ${output_tokens} tokens out \u00A0\u00A0 ${total_tokens} tokens/min` },
+                    }
+                );        
             }
 
-            //const result = await generate_no_context(user, id, msg.content.replace(/<@\d+>/g, '').trim(), "asst_c053PWqAKmuUgJ0whEjGpJzG");
+            const reply = await msg.reply({ content: result.response, embeds: embeds });
 
-            const sys_prompt_tokens = 269 + 25;
-            const input_tokens = result.input_tokens ?? 0;
-            const output_tokens = result.output_tokens ?? 0;
-
-            const { total_tokens, input_cost, output_cost, total_cost } = calculateCost(sys_prompt_tokens, input_tokens, output_tokens);
-
-            const cost_info = `Input cost: $${input_cost.toFixed(4)} (${input_tokens} tokens)\n` +
-                `Output cost: $${output_cost.toFixed(4)} (${output_tokens} tokens)\n` +
-                `Total cost: $${(total_cost).toFixed(4)} (${total_tokens} total tokens)`;
-            logger.info(cost_info);
-
-            if (result.response) {         
-                var embeds: APIEmbed[] = [];
-
-                if (result.new_context) {
-                    embeds.push(
-                        {
-                            color: 0xffff00,
-                            description: `This dialogue is in a new context window.`
-                        }
-                    );
-                }
-
-                if (process.env.OPENAI_SHOW_PRICE && process.env.OPENAI_SHOW_PRICE === "true") {
-                    embeds.push(
-                        {
-                            description: `This request: **$${total_cost.toFixed(4)}** (**${total_tokens}** tokens)\n` +
-                                `**$${(total_cost * 60).toFixed(2)}**/h\u00A0\u00A0` +
-                                `**$${(total_cost * 60 * 24).toFixed(2)}**/d\u00A0\u00A0` +
-                                `**$${(total_cost * 60 * 24 * 7).toFixed(2)}**/w\u00A0\u00A0` +
-                                `**$${(total_cost * 60 * 24 * 30).toFixed(2)}**/m\u00A0\u00A0` +
-                                `**$${(total_cost * 60 * 24 * 365).toFixed(2)}**/y`,
-                            footer: { text: `${input_tokens} tokens in \u00A0\u00A0 ${output_tokens} tokens out \u00A0\u00A0 ${total_tokens} tokens/min` },
-                        }
-                    );        
-                }
-
-                const reply = await msg.reply({ content: result.response, embeds: embeds });
-
-                if (result.thread_id) {
-                    context_map.set(reply.id, result.thread_id);
-                    setTimeout(() => context_map.delete(reply.id), 3600000);
-                }
+            if (result.thread_id) {
+                context_map.set(reply.id, result.thread_id);
+                setTimeout(() => context_map.delete(reply.id), 3600000);
             }
-            else {
-                msg.reply({
-                    embeds: [{
-                        title: "Could not generate response",
-                        description: "The response I received from OpenAI was `undefined`.",
-                    }]
+        }
+        else {
+            msg.reply({
+                embeds: [{
+                    title: "Could not generate response",
+                    description: "The response I received from OpenAI was `undefined`.",
+                }]
+            });
+        }
+
+        if (existing_account) {
+            updateOraUser(id, 
+                { 
+                    total_requests: existing_account.total_requests + 1,
+                    total_tokens: existing_account.total_tokens + total_tokens, 
+                    daily_cost: existing_account.daily_cost + total_cost,
+                    total_cost: existing_account.total_cost + total_cost
                 });
-            }
-
-            if (existing_account) {
-                updateOraUser(id, 
-                    { 
-                        total_requests: existing_account.total_requests + 1,
-                        total_tokens: existing_account.total_tokens + total_tokens, 
-                        daily_cost: existing_account.daily_cost + total_cost,
-                        total_cost: existing_account.total_cost + total_cost
-                    });
-            }
-
         }
     });
 };
