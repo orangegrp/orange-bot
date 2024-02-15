@@ -283,7 +283,8 @@ export default function (bot: Bot) {
                     { 
                         total_requests: existing_account.total_requests + 1,
                         total_tokens: existing_account.total_tokens + total_tokens, 
-                        daily_cost: existing_account.daily_cost + total_cost
+                        daily_cost: existing_account.daily_cost + total_cost,
+                        total_cost: existing_account.total_cost + total_cost
                     });
             }
 
