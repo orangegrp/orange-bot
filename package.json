@@ -29,8 +29,10 @@
         "jsonwebtoken": "^9.0.2",
         "node-html-to-image": "^4.0.0",
         "node-ssh": "^13.1.0",
+        "openai": "^4.28.0",
         "orange-bot-base": "file:local_modules/orange-bot-base",
         "orange-common-lib": "file:local_modules/orange-common-lib",
+        "pocketbase": "^0.21.1",
         "sha256": "^0.2.0",
         "ws": "^8.16.0"
     },
