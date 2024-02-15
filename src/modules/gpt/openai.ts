@@ -16,60 +16,49 @@ async function generate_with_context(thread_id: string, user_name: string, user_
             user_prompt = user_prompt.substring(0, 100);
             user_prompt += "\n\n[User input truncated to 100 characters]";
         }
-
         const chatThread = await openai.beta.threads.retrieve(thread_id);
-
         //logger.verbose(util.inspect(chatThread, { depth: null }));
-
-        const threadMsgs = await openai.beta.threads.messages.list(chatThread.id);
-        
+        const threadMsgs = await openai.beta.threads.messages.list(chatThread.id);    
         //logger.verbose(util.inspect(threadMsgs, { depth: null }));
-
         if (threadMsgs.data.length > context_history_length) {
             return generate_no_context(user_name, user_id, user_prompt, assistant_id);
         }
-
         const contextThreadMsgs = await openai.beta.threads.messages.create(
             chatThread.id,
             { role: "user", content: `User: "${user_name}" with ID: "${user_id}" said: \`\`\`${user_prompt}\`\`\`` }
         );
-
         //logger.verbose(util.inspect(contextThreadMsgs, { depth: null }));
-
         const threadRun = await openai.beta.threads.runs.create(
             chatThread.id,
             { assistant_id: assistant_id, model: "gpt-3.5-turbo-0125" }
         );
-
         //logger.verbose(util.inspect(threadRun, { depth: null }));
-
         let run_info = await openai.beta.threads.runs.retrieve(chatThread.id, threadRun.id);
         let counter: number = 0;
         while (true) {
             let status = run_info.status;
             logger.verbose(status);
-            counter += 1;
             if (status === "completed") {
                 break;
             } else if (status === "failed" || status === "cancelled") {
                 return { response: undefined, thread_id: undefined, input_tokens: run_info.usage?.prompt_tokens, output_tokens: run_info.usage?.completion_tokens, new_context: false };
             } else if (counter === 3) {
                 logger.warn(`Timeout reached, cancelling thread. Thread: ${chatThread.id} Run: ${threadRun.id}`);
-                await openai.beta.threads.runs.cancel(chatThread.id, threadRun.id);
-                return { response: undefined, thread_id: undefined, input_tokens: run_info.usage?.prompt_tokens, output_tokens: run_info.usage?.completion_tokens, new_context: false };
+                run_info = await openai.beta.threads.runs.retrieve(chatThread.id, threadRun.id, { timeout: 5000 });
+                if (run_info.status === "in_progress")
+                    await openai.beta.threads.runs.cancel(chatThread.id, threadRun.id);
+                continue;
             }
             await sleep(1000);
             run_info = await openai.beta.threads.runs.retrieve(chatThread.id, threadRun.id, { timeout: 5000 });
+            counter += 1;
         }
 
         const newThreadMessages = await openai.beta.threads.messages.list(
             chatThread.id
         );
-
         //logger.verbose(util.inspect(newThreadMessages, { depth: null }));
-
         var response: string[] = [];
-
         newThreadMessages.data.filter(d => d.role === "assistant").forEach((e) => {
             e.content.forEach((c) => {
                 if (c.type === "text") {
@@ -77,7 +66,6 @@ async function generate_with_context(thread_id: string, user_name: string, user_
                 }
             });
         });
-
         threadMsgs.data.filter(d => d.role === "assistant").forEach((e) => {
            e.content.forEach((c) => {
                if (c.type === "text") {
@@ -100,25 +88,18 @@ async function generate_no_context(user_name: string, user_id: string, user_prom
             user_prompt = user_prompt.substring(0, 100);
             user_prompt += "\n\n[User input truncated to 100 characters]";
         }
-
         const chatThread = await openai.beta.threads.create();
-
         //logger.verbose(util.inspect(chatThread, { depth: null }));
-
         const threadMsgs = await openai.beta.threads.messages.create(
             chatThread.id,
             { role: "user", content: `User: "${user_name}" with ID: "${user_id}" said: \`\`\`${user_prompt}\`\`\`` }
         );
-
         //logger.verbose(util.inspect(threadMsgs, { depth: null }));
-
         const threadRun = await openai.beta.threads.runs.create(
             chatThread.id,
             { assistant_id: assistant_id, model: "gpt-3.5-turbo-0125" }
         );
-
         //logger.verbose(util.inspect(threadRun, { depth: null }));
-
         let run_info = await openai.beta.threads.runs.retrieve(chatThread.id, threadRun.id);
         let counter: number = 0;
         while (true) {
@@ -141,11 +122,8 @@ async function generate_no_context(user_name: string, user_id: string, user_prom
         const newThreadMessages = await openai.beta.threads.messages.list(
             chatThread.id
         );
-
         //logger.verbose(util.inspect(newThreadMessages, { depth: null }));
-
         var response: string[] = [];
-
         newThreadMessages.data.filter(d => d.role === "assistant").forEach((e) => {
             e.content.forEach((c) => {
                 if (c.type === "text") {
