@@ -3,14 +3,25 @@ import { sleep } from "orange-bot-base";
 import { getLogger } from "orange-common-lib";
 import util from "util";
 
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_KEY
-});
+var openai: OpenAI | undefined = undefined;
+
+async function initialize() {
+    if (process.env.OPENAI_KEY) {
+        openai = new OpenAI({ apiKey: process.env.OPENAI_KEY});
+    }
+}
 
 const logger = getLogger("openai");
 const context_history_length = 10;
 
 async function generate_with_context(thread_id: string, user_name: string, user_id: string, user_prompt: string, assistant_id: string): Promise<{ response?: string, thread_id?: string, input_tokens?: number, output_tokens?: number, new_context?: boolean }> {
+    if (!openai) {
+        await initialize();
+        if (!openai) {
+            return { response: undefined, thread_id: undefined, input_tokens: undefined, output_tokens: undefined, new_context: true };
+        }
+    }
+
     try {
         if (user_prompt.length > 100) {
             user_prompt = user_prompt.substring(0, 100);
@@ -86,6 +97,13 @@ async function generate_with_context(thread_id: string, user_name: string, user_
 }
 
 async function generate_no_context(user_name: string, user_id: string, user_prompt: string, assistant_id: string): Promise<{ response?: string, thread_id?: string, input_tokens?: number, output_tokens?: number, new_context?: boolean }> {
+    if (!openai) {
+        await initialize();
+        if (!openai) {
+            return { response: undefined, thread_id: undefined, input_tokens: undefined, output_tokens: undefined, new_context: true };
+        }
+    }
+
     try {
         if (user_prompt.length > 100) {
             user_prompt = user_prompt.substring(0, 100);
@@ -146,4 +164,4 @@ async function generate_no_context(user_name: string, user_id: string, user_prom
     }
 }
 
-export { generate_no_context, generate_with_context };
+export { generate_no_context, generate_with_context, initialize };
