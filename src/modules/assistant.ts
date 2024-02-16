@@ -215,14 +215,14 @@ export default async function (bot: Bot) {
         if (!(await allowUser(msg.author.id))) {
             return;
         }
-
-        const existing_account = await getOraUser(msg.author.id) as ora_user;
+    
         msg.channel.sendTyping();
+        const existing_account = await getOraUser(msg.author.id) as ora_user;
 
         const user = msg.author.displayName;
         const id = msg.author.id;
 
-        var result: { response?: string, thread_id?: string, input_tokens?: number, output_tokens?: number, new_context?: boolean };
+        var result: { response?: string, thread_id?: string, input_tokens?: number, output_tokens?: number, new_context?: boolean, extra?: APIEmbed[], extra_text?: string };
 
         if (msg.reference && msg.reference.messageId && context_map.has(msg.reference.messageId)) {
             logger.info(`Using previous context: ${context_map.get(msg.reference.messageId)}`);
@@ -232,7 +232,7 @@ export default async function (bot: Bot) {
             logger.info(`Using new context: ${result.thread_id}`);
         }
 
-        const sys_prompt_tokens = 269 + 25;
+        const sys_prompt_tokens = Number(process.env.SYS_PROMPT_TKS ?? 0) + Number(process.env.SYS_PROMPT_PFX ?? 0) + Number(process.env.FNC_PROMPT_TKS ?? 0);
         const input_tokens = result.input_tokens ?? 0;
         const output_tokens = result.output_tokens ?? 0;
 
@@ -245,6 +245,10 @@ export default async function (bot: Bot) {
 
         if (result.response) {         
             var embeds: APIEmbed[] = [];
+
+            if (result.extra) {
+                embeds.push( ...result.extra );
+            }
 
             if (result.new_context) {
                 embeds.push( { color: 0xffff00,  description: `This dialogue is in a new context window.` } );
@@ -264,7 +268,7 @@ export default async function (bot: Bot) {
                 );        
             }
 
-            const reply = await msg.reply({ content: result.response, embeds: embeds });
+            const reply = await msg.reply({ content: result.response + (result.extra_text && result.extra_text.length > 1 ? `${result.extra_text}\n\n` : ""), embeds: embeds });
 
             if (result.thread_id) {
                 context_map.set(reply.id, result.thread_id);
