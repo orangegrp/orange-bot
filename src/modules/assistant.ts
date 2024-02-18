@@ -3,6 +3,7 @@ import { generate_no_context, generate_with_context } from "./gpt/openai.js";
 import { getLogger } from "orange-common-lib";
 import { APIEmbed, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, Message } from "discord.js";
 import { allowUser, getOraUser, updateOraUser, createOraUser, calculateCost, ora_user, initDb, resetAllDailyCaps } from "./gpt/costmgr.js";
+import scheduler from "node-schedule";
 
 const logger = getLogger("assistant");
 
@@ -26,7 +27,8 @@ const context_map: Map<string, string> = new Map();
 export default async function (bot: Bot) {
     await initDb();
 
-    setTimeout(() => resetAllDailyCaps(), 24 * 60 * 60 * 1000);
+    scheduler.scheduleJob("0 0 * * *", () => resetAllDailyCaps());
+    //setTimeout(() => resetAllDailyCaps(), 24 * 60 * 60 * 1000);
 
     bot.client.on("interactionCreate", async interaction => {
         if (interaction.isButton() && interaction.customId.startsWith("ora_")) {
