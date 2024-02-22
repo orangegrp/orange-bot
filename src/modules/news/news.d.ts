@@ -38,6 +38,8 @@ type NewsSource = {
     name: string,
     feedType: NewsSourceType,
     feedUrl: string,
+    feedIcon?: string,
+    authorIcon?: string,
     crawl: _validCrawlType[NewsSource["feedType"]],
     crawlOpts?: {
         openGraph: boolean,
