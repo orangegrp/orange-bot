@@ -93,11 +93,11 @@ function getSources(gid: string): NewsSource[] | null {
     }
 }
 
-function getSettings(): Omit<NewsConfig, "guilds"> {
-    return config ? config : function (): Omit<NewsConfig, "guilds"> { initSources(); return getSettings(); }();
+function getSettings(): NewsConfig {
+    return config ? config : function (): NewsConfig { initSources(); return getSettings(); }();
 }
 
-function getGuildSettings(gid: string): Omit<NewsGuildConfig, "sources"> | null {
+function getGuildSettings(gid: string): NewsGuildConfig | null {
     if (config) {
         return config.guilds[gid];
     } else {
