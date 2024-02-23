@@ -106,14 +106,21 @@ function getGuildSettings(gid: string): Omit<NewsGuildConfig, "sources"> | null 
     }
 }
 
-function updateSource(gid: string, source_id: string, source: NewsSource) {
+function updateSource(gid: string, source_id: string, new_source: Partial<NewsSource>) {
     if (config) {
         logger.log(`Updating news source with id "${source_id}" in ${config_file_path} for guild ${gid }...`);
-        config.guilds[gid].sources = config.guilds[gid].sources.map(s => s.id === source_id ? source : s);
-        saveSources();
+        //config.guilds[gid].sources = config.guilds[gid].sources.map(s => s.id === source_id ? source : s);
+        const source = config.guilds[gid].sources.find(source => source.id === source_id);
+        if (source) {
+            Object.assign(source, new_source);
+            saveSources();
+        }
+        else {
+            throw new Error(`Source with id "${source_id}" not found.`);
+        }
     } else {
         initSources();
-        updateSource(gid, source_id, source);
+        updateSource(gid, source_id, new_source);
     }
 }
 
