@@ -36,7 +36,9 @@ type _validCrawlType = {
 type NewsSource = {
     id: string,
     name: string,
+    icon?: string,
     feedType: NewsSourceType,
+    feedIcon?: string,
     feedUrl: string,
     crawl: _validCrawlType[NewsSource["feedType"]],
     crawlOpts?: {

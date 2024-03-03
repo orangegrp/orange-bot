@@ -19,7 +19,7 @@ type ora_user = {
     updated: Date
 };
 
-function initDb() {
+async function initDb() {
     logger.info(`Connecting to pocketbase...`);
     pb = new pocketbase(`https://${process.env.PB_DOMAIN!}`);
 
@@ -37,6 +37,11 @@ function initDb() {
         logger.error(err);
         setTimeout(initDb, 5000);
     });
+
+    while (!pb.authStore.isValid) {
+        await sleep(1000);
+        continue;
+    }
 }
 
 async function getOraUser(user_id: string): Promise<ora_user | undefined> {
@@ -48,6 +53,14 @@ async function getOraUser(user_id: string): Promise<ora_user | undefined> {
         logger.warn(`Failed to get user with snowflake ${user_id}`);
         logger.error(err);
         return undefined;
+    }
+}
+
+async function resetAllDailyCaps() {
+    const users = await pb.collection("ora_users").getFullList<ora_user>();
+    for (const user of users) {
+        logger.log(`Resetting daily cost cap for user ${user.user_id}...`);
+        await updateOraUser(user.user_id, { daily_cost: 0 });
     }
 }
 
@@ -127,4 +140,4 @@ function calculateCost(sys_prompt_tokens: number, input_tokens: number, output_t
     return { total_tokens, input_cost, output_cost, total_cost };
 }
 
-export { initDb, allowUser, getOraUser, updateOraUser, createOraUser, calculateCost, ora_user };
+export { initDb, allowUser, getOraUser, updateOraUser, createOraUser, calculateCost, ora_user, resetAllDailyCaps };

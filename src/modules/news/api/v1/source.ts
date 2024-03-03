@@ -10,10 +10,12 @@ const fastify_request_schema = {
     type: "object",
     properties: {
         name: { type: "string" },
+        icon: { type: "string" },
         feedType: {
             type: "string",
             enum: ["RSS", "Atom", "JSON", "YouTube", "Telegram"]
         },
+        feedIcon: { type: "string" },
         feedUrl: {
             type: "string",
             format: "uri"
