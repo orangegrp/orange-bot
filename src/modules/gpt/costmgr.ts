@@ -20,6 +20,8 @@ type ora_user = {
 };
 
 async function initDb() {
+    return;
+    
     logger.info(`Connecting to pocketbase...`);
     pb = new pocketbase(`https://${process.env.PB_DOMAIN!}`);
 
