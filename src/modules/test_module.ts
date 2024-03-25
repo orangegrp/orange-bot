@@ -51,6 +51,7 @@ const configconfig = {
             description: "counts of oranges",
             type: ConfigValueType.number,
             maxCount: 3,
+            minValue: 1,
             array: true,
             default: [1, 2]
         }

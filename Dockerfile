@@ -11,6 +11,6 @@ ENV USER=container
 ENV HOME=/home/container 
 ENV CHROME_BIN=/usr/bin/chromium-browser
 
-COPY ./entrypoint.sh /entrypoint.sh
+COPY --chown=container:container ./entrypoint.sh /entrypoint.sh
 ENTRYPOINT ["/entrypoint.sh"]
 CMD ["/bin/bash", "/entrypoint.sh"]
