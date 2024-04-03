@@ -23,48 +23,22 @@ const command2 = {
 } satisfies Command;
 
 const configconfig = {
-    name: "testing_idk",
-    displayName: "test test",
+    name: "testing_idk_again",
+    displayName: "test test2",
     user: {
         age: {
-            displayName: "Age",
+            displayName: "Age2",
             description: "your age",
             minValue: 0,
             maxValue: 100,
             type: ConfigValueType.integer,
         },
         name: {
-            displayName: "Name",
+            displayName: "Name2",
             description: "your name",
             type: ConfigValueType.string,
             default: "orange"
         },
-        score: {
-            displayName: "Score",
-            description: "score",
-            type: ConfigValueType.number,
-            minValue: 0,
-            uiVisibility: "readonly"
-        },
-        orangeCounts: {
-            displayName: "Orange counts",
-            description: "counts of oranges",
-            type: ConfigValueType.number,
-            maxCount: 3,
-            minValue: 1,
-            array: true,
-            default: [1, 2]
-        },
-        potatos: {
-            displayName: "Potatoes",
-            description: "Types of potatoes",
-            type: ConfigValueType.string,
-            maxCount: 10,
-            maxLength: 5,
-            minLength: 4,
-            array: true,
-            default: ["Red"]
-        }
     },
     global: {
         orange: {
