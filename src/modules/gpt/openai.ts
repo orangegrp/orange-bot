@@ -19,9 +19,10 @@ async function initialize() {
     }
 }
 
-const logger = getLogger("openai");
-const context_history_length = 16;
+/// TODO: RE-WRITE THIS MODULE IN THE NEXT ITERATION (LOW PRIORITY)
 
+const logger = getLogger("openai");
+const context_history_length = 32;
 
 async function generate_with_context(thread_id: string, user_name: string, user_id: string, user_prompt: string, assistant_id: string): Promise<{ response?: string, thread_id?: string, input_tokens?: number, output_tokens?: number, new_context?: boolean, extra?: APIEmbed[], extra_text?: string }> {
     if (!openai) {
