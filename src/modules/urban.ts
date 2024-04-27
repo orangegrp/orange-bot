@@ -3,8 +3,11 @@
 /// Refactored 27/04/2024.
 
 import type { Bot, Command } from "orange-bot-base";
-import { EmbedBuilder } from "discord.js";
+import { getLogger } from "orange-common-lib";
 import { ArgType } from "orange-bot-base";
+import { EmbedBuilder } from "discord.js";
+
+const logger = getLogger("/urban");
 
 const command = {
     name: "urban",
@@ -42,13 +45,17 @@ type UrbanDefinition = {
  * @returns `UrbanDefinition[]` if the request was successful or `undefined` if something goes wrong.
  */
 async function getDefinitions(term: string) {
+    logger.verbose(`Getting definitions for "${term}" ...`);
     const res = await fetch(`http://api.urbandictionary.com/v0/define?term=${encodeURIComponent(term)}`);
     const body = await res.json() as UrbanResponse;
-
-    if (!body.list || !(body.list instanceof Array))
+    if (!body.list || !(body.list instanceof Array)) {
+        logger.verbose(`Tried to look up term "${term}" but got no results. body.list was null or not an Array, returning undefined ...`);
         return undefined;
-    else
+    }
+    else {
+        logger.verbose(`Got ${body.list?.length} definitions for "${term}", returning ...`);
         return body.list;
+    }
 }
 
 /**
@@ -57,7 +64,9 @@ async function getDefinitions(term: string) {
  * @returns A Discord `EmbedBuilder` object.
  */
 async function getDefinition(definitions: UrbanDefinition[]) {
+    logger.verbose(`Parsing definitions ...`);
     const definition = definitions[0];
+    logger.verbose(`Got first definition for "${definition.word}": ${definition.definition}`);
     definition.definition = definition.definition?.replace(/\[([\w\s]+)\]/g, (_, word: string) => `[${word}](http://${word.replace(/\s/g, "-")}.urbanup.com/)`);
 
     const embed = new EmbedBuilder({
@@ -79,6 +88,8 @@ async function getDefinition(definitions: UrbanDefinition[]) {
         embed.addFields({ name: 'Rating', value: `:thumbsup: ${definition.thumbs_up} :thumbsdown: ${definition.thumbs_down}` });
     }
 
+    logger.verbose(`Created embed: ${JSON.stringify(embed)}`);
+
     return embed;
 }
 
@@ -88,6 +99,7 @@ async function getDefinition(definitions: UrbanDefinition[]) {
  */
 export default function (bot: Bot) {
     bot.addCommand(command, async (interaction, args) => {
+        logger.log(`"User ${interaction.user.username} (${interaction.user.id}), looked up ${args.word}"`);
         const definitions = await getDefinitions(args.word);
 
         if (definitions === undefined || definitions.length === 0) {
@@ -98,10 +110,12 @@ export default function (bot: Bot) {
                     timestamp: new Date().toISOString()
                 }]
             });
+            logger.log(`No definition found for "${args.word}"`);
             return;
         }
 
         const embed = await getDefinition(definitions);
+        logger.log(`The first definition for "${args.word}" as requested by ${interaction.user.username} (${interaction.user.id}) was sent.`);
         interaction.reply({ embeds: [embed] });
     });
 }

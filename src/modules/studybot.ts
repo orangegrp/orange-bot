@@ -1,12 +1,21 @@
+/// studybot.ts - StudyBot module for orange🟠 Bot.
+/// Copyright © orangegrp 2024. All rights reserved.
+/// Refactored 27/04/2024.
+
+/// THIS IS A WORK IN PROGRESS AND IS NOT READY FOR USE!
+
+import type { Bot, Command } from "orange-bot-base";
+import { ArgType } from "orange-bot-base";
 import { getLogger } from "orange-common-lib";
+
 import { quizHandler } from "./studybot/presentation/quiz.js";
 import { slideShowHandler } from "./studybot/presentation/slideshow.js";
-import { ArgType, Bot, Command } from "orange-bot-base";
-import studyTopic, { getTopicList } from "./studybot/study/topic.js";
+import { studyTopic, getTopicList } from "./studybot/study/topic.js";
+import { AutocompleteInteraction, ButtonInteraction } from "discord.js";
 
 const logger = getLogger("/studybot");
 
-const study = {
+const command = {
     name: "studybot",
     description: "Sharpen your knowledge and tech skills with Studybot",
     options: {
@@ -57,9 +66,42 @@ const study = {
     },
 } satisfies Command;
 
+/**
+ * Autocomplete handler for command params.
+ * @param interaction Interaction object.
+ * @returns N/A
+ */
+async function handleAutoComplete(interaction: AutocompleteInteraction) {
+    const option = interaction.options.getFocused(true);
+    if (interaction.commandName !== "studybot" && option.name !== "topic") {
+        return;
+    }
+    logger.log(`Autocomplete parameter requested ${option.name}: ${option.value}`);
+    /// TODO: Merge function with other Levenshtein distance function.
+    let choices = await getTopicList(option.value);
+    await interaction.respond(
+        choices.map(choice => ({ name: choice, value: choice }))
+    );
+}
 
+/**
+ * Button interaction handler.
+ * @param interaction Interaction object.
+ */
+async function handleButtonInteraction(interaction: ButtonInteraction) {
+    if (interaction.customId.startsWith("slideshow-")) {
+        slideShowHandler(interaction);
+    } else if (interaction.customId.startsWith("quiz-")) {
+        quizHandler(interaction);
+    }
+}
+
+/**
+ * `studybot.ts` - StudyBot module for orange🟠 Bot.
+ * @param bot Bot object (`orange-bot-base`)
+ */
 export default function (bot: Bot) {
-    bot.addCommand(study, async (interaction, args) => {
+    bot.addCommand(command, async (interaction, args) => {
         if (args.subCommand === "study") {
             if (!args.topic)
                 interaction.reply("Please specify a topic to study");
@@ -79,22 +121,9 @@ export default function (bot: Bot) {
 
     bot.client.on("interactionCreate", async interaction => {
         if (interaction.isButton()) {
-            if (interaction.customId.startsWith("slideshow-")) {
-                slideShowHandler(interaction);
-            } else if (interaction.customId.startsWith("quiz-")) {
-                quizHandler(interaction);
-            }
+            await handleButtonInteraction(interaction);
         } else if (interaction.isAutocomplete()) {
-            const option = interaction.options.getFocused(true);
-            logger.verbose(`Autocomplete for /${interaction.commandName} ${option.name}: ${option.value}`);
-            if (interaction.commandName !== "studybot" && option.name !== "topic") {
-                logger.verbose(`Ignoring autocomplete for /${interaction.commandName} ${option.name}: ${option.value}`);
-                return;
-            }
-            let choices = await getTopicList(option.value);
-            await interaction.respond(
-                choices.map(choice => ({ name: choice, value: choice }))
-            );
+            await handleAutoComplete(interaction);
         }
     });
 }
