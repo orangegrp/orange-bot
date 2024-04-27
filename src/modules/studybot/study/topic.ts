@@ -9,7 +9,7 @@ import { getLogger } from "orange-common-lib";
 const logger = getLogger("studyTopic");
 
 async function getAllTopics() {
-    const topics = await pb.collection("studybot_slides").getFullList(200, { fields: "category" });
+    const topics = await pb.collection("x_studybot_slides").getFullList(200, { fields: "category" });
     return [...new Set(topics)].map((record) => (record as RecordModel & { category: string }).category);
 }
 
@@ -19,7 +19,7 @@ async function studyTopic(originalMessage: Message<boolean>, topic: string) {
     if (!pb)
         await initDb();
 
-    const data = await pb.collection("studybot_slides").getFullList(200, {
+    const data = await pb.collection("x_studybot_slides").getFullList(200, {
         filter: `category = "${topic.replace("\"", "\\\"")}"`,
         sort: '+sequence',
     });

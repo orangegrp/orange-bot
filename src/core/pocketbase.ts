@@ -15,14 +15,15 @@ async function initDb() {
     pb.admins.authWithPassword(process.env.PB_USERNAME!, process.env.PB_PASSWORD!).then(() => {
         logger.ok('Authentication success!');
         setInterval(() => {
-            pb.admins.authRefresh().then(() => { }).catch(() => { });
+            pb.admins.authRefresh().then(() => logger.ok('Pocketbase session refreshed!'))
+                .catch((err) => logger.error(`Failed to refresh pocketbase session! ${err}`));
         }, 60 * 60 * 1000);
     }).catch((err) => {
         logger.warn("Pocketbase authentication error!");
         logger.error(err);
         setTimeout(initDb, 5000);
     });
-    
+
     /*
     pb.collection('users').authWithPassword(process.env.PB_USERNAME!, process.env.PB_PASSWORD!).then(() => {
         logger.ok('Authentication success!');
