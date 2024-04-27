@@ -2,7 +2,8 @@ import { ArgType, Bot, Command } from "orange-bot-base";
 import { generate_no_context, generate_with_context } from "./gpt/openai.js";
 import { getLogger } from "orange-common-lib";
 import { APIEmbed, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, Message } from "discord.js";
-import { allowUser, getOraUser, updateOraUser, createOraUser, calculateCost, ora_user, initDb, resetAllDailyCaps } from "./gpt/costmgr.js";
+import { initDb } from "../core/pocketbase.js";
+import { allowUser, getOraUser, updateOraUser, createOraUser, calculateCost, ora_user, resetAllDailyCaps } from "./gpt/costmgr.js";
 import scheduler from "node-schedule";
 
 const logger = getLogger("assistant");

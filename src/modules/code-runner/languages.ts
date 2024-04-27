@@ -1,5 +1,6 @@
 import { CachedLookup } from "orange-bot-base";
 import { getLogger } from "orange-common-lib";
+import { damerauLevenshtein } from "../../core/functions.js";
 
 const logger = getLogger("code-runner-languages");
 
@@ -48,50 +49,6 @@ type PistonRuntimes = {
 const crsLanguages: CachedLookup<null, string[]> = new CachedLookup(async () => await getLanguages(true));
 const pistonRuntimes: CachedLookup<null, PistonRuntimes> = new CachedLookup(async () => await getLanguages(false));
 
-function damerauLevenshtein(a: string, b: string, bonus: number = 2): number {
-    const lenA = a.length;
-    const lenB = b.length;
-    const dist: number[][] = Array(lenA +  1).fill(null).map(() => Array(lenB +  1).fill(null));
-
-    if (a === b) {
-        return -(a.length * bonus);
-    }
-
-    if (b > a) {
-        return b.length;
-    }
-
-    for (let i =  0; i <= lenA; i++) {
-        dist[i][0] = i;
-    }
-    for (let j =  0; j <= lenB; j++) {
-        dist[0][j] = j;
-    }
-
-    for (let i =  1; i <= lenA; i++) {
-        for (let j =  1; j <= lenB; j++) {
-            let cost = a[i - 1] === b[j - 1] ?   0 :   1;
-            let minDist = dist[i - 1][j] + 1; // deletion
-            let tempDist = dist[i][j - 1] + 1; // insertion
-            let substitution = dist[i - 1][j - 1] + cost; // substitution
-
-            if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) {
-                tempDist = dist[i - 2][j - 2] + cost;
-            }
-
-            minDist = Math.min(minDist, tempDist, substitution);
-
-            if (i === 1 && j === 1 && a[0] === b[0]) {
-                minDist -= bonus;
-            }
-        
-            dist[i][j] = minDist;
-        }
-    }
-
-    return dist[lenA][lenB];
-}
-
 async function getClosestMatches(language: string): Promise<string[]> {
     const max_suggestions = 25;
 
@@ -135,7 +92,7 @@ async function getClosestMatches(language: string): Promise<string[]> {
     logger.verbose(`exact match: ${exact_match}`);
 
     const closest25 = closest_envs.sort((a, b) => a.distance - b.distance).slice(0, max_suggestions).map(obj => obj.env);
-    logger.verbose(`closest_envs: ${closest25.join(', ')}`);
+    logger.verbose(`closest_item: ${closest25.join(', ')}`);
     
     return [... new Set(closest25)];
 }
