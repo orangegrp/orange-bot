@@ -1,10 +1,11 @@
+import { NodeHtmlMarkdown } from 'node-html-markdown';
 import { createEmbed } from './embed.js';
 import Discord, { ActionRowBuilder, ButtonBuilder, ButtonInteraction, ButtonStyle, MessageActionRowComponentBuilder } from 'discord.js';
 
 type OrangeQuestion = {
     category?: string | null;
     question?: string | null;
-    description?: string | null;
+    content?: string | null;
     icon?: string | null;
     image?: string | null;
     link?: string | null;
@@ -61,6 +62,12 @@ class OrangeQuiz {
 
     index: number = 0;
 
+    nhm = new NodeHtmlMarkdown(
+        /* options (optional) */ {},
+        /* customTransformers (optional) */ undefined,
+        /* customCodeBlockTranslators (optional) */ undefined
+    );
+
     constructor(questions: OrangeQuestion[], originalMessage: Discord.Message, users: Discord.User[], answerCallback: (user: Discord.User, answer: number, question: OrangeQuestion, finished: boolean) => void) {
         this.questions = questions;;
         this.message = originalMessage;
@@ -91,25 +98,25 @@ class OrangeQuiz {
                 content: feedback,
                 embeds: [createEmbed({
                     title: currentQ.question,
-                    description: currentQ.description,
+                    description: this.nhm.translate(currentQ.content || ""),
                     url: currentQ.link,
                     smallimage: currentQ.icon,
                     largeimage: currentQ.image,
-                    footer: currentQ.footer !== undefined ? { text: currentQ.footer || '' } : null
+                    footer: currentQ.footer !== undefined ? { text: currentQ.footer || ' ' } : null
                 })],
                 components: [row]
             });
         }
     }
 
-    nextQuestion(feedback: string = '') {
+    nextQuestion(feedback: string = '', embeds: Discord.APIEmbed[] = []) {
         if (this.questions[this.index + 1]) {
             this.index += 1;
             this.updateQuestion(feedback);
         } else {
             this.message.edit({
-                content: feedback,
-                embeds: [],
+                content: this.nhm.translate(feedback || ""),
+                embeds: embeds,
                 components: []
             });
         }

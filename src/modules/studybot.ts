@@ -9,9 +9,11 @@ import { ArgType } from "orange-bot-base";
 import { getLogger } from "orange-common-lib";
 
 import { quizHandler } from "./studybot/presentation/quiz.js";
-import { slideShowHandler } from "./studybot/presentation/slideshow.js";
+import OrangeSlideshow, { slideShowHandler } from "./studybot/presentation/slideshow.js";
 import { getTopic, getTopicList } from "./studybot/topic.js";
 import { AutocompleteInteraction, ButtonInteraction } from "discord.js";
+
+import soloGame from "./studybot/games/solo.js";
 
 const logger = getLogger("/studybot");
 
@@ -107,16 +109,28 @@ export default function (bot: Bot) {
             else if (interaction.channel) {
                 interaction.reply(`:book: Studying topic **${args.topic}**`);
                 const message = await interaction.channel.send("...");
-                getTopic(message, "slides", args.topic);
+                const slides = await getTopic(message, "slides", args.topic);
+
+                if (slides !== undefined)
+                    new OrangeSlideshow(slides, message);
+                else
+                    interaction.reply(":x: The topic wasn't found in our database.");
             }
         }
         else if (args.subCommand === "quiz") {
             if (args.mode === "1v1" && !args.opponent) 
                 interaction.reply("Please specify an opponent");
-            else {
+            else if (interaction.channel) {
                 switch (args.mode) {
                     case "solo":
-                        interaction.reply("Solo mode not implemented yet");
+                        interaction.reply(":video_game: Playing **solo mode**");
+                        const message = await interaction.channel.send("...");
+                        const questions = await getTopic(message, "questions", args.topic ?? "*", args.questions);
+
+                        if (questions !== undefined)
+                            soloGame(message, [interaction.user], questions, args.topic ?? "*");
+                        else
+                            interaction.channel.send(":x: The topic wasn't found in our database.");
                         break;
                     case "1v1":
                         interaction.reply("1v1 mode not implemented yet");

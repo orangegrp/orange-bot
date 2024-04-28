@@ -4,6 +4,7 @@ import { getClosestMatches } from "../../core/functions.js";
 import { CachedLookup } from "orange-bot-base";
 import { RecordModel } from "pocketbase";
 import { Message } from "discord.js";
+import OrangeQuiz, { OrangeQuestion } from "./presentation/quiz.js";
 
 async function getAllTopics(type: "slides" | "questions") {
     const topics = await pb.collection(`x_studybot_${type}`).getFullList(200, { fields: "category" });
@@ -14,13 +15,13 @@ const studyTopicList: CachedLookup<null, string[]> = new CachedLookup(async () =
 const quizTopicList: CachedLookup<null, string[]> = new CachedLookup(async () => await getAllTopics("questions"));
 
 
-async function getTopic(originalMessage: Message<boolean>, type: "slides" | "questions", topic: string) {
+async function getTopic(originalMessage: Message<boolean>, type: "slides" | "questions", topic: string, count: number = 200) {
     if (!pb)
         await initDb();
 
-    const data = await pb.collection(`x_studybot_${type}`).getFullList(200, {
-        filter: `category = "${topic.replace("\"", "\\\"")}"`,
-        sort: '+sequence',
+    const data = await pb.collection(`x_studybot_${type}`).getFullList(count, {
+        filter: topic === "*" ? '' : `category = "${topic.replace("\"", "\\\"")}"`,
+        sort: type === "questions" ? '' : '+sequence',
     });
 
     if (data.length === 0) {
@@ -28,9 +29,13 @@ async function getTopic(originalMessage: Message<boolean>, type: "slides" | "que
         return;
     }
 
-    const slides = data.map((slide) => slide as RecordModel & OrangeSlide);
-
-    return new OrangeSlideshow(slides, originalMessage);
+    if (type === "slides") {
+        const slides = data.map((slide) => slide as RecordModel & OrangeSlide);
+        return slides;
+    } else if (type === "questions") {
+        const questions = data.map((question) => question as RecordModel & OrangeQuestion);
+        return questions;
+    }
 }
 
 async function getTopicList(topic_query: string, type: "slides" | "questions"): Promise<string[]> {
