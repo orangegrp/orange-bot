@@ -1,6 +1,9 @@
 import { decode } from "html-entities";
+import { getLogger } from "orange-common-lib";
 
-function damerauLevenshtein(a: string, b: string, bonus: number = 2): number {
+const logger = getLogger("functions");
+
+function damerauLevenshtein(a: string, b: string, bonus: number = 2, sequenceLength: number = 5): number {
     const lenA = a.length;
     const lenB = b.length;
     const dist: number[][] = Array(lenA +  1).fill(null).map(() => Array(lenB +  1).fill(null));
@@ -31,6 +34,20 @@ function damerauLevenshtein(a: string, b: string, bonus: number = 2): number {
                 tempDist = dist[i - 2][j - 2] + cost;
             }
 
+            if (i > sequenceLength && j > sequenceLength) {
+                let matchCount = 0;
+                for (let k = 1; k <= sequenceLength; k++) {
+                    if (a[i - k] === b[j - k]) {
+                        matchCount++;
+                    } else {
+                        break;
+                    }
+                }
+                if (matchCount === sequenceLength) {
+                    substitution -= bonus;
+                }
+            }
+
             minDist = Math.min(minDist, tempDist, substitution);
 
             if (i === 1 && j === 1 && a[0] === b[0]) {
@@ -59,4 +76,51 @@ function removeHtmlTagsAndDecode(str: string | undefined, limitLength: number = 
     return new_str + (new_str.length === old_str.length ? '' : '...');
 }
 
-export { damerauLevenshtein, number2emoji, removeHtmlTagsAndDecode };
+function getClosestMatches(input: string, sourcelst: string[], options?: { maxSuggestions?: number, similarityThreshold?: number, sequenceLength?: number, bonus?: number }): string[] | undefined {
+    const max_suggestions = options?.maxSuggestions ?? 25;
+    const similarity_threshold = options?.similarityThreshold ?? 10;
+
+    if (sourcelst.length < 1) 
+        return undefined;
+    
+    console.dir(sourcelst);
+
+    let closest_item: { item: string, distance: number }[] = [];
+    let exact_match: string | undefined = "";
+
+    for (const item of sourcelst) {
+        if (!item)
+            continue;
+
+        if (input === item)
+            return [item];
+
+        const input_tokens = input.split(/[^\w]|[_]/g); // match any non-word char AND underscore.
+        const item_tokens = item.split(/[^\w]|[_]/g);
+
+        if (input_tokens.length > item_tokens.length)
+            continue;
+
+        let distance = 0;
+
+        for (let i = 0; i < item_tokens.length; i++) {
+            for (let j = 0; j < input_tokens.length; j++) {
+                distance += damerauLevenshtein(item_tokens[i].toLowerCase(), input_tokens[j].toLowerCase(), options?.sequenceLength, options?.bonus);
+            }
+        }
+        
+        logger.verbose(`Distance between ${input} and ${item} is ${distance}`);
+
+        if (distance <= similarity_threshold) {
+            closest_item.push({ item, distance });
+        }
+    }
+
+    logger.verbose(`Exact match is ${exact_match}`);
+    const closest = closest_item.sort((a, b) => a.distance - b.distance).slice(0, max_suggestions).map(obj => obj.item);
+    logger.verbose(`Closest item is ${closest[0]}`);
+
+    return [... new Set(closest)];
+}
+
+export { damerauLevenshtein, number2emoji, removeHtmlTagsAndDecode, getClosestMatches };

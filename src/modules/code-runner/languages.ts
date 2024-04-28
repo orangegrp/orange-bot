@@ -1,6 +1,6 @@
 import { CachedLookup } from "orange-bot-base";
 import { getLogger } from "orange-common-lib";
-import { damerauLevenshtein } from "../../core/functions.js";
+import { damerauLevenshtein, getClosestMatches } from "../../core/functions.js";
 
 const logger = getLogger("code-runner-languages");
 
@@ -49,52 +49,20 @@ type PistonRuntimes = {
 const crsLanguages: CachedLookup<null, string[]> = new CachedLookup(async () => await getLanguages(true));
 const pistonRuntimes: CachedLookup<null, PistonRuntimes> = new CachedLookup(async () => await getLanguages(false));
 
-async function getClosestMatches(language: string): Promise<string[]> {
-    const max_suggestions = 25;
-
-    let similarity_threshold = 10;
-    let exact_match: string | undefined = "";
-    let closest_envs: { env: string, distance: number }[] = [];
+async function getClosestEnvString(language: string): Promise<string[]> {
     let envs = await crsLanguages.get(null);
 
-    if (!envs) {
-        logger.warn("Error getting languages");
-        return [];
+    if (envs === undefined) {
+        return [] as string[];
     }
 
-    for (const env of envs) {
-        if (language === env) {
-            return [env];
-        }
+    let result = getClosestMatches(language, envs, { similarityThreshold: 15, bonus: 10, sequenceLength: 5});
 
-        const query_items = language.includes("-") ? language.split("-") : language.split(' ');
-        const env_items = env.split('-');
-
-        if (query_items.length > env_items.length) {
-            continue;
-        }
-
-        let d = 0;
-
-        for (let i = 0; i < env_items.length; i++) {
-            for (let j = 0; j < query_items.length; j++) {
-                d += damerauLevenshtein(env_items[i].toLowerCase(), query_items[j].toLowerCase());
-            }
-        }
-
-        logger.verbose(`${env}, d: ${d}, for: ${language}`);
-
-        if (d <= similarity_threshold) {
-            closest_envs.push({ env: env, distance: d });
-        }
+    if (result === undefined) {
+        return [] as string[];
     }
 
-    logger.verbose(`exact match: ${exact_match}`);
-
-    const closest25 = closest_envs.sort((a, b) => a.distance - b.distance).slice(0, max_suggestions).map(obj => obj.env);
-    logger.verbose(`closest_item: ${closest25.join(', ')}`);
-    
-    return [... new Set(closest25)];
+    return result;
 }
 
 declare const CrsRunLanguageSymbol: unique symbol;
@@ -154,6 +122,8 @@ function isRunEnv(runEnv: CrsRunEnvInfoUnverified, runtimes: PistonRuntimes): ru
 async function getLanguages<T extends boolean>(strings: T): Promise<T extends true ? string[] : PistonRuntimes> {
     let api_url = `https://${process.env.CODERUNNER_SERVER}/api/v2/info`;
 
+    logger.info("FETCHING LANGUAGES");
+
     const response = await fetch(api_url, {
         headers: {
             'Authorization': `${process.env.CODERUNNER_API_KEY}`,
@@ -170,5 +140,5 @@ async function getLanguages<T extends boolean>(strings: T): Promise<T extends tr
     return data as T extends true ? string[] : PistonRuntimes;
 }
 
-export { languages, languageAliases, crsLanguages, getRunEnvInfo, getClosestMatches };
+export { languages, languageAliases, crsLanguages, getRunEnvInfo, getClosestEnvString };
 export type { Language, LanguageAlias, CrsRunEnvInfo };

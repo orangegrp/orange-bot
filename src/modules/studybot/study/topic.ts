@@ -3,7 +3,7 @@ import { pb, initDb } from "../../../core/pocketbase.js";
 import { OrangeSlide, OrangeSlideshow } from "../presentation/slideshow.js";
 import { RecordModel } from "pocketbase";
 import { Message } from "discord.js";
-import { damerauLevenshtein } from "../../../core/functions.js";
+import { damerauLevenshtein, getClosestMatches } from "../../../core/functions.js";
 import { getLogger } from "orange-common-lib";
 
 const logger = getLogger("studyTopic");
@@ -34,58 +34,22 @@ async function studyTopic(originalMessage: Message<boolean>, topic: string) {
     return new OrangeSlideshow(slides, originalMessage);
 }
 
-async function getTopicList(topic_query: string) {
-    const max_suggestions = 25;
-
-    let similarity_threshold = 10;
-    let exact_match: string | undefined = "";
-    let closest_item: { item: string, distance: number }[] = [];
+async function getTopicList(topic_query: string): Promise<string[]> {
     let list = await topicList.get(null);
 
-    console.dir(list);
-
-    if (!list) {
-        return [];
+    if (list === undefined) {
+        return [] as string[];
     }
 
-    for (const item of list) {
-        if (!item) {
-            continue;
-        }
+    let result = getClosestMatches(topic_query, list);
 
-        if (topic_query === item) {
-            return [item];
-        }
-
-        const query_items = topic_query.includes("-") ? topic_query.split("-") : topic_query.split(' ');
-        const list_items = item.includes("-") ? item.split("-") : [item]
-
-        if (query_items.length > list_items.length) {
-            continue;
-        }
-
-        let d = 0;
-
-        for (let i = 0; i < list_items.length; i++) {
-            for (let j = 0; j < query_items.length; j++) {
-                d += damerauLevenshtein(list_items[i].toLowerCase(), query_items[j].toLowerCase());
-            }
-        }
-
-        logger.verbose(`${item}, d: ${d}, for: ${topic_query}`);
-
-        if (d <= similarity_threshold) {
-            closest_item.push({ item: item, distance: d });
-        }
+    if (result === undefined) {
+        return [] as string[];
     }
 
-    logger.verbose(`exact match: ${exact_match}`);
-
-    const closest25 = closest_item.sort((a, b) => a.distance - b.distance).slice(0, max_suggestions).map(obj => obj.item);
-    logger.verbose(`closest_item: ${closest25.join(', ')}`);
-    
-    return [... new Set(closest25)];
+    return result;
 }
+
 
 export default studyTopic;
 export { studyTopic, getTopicList };

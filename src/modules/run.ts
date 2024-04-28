@@ -5,7 +5,7 @@ import type { Bot, Command } from "orange-bot-base";
 import { CommandExecutor } from "./linux-run/commandExecutor.js";
 import { ArgType } from "orange-bot-base";
 import { CodeRunner } from "./code-runner/codeRunner.js";
-import { getClosestMatches, getRunEnvInfo, languages } from "./code-runner/languages.js";
+import { getClosestEnvString, getRunEnvInfo, languages } from "./code-runner/languages.js";
 
 const logger = getLogger("/run");
 
@@ -133,7 +133,7 @@ export default async function(bot: Bot) {
                 return;
             }
              
-            let choices = await getClosestMatches(option.value);
+            let choices = await getClosestEnvString(option.value);
 
             await interaction.respond(
                 choices.map(choice =>
