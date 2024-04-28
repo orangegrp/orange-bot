@@ -10,7 +10,7 @@ import { getLogger } from "orange-common-lib";
 
 import { quizHandler } from "./studybot/presentation/quiz.js";
 import { slideShowHandler } from "./studybot/presentation/slideshow.js";
-import { studyTopic, getTopicList } from "./studybot/study/topic.js";
+import { getTopic, getTopicList } from "./studybot/topic.js";
 import { AutocompleteInteraction, ButtonInteraction } from "discord.js";
 
 const logger = getLogger("/studybot");
@@ -77,8 +77,7 @@ async function handleAutoComplete(interaction: AutocompleteInteraction) {
         return;
     }
     logger.log(`Autocomplete parameter requested ${option.name}: ${option.value}`);
-    /// TODO: Merge function with other Levenshtein distance function.
-    let choices = await getTopicList(option.value);
+    let choices = await getTopicList(option.value, interaction.options.getSubcommand(true) === "study" ? "slides" : "questions");
     await interaction.respond(
         choices.map(choice => ({ name: choice, value: choice }))
     );
@@ -108,14 +107,25 @@ export default function (bot: Bot) {
             else if (interaction.channel) {
                 interaction.reply(`:book: Studying topic **${args.topic}**`);
                 const message = await interaction.channel.send("...");
-                studyTopic(message, args.topic);
+                getTopic(message, "slides", args.topic);
             }
         }
         else if (args.subCommand === "quiz") {
-            if (args.mode === "1v1" && !args.opponent)
+            if (args.mode === "1v1" && !args.opponent) 
                 interaction.reply("Please specify an opponent");
-            else
-                interaction.reply("...");
+            else {
+                switch (args.mode) {
+                    case "solo":
+                        interaction.reply("Solo mode not implemented yet");
+                        break;
+                    case "1v1":
+                        interaction.reply("1v1 mode not implemented yet");
+                        break;
+                    case "rapidfire":
+                        interaction.reply("Rapid fire mode not implemented yet");
+                        break;
+                }
+            }
         }
     });
 
