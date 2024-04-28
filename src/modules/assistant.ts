@@ -6,6 +6,8 @@ import { initDb } from "../core/pocketbase.js";
 import { allowUser, getOraUser, updateOraUser, createOraUser, calculateCost, ora_user, resetAllDailyCaps } from "./gpt/costmgr.js";
 import scheduler from "node-schedule";
 
+// THIS MODULE WILL BE RE-WRITTEN IN THE NEXT UPDATE TO BETA!
+
 const logger = getLogger("assistant");
 
 const command = {
