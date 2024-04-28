@@ -1,9 +1,9 @@
-import pocketbase from "pocketbase";
 import { getLogger } from "orange-common-lib";
 import { sleep } from "orange-bot-base";
+import pocketbase from "pocketbase";
 import "dotenv/config";
 
-const logger = getLogger("pocketbase api");
+const logger = getLogger("pocketbase");
 var pb: pocketbase;
 
 async function initDb() {

@@ -1,3 +1,5 @@
+import { decode } from "html-entities";
+
 function damerauLevenshtein(a: string, b: string, bonus: number = 2): number {
     const lenA = a.length;
     const lenB = b.length;
@@ -42,4 +44,19 @@ function damerauLevenshtein(a: string, b: string, bonus: number = 2): number {
     return dist[lenA][lenB];
 }
 
-export { damerauLevenshtein }
+function number2emoji(num: number): string {
+    return String.fromCodePoint(0x1F51F + num);
+}
+
+function removeHtmlTagsAndDecode(str: string | undefined, limitLength: number = -1): string | undefined {
+    if (str === null || str === '' || str === undefined)
+        return undefined;
+    else
+        str = str.toString();
+
+    const old_str = decode(str.replace(/(<([^>]+)>)/ig, '').replace(/\[([\w\s]+)\]/g, '$1'));
+    const new_str = old_str.substring(0, limitLength === -1 ? str.length : limitLength);
+    return new_str + (new_str.length === old_str.length ? '' : '...');
+}
+
+export { damerauLevenshtein, number2emoji, removeHtmlTagsAndDecode };
