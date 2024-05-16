@@ -21,7 +21,7 @@ type OrangeQuestionAnswer = {
     correct: boolean;
 };
 
-const QUIZZES: Map<string, OrangeQuiz> = new Map();
+const QUIZZES: Map<string, OrangeQuizBase> = new Map();
 
 function quizHandler(interaction: ButtonInteraction) {
     const quizid = interaction.customId.substring(5, 13);
@@ -47,11 +47,11 @@ function quizHandler(interaction: ButtonInteraction) {
     interaction.deferUpdate();
 }
 
-function registerQuiz(quiz: OrangeQuiz) {
+function registerQuiz(quiz: OrangeQuizBase) {
     QUIZZES.set(quiz.quizid, quiz);
 }
 
-class OrangeQuiz {
+class OrangeQuizBase {
     quizid: string;
     message: Discord.Message;
     users: Discord.User[];
@@ -127,5 +127,5 @@ class OrangeQuiz {
     }
 }
 
-export default OrangeQuiz
-export { OrangeQuiz, OrangeQuestion, quizHandler, registerQuiz };
+export default OrangeQuizBase
+export { OrangeQuizBase as OrangeQuiz, OrangeQuestion, quizHandler, registerQuiz };

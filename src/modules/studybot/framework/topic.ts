@@ -1,10 +1,10 @@
-import { pb, initDb } from "../../core/pocketbase.js";
+import { pb, initDb } from "../../../core/pocketbase.js";
 import { OrangeSlide, OrangeSlideshow } from "./presentation/slideshow.js";
-import { getClosestMatches } from "../../core/functions.js";
+import { getClosestMatches } from "../../../core/functions.js";
 import { CachedLookup } from "orange-bot-base";
 import { RecordModel } from "pocketbase";
 import { Message } from "discord.js";
-import OrangeQuiz, { OrangeQuestion } from "./presentation/quiz.js";
+import OrangeQuizBase, { OrangeQuestion } from "./presentation/quiz.js";
 
 async function getAllTopics(type: "slides" | "questions") {
     const topics = await pb.collection(`x_studybot_${type}`).getFullList(200, { fields: "category" });

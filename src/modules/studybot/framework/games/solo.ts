@@ -1,9 +1,9 @@
 import { APIEmbed, Message, User } from "discord.js";
-import OrangeQuiz, { OrangeQuestion } from "../presentation/quiz.js";
+import OrangeQuizBase, { OrangeQuestion } from "../presentation/quiz.js";
 import createEmbed from "../presentation/embed.js";
 
 export default function (message: Message, participants: User[], questions: OrangeQuestion[], topic: string) {
-    const quiz = new OrangeQuiz(questions, message, participants, (user, answer, question, finished) => {
+    const quiz = new OrangeQuizBase(questions, message, participants, (user, answer, question, finished) => {
         // parameter validation (autoskip if necessary)
         if (question.answer && question.choices) {
             // check answer

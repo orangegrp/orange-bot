@@ -8,12 +8,12 @@ import type { Bot, Command } from "orange-bot-base";
 import { ArgType } from "orange-bot-base";
 import { getLogger } from "orange-common-lib";
 
-import { quizHandler } from "./studybot/presentation/quiz.js";
-import OrangeSlideshow, { slideShowHandler } from "./studybot/presentation/slideshow.js";
-import { getTopic, getTopicList } from "./studybot/topic.js";
+import { quizHandler } from "./studybot/framework/presentation/quiz.js";
+import OrangeSlideshow, { slideShowHandler } from "./studybot/framework/presentation/slideshow.js";
+import { getTopic, getTopicList } from "./studybot/framework/topic.js";
 import { AutocompleteInteraction, ButtonInteraction } from "discord.js";
 
-import soloGame from "./studybot/games/solo.js";
+import soloGame from "./studybot/framework/games/solo.js";
 
 const logger = getLogger("/studybot");
 
