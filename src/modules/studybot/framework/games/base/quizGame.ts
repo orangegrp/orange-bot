@@ -1,5 +1,5 @@
 import { Message, User } from "discord.js";
-import OrangeQuizBase, { OrangeQuestion } from "../../presentation/quiz";
+import OrangeQuizBase, { OrangeQuestion } from "../../presentation/quiz.js";
 import { EventEmitter } from 'events';
 
 type OrangeQuizEventType = "QuizBegin" | "QuizEnd" | "AnswerReceived" | "AnswersReceived" | "NextQuestion";

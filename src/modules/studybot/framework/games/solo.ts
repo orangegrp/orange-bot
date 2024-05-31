@@ -1,7 +1,9 @@
 import { APIEmbed, Message, User } from "discord.js";
 import OrangeQuizBase, { OrangeQuestion } from "../presentation/quiz.js";
 import createEmbed from "../presentation/embed.js";
+import OrangeQuiz from "./base/quizGame.js";
 
+/*
 export default function (message: Message, participants: User[], questions: OrangeQuestion[], topic: string) {
     const quiz = new OrangeQuizBase(questions, message, participants, (user, answer, question, finished) => {
         // parameter validation (autoskip if necessary)
@@ -30,4 +32,9 @@ export default function (message: Message, participants: User[], questions: Oran
             quiz.nextQuestion(`:bulb: Not quite.\n${question.explanation}`);
         }
     });
+}*/
+
+export default function (message: Message, participants: User[], questions: OrangeQuestion[], topic: string) {
+    const quiz = new OrangeQuiz(message, participants, questions, topic);
+
 }
