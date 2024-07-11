@@ -1,6 +1,6 @@
 import { Message, User } from "discord.js";
 import OrangeQuizBase, { OrangeQuestion } from "../../presentation/quiz.js";
-import { EventEmitter } from 'events';
+import EventEmitter from "node:events";
 
 type OrangeQuizEventType = "QuizBegin" | "QuizEnd" | "AnswerReceived" | "AnswersReceived" | "NextQuestion";
 
