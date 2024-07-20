@@ -1,21 +1,23 @@
-import dotenv from "dotenv";
-dotenv.config();
+import "./config.js";
 
 import { Client, GatewayIntentBits, MessagePayload } from "discord.js";
 import { getLogger } from "orange-common-lib";
 import { Bot } from "orange-bot-base";
 import { join, dirname } from "path";
 
+import { environment } from "./config.js";
+
+
 const version = process.env.npm_package_version || "this is for development";
 const logger = getLogger("orange🟠 Bot");
 logger.info("Starting...");
 
 const client = new Client({
-  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.GuildMembers, GatewayIntentBits.MessageContent],
+    intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.GuildMembers, GatewayIntentBits.MessageContent],
 });
 
 const INSTANCE_NAME = process.env.INSTANCE_NAME;
-if (!INSTANCE_NAME) 
+if (!INSTANCE_NAME)
     throw new Error("Environment variable \"INSTANCE_NAME\" is not set!");
 
 const bot = new Bot(client, INSTANCE_NAME, version, "?", process.env.BOT_TOKEN!);
@@ -32,7 +34,7 @@ client.on("ready", () => {
 //@ts-ignore
 MessagePayload.__create = MessagePayload.create;
 MessagePayload.create = (target, options) => {
-    if (typeof(options) === "object" && options.embeds) {
+    if (typeof (options) === "object" && options.embeds) {
         for (const embed of options.embeds) {
             //@ts-ignore
             if (embed.data && !embed.data.color) {
