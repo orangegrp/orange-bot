@@ -6,8 +6,6 @@ import { getLogger } from "orange-common-lib";
 import { Bot } from "orange-bot-base";
 import { join, dirname } from "path";
 
-import orange_api_server from "./server.js";
-
 const version = process.env.npm_package_version || "this is for development";
 const logger = getLogger("orange🟠 Bot");
 logger.info("Starting...");
@@ -29,11 +27,6 @@ client.on("ready", () => {
     logger.info("Logged in as " + client.user?.username);
 });
 
-client.once("ready", () => {
-    orange_api_server(logger.sublogger("orange mgmt api"));
-});
-
-
 // this code is absolutely criminal
 // this is used to set the colour on embeds to orange
 //@ts-ignore
@@ -54,4 +47,3 @@ MessagePayload.create = (target, options) => {
     //@ts-ignore
     return MessagePayload.__create(target, options);
 }
-
