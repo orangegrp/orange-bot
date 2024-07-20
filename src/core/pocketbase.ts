@@ -1,16 +1,13 @@
 import { getLogger } from "orange-common-lib";
 import { sleep } from "orange-bot-base";
 import pocketbase from "pocketbase";
-import { environment, initEnv, ready } from "orange-common-lib";
-initEnv();
+import { environment } from "orange-common-lib";
+
 
 const logger = getLogger("pocketbase");
 var pb: pocketbase;
 
 async function initDb() {
-    while (!ready)
-        await sleep(1000);
-
     logger.info(`Connecting to pocketbase...`);
     pb = new pocketbase(`https://pocketbase-aci1.vcn1.order332.com`);
     console.log(pb);
