@@ -1,12 +1,11 @@
-import "./config.js";
+import { environment, ready, initEnv } from "orange-common-lib";
+initEnv();
+
 
 import { Client, GatewayIntentBits, MessagePayload } from "discord.js";
 import { getLogger } from "orange-common-lib";
-import { Bot } from "orange-bot-base";
+import { Bot, sleep } from "orange-bot-base";
 import { join, dirname } from "path";
-
-import { environment } from "./config.js";
-
 
 const version = process.env.npm_package_version || "this is for development";
 const logger = getLogger("orange🟠 Bot");
