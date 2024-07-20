@@ -1,18 +1,23 @@
 import { getLogger } from "orange-common-lib";
 import { sleep } from "orange-bot-base";
 import pocketbase from "pocketbase";
-import "dotenv/config";
+import { environment, initEnv, ready } from "orange-common-lib";
+initEnv();
 
 const logger = getLogger("pocketbase");
 var pb: pocketbase;
 
 async function initDb() {
+    while (!ready)
+        await sleep(1000);
+
     logger.info(`Connecting to pocketbase...`);
-    pb = new pocketbase(`https://${process.env.PB_DOMAIN!}`);
+    pb = new pocketbase(`https://pocketbase-aci1.vcn1.order332.com`);
+    console.log(pb);
 
-    logger.log(`Authenticating with pocketbase using username "${process.env.PB_USERNAME!}" and password "${new Array(process.env.PB_PASSWORD!.length + 1).join('*')}"...`);
+    logger.log(`Authenticating with pocketbase using username "${environment.PB_USERNAME!}" and password "${new Array(environment.PB_PASSWORD!.length + 1).join('*')}"...`);
 
-    pb.admins.authWithPassword(process.env.PB_USERNAME!, process.env.PB_PASSWORD!).then(() => {
+    pb.admins.authWithPassword(environment.PB_USERNAME!, environment.PB_PASSWORD!).then(() => {
         logger.ok('Authentication success!');
         setInterval(() => {
             pb.admins.authRefresh().then(() => logger.ok('Pocketbase session refreshed!'))
@@ -25,7 +30,7 @@ async function initDb() {
     });
 
     /*
-    pb.collection('users').authWithPassword(process.env.PB_USERNAME!, process.env.PB_PASSWORD!).then(() => {
+    pb.collection('users').authWithPassword(environment.PB_USERNAME!, environment.PB_PASSWORD!).then(() => {
         logger.ok('Authentication success!');
         setInterval(() => {
             logger.log('Refreshing pocketbase auth session...');
