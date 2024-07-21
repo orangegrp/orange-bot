@@ -2,7 +2,6 @@ import { Bot, Command } from "orange-bot-base";
 import { generate_no_context, generate_with_context } from "./gpt/openai.js";
 import { getLogger } from "orange-common-lib";
 import { APIEmbed, ActionRowBuilder, ButtonBuilder, ButtonInteraction, ButtonStyle, ChatInputCommandInteraction, Interaction, Message } from "discord.js";
-import { initDb } from "../core/pocketbase.js";
 import { CostMgr, ora_user } from "./gpt/costmgr.js";
 import scheduler from "node-schedule";
 

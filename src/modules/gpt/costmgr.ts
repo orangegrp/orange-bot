@@ -1,5 +1,4 @@
 import { getLogger } from "orange-common-lib";
-import { pb, initDb } from "../../core/pocketbase.js";
 import { Bot, ConfigConfig, ConfigStorage, ConfigValueType } from "orange-bot-base";
 
 const logger = getLogger("costMgr");
