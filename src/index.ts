@@ -1,6 +1,10 @@
-import { initEnv } from "orange-common-lib";
+import { initEnv, log } from "orange-common-lib";
 
-initEnv().then(async () => {
+initEnv().then(() => {
+    log("Starting Orange Bot...", "Log");
+}).catch(() => {
+    log("Something went wrong! Staring Orange Bot anyway...", "Warning");
+}).finally(async () => {
     const main = await import("./bot.js");
     await main.default();
-}).catch(console.error);
+});
