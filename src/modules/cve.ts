@@ -2,7 +2,7 @@
 /// Copyright © orangegrp 2024. All rights reserved.
 /// Refactored 21/07/2024.
 
-import type { Bot, Command } from "orange-bot-base";
+import type { Bot, Command, Module } from "orange-bot-base";
 import { ArgType } from "orange-bot-base";
 import { getLogger } from "orange-common-lib";
 import { ButtonInteraction, ChatInputCommandInteraction } from "discord.js";
@@ -122,14 +122,14 @@ async function searchCommandHandler(interaction: ChatInputCommandInteraction, ar
  * `cve.ts` - CVE lookup module for orange🟠 Bot.
  * @param bot Bot object (`orange-bot-base`)
  */
-export default function (bot: Bot) {
+export default function (bot: Bot, module: Module) {
     bot.client.on("interactionCreate", async interaction => {
         if (interaction.isButton()) {
             await cveButtonHandler(interaction);
         }
     });
 
-    bot.commandManager.addCommand(command, async (interaction, args) => {
+    module.addCommand(command, async (interaction, args) => {
         if (args.subCommand === "search") {
             await searchCommandHandler(interaction, args);
         }

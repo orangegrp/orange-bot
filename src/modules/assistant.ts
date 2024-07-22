@@ -1,4 +1,4 @@
-import { Bot, Command } from "orange-bot-base";
+import { Bot, Command, Module } from "orange-bot-base";
 import { generate_no_context, generate_with_context } from "./gpt/openai.js";
 import { getLogger } from "orange-common-lib";
 import { APIEmbed, ActionRowBuilder, ButtonBuilder, ButtonInteraction, ButtonStyle, ChatInputCommandInteraction, Interaction, Message } from "discord.js";
@@ -25,7 +25,7 @@ const command = {
 } satisfies Command;
 
 
-export default async function (bot: Bot) {
+export default async function (bot: Bot, module: Module) {
     const costMgr = new CostMgr(bot);
 
     scheduler.scheduleJob("0 0 * * *", () => costMgr.resetAllDailyCaps());
@@ -37,7 +37,7 @@ export default async function (bot: Bot) {
         }
     });
 
-    bot.commandManager.addCommand(command, async (interaction, args) => {
+    module.addCommand(command, async (interaction, args) => {
         if (args.subCommand === "enable") {
             await createAccountCommand(interaction);
         } else if (args.subCommand === "account") {
@@ -45,7 +45,7 @@ export default async function (bot: Bot) {
         }
     });
 
-    bot.client.on("messageCreate", async msg => {
+    module.addChatInteraction(async msg => {
         if (!bot.client.user) {
             logger.warn("bot.client.user not set! Cannot reply to AI request!");
             return;

@@ -3,7 +3,7 @@
 /// Refactored 27/04/2024.
 
 import type { APIEmbed } from "discord.js";
-import type { Bot, Command } from "orange-bot-base";
+import type { Bot, Command, Module } from "orange-bot-base";
 import { ArgType } from "orange-bot-base";
 import { getLogger } from "orange-common-lib";
 
@@ -129,8 +129,8 @@ async function getDefinitionEmbed(term: string): Promise<APIEmbed> {
  * `define.ts` - English dictionary module for orange🟠 Bot.
  * @param bot Bot object (`orange-bot-base`)
  */
-export default function (bot: Bot) {
-    bot.commandManager.addCommand(command, async (interaction, args) => {
+export default function (bot: Bot, module: Module) {
+    module.addCommand(command, async (interaction, args) => {
         logger.verbose(`Getting definition for "${args.term}" as requested by ${interaction.user.username} (${interaction.user.id}) ...`);
         bot.noPingReply(interaction, { embeds: [await getDefinitionEmbed(args.term)] });
     });

@@ -3,7 +3,7 @@
 /// Refactored 27/04/2024.
 
 import type { Snowflake } from "discord.js";
-import type { Bot, Command } from "orange-bot-base";
+import type { Bot, Command, Module } from "orange-bot-base";
 import { ArgType } from "orange-bot-base";
 
 const command = {
@@ -43,8 +43,8 @@ function pp(id: Snowflake, min: number = 1, max: number = 50) {
  * `pp.ts` - pp module for orange🟠 Bot.
  * @param bot Bot object (`orange-bot-base`)
  */
-export default function (bot: Bot) {
-    bot.commandManager.addCommand(command, (interaction, args) => {
+export default function (bot: Bot, module: Module) {
+    module.addCommand(command, (interaction, args) => {
         bot.noPingReply(interaction, { content: pp(args.person?.id || interaction.user.id) });
     });
 }

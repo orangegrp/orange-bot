@@ -2,7 +2,7 @@
 /// Copyright © orangegrp 2024. All rights reserved.
 /// Refactored 27/04/2024.
 
-import type { Bot, Command } from "orange-bot-base";
+import type { Bot, Command, Module } from "orange-bot-base";
 import { ArgType } from "orange-bot-base";
 import { getLogger } from "orange-common-lib";
 import { execSync } from "child_process";
@@ -68,8 +68,8 @@ async function generateImage(inputHtml: string) {
  * `image.ts` - HTML image generation module for orange🟠 Bot.
  * @param bot Bot object (`orange-bot-base`)
  */
-export default function (bot: Bot) {
-    bot.commandManager.addCommand(command, async (interaction, args) => {
+export default function (bot: Bot, module: Module) {
+    module.addCommand(command, async (interaction, args) => {
         await interaction.deferReply();
 
         try {
