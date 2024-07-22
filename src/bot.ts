@@ -27,7 +27,7 @@ async function main() {
 
     const version = process.env.npm_package_version || "this is for development";
     const logger = getLogger("orange🟠 Bot");
-    logger.info("Starting...");
+    logger.info(`Starting (${version})...`);
 
     const client = new Client({
         intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.GuildMembers, GatewayIntentBits.MessageContent],
