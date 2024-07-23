@@ -98,6 +98,12 @@ async function processResponse(btnInteraction: ButtonInteraction) {
         return;
     }
 
+    if (game.uid !== btnInteraction.user.id) {
+        await btnInteraction.reply({ embeds: [{ title: "Error", description: "This exam is being taken by somebody else. Please start an exam yourself by running `/studybot exam` to get started." }], ephemeral: true });
+        return;
+    }
+
+
     const originalMessage = game.originalMessage;
     const resource = game.resource;
     const currentQuestion = game.currentQuestion;
@@ -107,7 +113,7 @@ async function processResponse(btnInteraction: ButtonInteraction) {
 
     correct ? metrics.correct++ : metrics.incorrect++
     if (!correct) {
-        metrics.wrongQuestions.push(question.ref);
+        metrics.wrongQuestions.push(`${question.topic}`);
     }
 
     GAME_SESSIONS.set(game_id, { ...game, currentQuestion: currentQuestion + 1 });
@@ -141,7 +147,7 @@ async function processResponse(btnInteraction: ButtonInteraction) {
                 title: "Exam Complete", description: `You have completed the **${game.examref}** exam. ${feedback}`,
                 footer: { text: `Ref: ${game.examref}`}, 
                 timestamp: new Date().toISOString(),
-                fields: [{ name: "Score", value: `${score}%`, inline: true}, { name: "Areas for Improvement", value: metrics.wrongQuestions.join(", ") }]
+                fields: [{ name: "Score", value: `${score}%`, inline: true}, { name: "Areas for Improvement", value: metrics.wrongQuestions.join("\n") }]
             }], components: []
         });
         GAME_SESSIONS.delete(game_id);

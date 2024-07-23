@@ -15,7 +15,7 @@ async function getClosestMatch(input: string, source: string[]): Promise<string[
         return [] as string[];
     }
 
-    let result = getClosestMatches(input, target, { similarityThreshold: 15, bonus: 10, sequenceLength: 5});
+    let result = getClosestMatches(input, target, { similarityThreshold: 20, bonus: 10, sequenceLength: 5});
 
     if (result === undefined) {
         return [] as string[];
@@ -71,6 +71,7 @@ export { studyBotQuestions, studyBotMaterials, getClosestMatch, getItem };
 export type StudyBotMultiChoiceQuestion = {
     ref: string,
     question: string,
+    topic: string,
     description?: string
     referenceImg?: string,
     answerOptions: { id: string, text: string }[],
