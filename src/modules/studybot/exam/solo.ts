@@ -112,7 +112,7 @@ async function processResponse(btnInteraction: ButtonInteraction) {
     const metrics = game.metrics;
 
     correct ? metrics.correct++ : metrics.incorrect++
-    if (!correct) {
+    if (!correct && !metrics.wrongQuestions.includes(question.topic)) {
         metrics.wrongQuestions.push(`${question.topic}`);
     }
 
