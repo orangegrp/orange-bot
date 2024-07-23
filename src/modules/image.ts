@@ -54,7 +54,7 @@ async function generateImage(inputHtml: string) {
     logger.verbose("Generating image...");
 
     const image = await nodeHtmlToImage({
-        puppeteerArgs: { executablePath: isAlpine() ? "/usr/bin/chromium-browser" : undefined, args: ["--headless", "--disable-gpu"] },
+        puppeteerArgs: { executablePath: isAlpine() ? "/usr/bin/chromium-browser" : undefined, args: ["--headless", "--disable-gpu", "--no-sandbox"] },
         html: html,
         transparent: true, waitUntil: "networkidle0",
     });
