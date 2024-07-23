@@ -376,7 +376,7 @@ async function build_project(step, steps, dockerDir) {
         steps: steps,
         commands: [
             { name: name, args: args },
-            { name: "npm", args: ["dedup"] },
+            //{ name: "npm", args: ["dedup"] },
         ],
         description: "Build project 1/3 (orange-common-lib)",
         cwd: path.join(dockerDir, "local_modules", "orange-common-lib"),
@@ -387,7 +387,7 @@ async function build_project(step, steps, dockerDir) {
         steps: steps,
         commands: [
             { name: name, args: args },
-            { name: "npm", args: ["dedup"] },
+            //{ name: "npm", args: ["dedup"] },
         ],
         description: "Build project 2/3 (orange-bot-base)",
         cwd: path.join(dockerDir, "local_modules", "orange-bot-base"),
@@ -403,6 +403,7 @@ async function build_project(step, steps, dockerDir) {
         description: "Build project 3/3 (orange-bot)",
         cwd: dockerDir
     });
+
 
     return result_1 && result_2 && result_3;
 }
