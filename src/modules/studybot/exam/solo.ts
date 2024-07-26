@@ -37,7 +37,7 @@ async function nextQuestion(game_id: string, correct: boolean) {
 
         for (const { id } of question.answerOptions) {
             buttons.addComponents(new ButtonBuilder(
-                { label: id, style: ButtonStyle.Secondary, customId: `${game_id}_${id}` }
+                { label: id, style: ButtonStyle.Secondary, customId: `sb_${game_id}_${id}` }
             ));
         }
 
@@ -89,7 +89,7 @@ async function playSolo(interaction: ChatInputCommandInteraction<CacheType>, exa
 }
 
 async function processResponse(btnInteraction: ButtonInteraction) {
-    const [game_id, answer] = btnInteraction.customId.split("_");
+    const [_, game_id, answer] = btnInteraction.customId.split("_");
 
     const game = GAME_SESSIONS.get(game_id);
 
