@@ -26,7 +26,7 @@ const command = {
 
 
 export default async function (bot: Bot, module: Module) {
-    if (!module.isHandling) return;
+    //if (!module.isHandling) return;
 
     const costMgr = new CostMgr(bot);
 
