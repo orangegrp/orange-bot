@@ -57,7 +57,7 @@ async function generate_with_context(thread_id: string, user_name: string, user_
         //logger.verbose(util.inspect(contextThreadMsgs, { depth: null }));
         const threadRun = await openai.beta.threads.runs.create(
             chatThread.id,
-            { assistant_id: assistant_id, model: "gpt-3.5-turbo-0125" },
+            { assistant_id: assistant_id, model: /*"gpt-3.5-turbo-0125"*/ "gpt-4o-mini" },
             { timeout: 10000 }
         );
         //logger.verbose(util.inspect(threadRun, { depth: null }));
@@ -168,7 +168,7 @@ async function generate_no_context(user_name: string, user_id: string, user_prom
         //logger.verbose(util.inspect(threadMsgs, { depth: null }));
         const threadRun = await openai.beta.threads.runs.create(
             chatThread.id,
-            { assistant_id: assistant_id, model: "gpt-3.5-turbo-0125" },
+            { assistant_id: assistant_id, model: /* "gpt-3.5-turbo-0125"*/ "gpt-4o-mini" },
             { timeout: 10000 }
         );
         //logger.verbose(util.inspect(threadRun, { depth: null }));

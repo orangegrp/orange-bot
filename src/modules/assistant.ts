@@ -26,6 +26,8 @@ const command = {
 
 
 export default async function (bot: Bot, module: Module) {
+    if (!module.isHandling) return;
+
     const costMgr = new CostMgr(bot);
 
     scheduler.scheduleJob("0 0 * * *", () => costMgr.resetAllDailyCaps());
@@ -45,7 +47,10 @@ export default async function (bot: Bot, module: Module) {
         }
     });
 
-    module.addChatInteraction(async msg => {
+   //module.addChatInteraction(async msg => {
+    bot.client.on("messageCreate", async msg => {
+        logger.info("Received message: " + msg.content);
+
         if (!bot.client.user) {
             logger.warn("bot.client.user not set! Cannot reply to AI request!");
             return;
@@ -55,12 +60,16 @@ export default async function (bot: Bot, module: Module) {
         const is_starting_new_ctx = msg.content.startsWith(`<@${bot.client.user.id}>`);
 
         if (!is_replying_to_context && !is_starting_new_ctx) {
+            logger.info("Not replying to context or starting new context");
             return;
         }
 
         if (!(await costMgr.allowUser(msg.author.id))) {
+            logger.info("User is not allowed to use Ora Assistant");
             return;
         }
+
+        logger.info("User is allowed to use Ora Assistant");
 
         await chatWithAI(msg);
     });
