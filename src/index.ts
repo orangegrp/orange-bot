@@ -10,3 +10,5 @@ initEnv().then(() => {
     const main = await import("./bot.js");
     await main.default();
 });
+
+// test signed commit
