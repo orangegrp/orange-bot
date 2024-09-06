@@ -4,11 +4,14 @@ import { clearInterval } from "timers";
 import crypto from "crypto";
 import fs from "fs";
 import path from "path";
+import chalk from "chalk";
 
 const buildx_container_name = `orange-${crypto.randomBytes(4).toString('hex')}`;
 const start_time = new Date();
 const active_pids = [];
 let task = null;
+
+let current_line = "";
 
 function showSpinner(text) {
     const spinner = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
@@ -17,7 +20,19 @@ function showSpinner(text) {
     return setInterval(() => {
         let end_time = new Date();
         let delta = end_time - start_time;
-        process.stdout.write(`\r${text} (${(delta / 1000).toFixed(1)}s) `.replace(">", spinner[i]));
+
+        let terminalWidth = process.stdout.columns || 80;
+        let cleanedLine = current_line.replace(/[\x00-\x1F\x7F\x1B]/g, "");
+        let timeInfo = `(${(delta / 1000).toFixed(1)}s)`;
+        let maxTextLength = terminalWidth - text.length - timeInfo.length - 5;
+
+        if (cleanedLine.length > maxTextLength) {
+            cleanedLine = cleanedLine.substring(0, maxTextLength - 3) + '...';
+        }
+
+        process.stdout.clearLine();
+        process.stdout.cursorTo(0);
+        process.stdout.write(`\r${chalk.white(text)} ${chalk.cyan(timeInfo)} ${chalk.gray(cleanedLine)}`.replace(">", spinner[i]));
         i = (i + 1) % spinner.length;
     }, 100);
 }
@@ -36,10 +51,11 @@ function runCommand(command, args, options) {
         const child = spawn(command, args, options);
         active_pids.push(child.pid);
 
-        let output = '';
+        current_line = "";
+        let output = "";
 
-        child.stdout.on('data', (data) => { output += data.toString(); });
-        child.stderr.on('data', (data) => { output += data.toString(); });
+        child.stdout.on('data', (data) => { output += data.toString(); current_line = data.toString(); });
+        child.stderr.on('data', (data) => { output += data.toString(); current_line = data.toString(); });
 
         child.on('close', (code) => {
             active_pids.splice(active_pids.findIndex((pid) => pid === child.pid), 1);

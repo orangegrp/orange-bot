@@ -22,7 +22,7 @@ async function initialize() {
 /// TODO: RE-WRITE THIS MODULE IN THE NEXT ITERATION (LOW PRIORITY)
 
 const logger = getLogger("openai");
-const context_history_length = 32;
+const context_history_length = 48;
 
 async function generate_with_context(thread_id: string, user_name: string, user_id: string, user_prompt: string, assistant_id: string): Promise<{ response?: string, thread_id?: string, input_tokens?: number, output_tokens?: number, new_context?: boolean, extra?: APIEmbed[], extra_text?: string }> {
     if (!openai) {
@@ -57,7 +57,7 @@ async function generate_with_context(thread_id: string, user_name: string, user_
         //logger.verbose(util.inspect(contextThreadMsgs, { depth: null }));
         const threadRun = await openai.beta.threads.runs.create(
             chatThread.id,
-            { assistant_id: assistant_id, model: "gpt-3.5-turbo-0125" },
+            { assistant_id: assistant_id, model: /*"gpt-3.5-turbo-0125"*/ "gpt-4o-mini" },
             { timeout: 10000 }
         );
         //logger.verbose(util.inspect(threadRun, { depth: null }));
@@ -168,7 +168,7 @@ async function generate_no_context(user_name: string, user_id: string, user_prom
         //logger.verbose(util.inspect(threadMsgs, { depth: null }));
         const threadRun = await openai.beta.threads.runs.create(
             chatThread.id,
-            { assistant_id: assistant_id, model: "gpt-3.5-turbo-0125" },
+            { assistant_id: assistant_id, model: /* "gpt-3.5-turbo-0125"*/ "gpt-4o-mini" },
             { timeout: 10000 }
         );
         //logger.verbose(util.inspect(threadRun, { depth: null }));

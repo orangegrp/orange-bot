@@ -67,7 +67,7 @@ export default async function(bot: Bot, module: Module) {
                     })
                 )
             )
-        } else if (interaction.isButton()) {
+        } else if (interaction.isButton() && interaction.customId.startsWith("sb_")) {
             await processResponse(interaction);
         }
     });

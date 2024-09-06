@@ -54,8 +54,19 @@ async function generateImage(inputHtml: string) {
     logger.verbose("Generating image...");
 
     const image = await nodeHtmlToImage({
-        puppeteerArgs: { executablePath: isAlpine() ? "/usr/bin/chromium-browser" : undefined, args: ["--headless", "--disable-gpu"] },
-        html: html,
+        puppeteerArgs: {
+            executablePath: isAlpine() ? "/usr/bin/chromium-browser" : undefined, args: ["--headless", "--disable-gpu", "--no-sandbox"],
+        },
+        html: html.replace("<script>", "&lt;script&gt;").replace("</script>", "&lt;/script&gt;")
+                  .replace("onclick=", "onclick&#61;")
+                  .replace(`href="javascript:`, `href="javascript&#58;`)
+                  .replace("onerror=", "onerror&#61;"),
+                  
+        beforeScreenshot: async (page) => {
+            //await page.setJavaScriptEnabled(false);
+            //setTimeout(() => { page.browser().close(); }, 5000);
+            //setTimeout(() => { page.browser().process()?.kill(); }, 6000);
+        },
         transparent: true, waitUntil: "networkidle0",
     });
 
@@ -75,7 +86,7 @@ export default function (bot: Bot, module: Module) {
         try {
             const image = await generateImage(args.html);
 
-            if (!(image instanceof Buffer)) 
+            if (!(image instanceof Buffer))
                 throw new Error("Image generation failed.");
 
             await interaction.editReply({ files: [new AttachmentBuilder(image, { name: "image.png" })] });
