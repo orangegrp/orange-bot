@@ -9,8 +9,3 @@ services:
     env_file:
       - path: ./.env
         required: true
-    environment:
-      - SUPABASE_SERVER=https://supabase.orange-primary.orange.order332.com
-      - SUPABASE_ANON_KEY=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJzdXBhYmFzZSIsImlhdCI6MTcyMTMzNzMwMCwiZXhwIjo0ODc3MDEwOTAwLCJyb2xlIjoiYW5vbiJ9.R9QEg42zCWMp8I1sNoJvXBp-I8yORzUnXWPZopwpP7g
-      - SUPABASE_USERNAME=orange-bot@supabase.orange-primary.orange.order332.com
-      - SUPABASE_PASSWORD=ApdR0F5mHRm8r9vcJ0ggm0xvaPGB5Z4wahV8jMsMEK3sm86R3ktyGWmaF0Nf53C6
