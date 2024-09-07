@@ -46,7 +46,7 @@ export default async function (bot: Bot, module: Module) {
         }
     });
 
-   //module.addChatInteraction(async msg => {
+    //module.addChatInteraction(async msg => {
     bot.client.on("messageCreate", async msg => {
         if (!module.isHandling) return;
         logger.info("Received message: " + msg.content);
