@@ -1,6 +1,7 @@
 import { CachedLookup } from "orange-bot-base";
 import { getLogger } from "orange-common-lib";
 import { damerauLevenshtein, getClosestMatches } from "../../core/functions.js";
+import { CRS_PORT } from "./crsCompat/index.js";
 
 const logger = getLogger("code-runner-languages");
 
@@ -120,7 +121,7 @@ function isRunEnv(runEnv: CrsRunEnvInfoUnverified, runtimes: PistonRuntimes): ru
 
 
 async function getLanguages<T extends boolean>(strings: T): Promise<T extends true ? string[] : PistonRuntimes> {
-    let api_url = `https://${process.env.CODERUNNER_SERVER}/api/v2/info`;
+    let api_url = `http://127.0.0.1:${CRS_PORT}/api/v2/info`;
 
     logger.info("FETCHING LANGUAGES");
 

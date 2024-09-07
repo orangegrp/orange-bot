@@ -3,6 +3,9 @@ import { Logger, getLogger } from "orange-common-lib";
 import { languages, languageAliases } from "./languages.js";
 import type { CrsRunEnvInfo, Language, LanguageAlias } from "./languages.js";
 import util from "util";
+import { CRS_PORT } from "./crsCompat/index.js";
+
+import "./crsCompat/index.js";
 
 class CodeRunnerError extends Error {
     constructor(message: string) {
@@ -11,12 +14,12 @@ class CodeRunnerError extends Error {
     }
 }
 
-
 class CodeRunner {
     private readonly logger: Logger;
     private readonly options: CodeRunnerOptions;
     constructor(options: CodeRunnerOptions, logger?: Logger) {
         this.options = options;
+        this.options.server = "/127.0.0.1:" + CRS_PORT;
         this.logger = logger ? logger.sublogger("codeRunner") : getLogger("codeRunner");
     }
     /**
@@ -49,7 +52,7 @@ class CodeRunner {
         }
 
         try {
-            const response = await fetch(`https://${this.options.server}/api/v1/execute`, {
+            const response = await fetch(`http://${this.options.server}/api/v1/execute`, {
                 headers: {
                     'Authorization': this.options.apiKey,
                     'Content-Type': 'application/json'
@@ -95,7 +98,7 @@ class CodeRunner {
     async runCodeV2(code: string, runtime: CrsRunEnvInfo, stdin?: string, argv?: string[]): Promise<CodeRunnerJobResult> {
 
         try {
-            const response = await fetch(`https://${this.options.server}/api/v2/execute`, {
+            const response = await fetch(`http://${this.options.server}/api/v2/execute`, {
                 headers: {
                     'Authorization': this.options.apiKey,
                     'Content-Type': 'application/json'
