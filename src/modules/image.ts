@@ -49,7 +49,12 @@ function isAlpine() {
  * @returns An image buffer.
  */
 async function generateImage(inputHtml: string) {
-    const html = IMAGE_STYLE_HTML + inputHtml;
+    const cleanHtml = inputHtml.replace("<script>", "&lt;script&gt;").replace("</script>", "&lt;/script&gt;")
+        .replace("<meta>", "&lt;meta&gt;").replace("</meta>", "&lt;/meta&gt;")
+        .replace("onclick=", "onclick&#61;")
+        .replace(`href="javascript:`, `href="javascript&#58;`)
+        .replace("onerror=", "onerror&#61;");
+    const html = IMAGE_STYLE_HTML + cleanHtml;
 
     logger.verbose("Generating image...");
 
@@ -57,11 +62,7 @@ async function generateImage(inputHtml: string) {
         puppeteerArgs: {
             executablePath: isAlpine() ? "/usr/bin/chromium-browser" : undefined, args: ["--headless", "--disable-gpu", "--no-sandbox"],
         },
-        html: html.replace("<script>", "&lt;script&gt;").replace("</script>", "&lt;/script&gt;")
-                  .replace("onclick=", "onclick&#61;")
-                  .replace(`href="javascript:`, `href="javascript&#58;`)
-                  .replace("onerror=", "onerror&#61;"),
-                  
+        html: html,
         beforeScreenshot: async (page) => {
             //await page.setJavaScriptEnabled(false);
             //setTimeout(() => { page.browser().close(); }, 5000);
