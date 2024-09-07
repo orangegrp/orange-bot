@@ -2,16 +2,22 @@
 /// Copyright © orangegrp 2024. All rights reserved.
 /// Refactored 28/04/2024.
 
+import { getLogger, environment } from "orange-common-lib";
+import util from "util";
+
+const logger = getLogger("CVE API");
+
 /**
  * OpenCVE.io API request wrapper.
  * @param query_url Full API request URL.
  * @returns `JSON` response, type `any` or undefined if error.
  */
 async function openCveApiRequest(query_url: string) {
+    //logger.log(`${environment.OPENCVE_USER} : ${environment.OPENCVE_PASS}`);
     const response = await fetch(query_url, {
         headers:
         {
-            'Authorization': 'Basic ' + Buffer.from(process.env.OPENCVE_USER + ":" + process.env.OPENCVE_PASS).toString('base64'),
+            'Authorization': 'Basic ' + Buffer.from(environment.OPENCVE_USER + ":" + environment.OPENCVE_PASS).toString('base64'),
             'Accept': 'application/json'
         }
     });
@@ -19,6 +25,7 @@ async function openCveApiRequest(query_url: string) {
     if (response.status === 404) {
         return undefined;
     } else if (!`${response.status}`.startsWith("20")) {
+        logger.error(util.inspect(response, { depth: null }));
         throw new Error(`Failed to retrieve data. Server returned code ${response.status}`);
     }
 
