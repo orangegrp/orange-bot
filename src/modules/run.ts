@@ -296,7 +296,7 @@ export default async function(bot: Bot) {
             title: `Executed \`${runtime_info.language}\` code (${run_time}s).`,
             author: { name: `Run ID: ${result.jobId}` },
             description: (result.processOutput.length > 0 ? `\`\`\`\n${result.processOutput}\`\`\`` : 'No output received.') + `\nExit code: ${result.exitCode}`,
-            footer: { text: `Runtime: ${runtime} • Powered by orange Code Runner Server API v2` },
+            footer: { text: `Runtime: ${runtime} • Powered by Piston (emkc.org)` },
             timestamp: new Date().toISOString(),
         });
 

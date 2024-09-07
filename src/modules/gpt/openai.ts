@@ -39,8 +39,8 @@ async function generate_with_context(thread_id: string, user_name: string, user_
 
     try {
         if (user_prompt.length > 100) {
-            user_prompt = user_prompt.substring(0, 100);
-            user_prompt += "\n\n[User input truncated to 100 characters]";
+            user_prompt = user_prompt.substring(0, 1000);
+            user_prompt += "\n\n[User input truncated to 1000 characters]";
         }
         const chatThread = await openai.beta.threads.retrieve(thread_id);
         //logger.verbose(util.inspect(chatThread, { depth: null }));
@@ -155,8 +155,8 @@ async function generate_no_context(user_name: string, user_id: string, user_prom
 
     try {
         if (user_prompt.length > 100) {
-            user_prompt = user_prompt.substring(0, 100);
-            user_prompt += "\n\n[User input truncated to 100 characters]";
+            user_prompt = user_prompt.substring(0, 1000);
+            user_prompt += "\n\n[User input truncated to 1000 characters]";
         }
         const chatThread = await openai.beta.threads.create( { timeout: 10000 });
         //logger.verbose(util.inspect(chatThread, { depth: null }));
@@ -215,8 +215,8 @@ async function generate_no_context(user_name: string, user_id: string, user_prom
                                     tool_call_id: tool_call.id,
                                     output: JSON.stringify({
                                         exitCode: result.exitCode,
-                                        compilerOutput: result.exitCode !== 0 ? result.compilerOutput.substring(0, 100) : "Success",
-                                        processOutput: result.processOutput.substring(0, 100)
+                                        compilerOutput: result.exitCode !== 0 ? result.compilerOutput.substring(0, 1000) : "Success",
+                                        processOutput: result.processOutput.substring(0, 1000)
                                     })
                                 }]}, { timeout: 10000 }
                             );
@@ -229,7 +229,7 @@ async function generate_no_context(user_name: string, user_id: string, user_prom
                                 title: `Executed \`${params.language}\` code (${run_time}s).`,
                                 author: { name: `Run ID: ${result.jobId}` },
                                 description: (result.processOutput.length > 0 ? `\`\`\`\n${result.processOutput}\`\`\`` : 'No output received.') + `\nExit code: ${result.exitCode}`,
-                                footer: { text: `Ora Assistant • Powered by orange Code Runner Server API v1` },
+                                footer: { text: `Ora Assistant • Code Engine powered by Piston (emkc.org)` },
                                 timestamp: new Date().toISOString(),
                             });               
                         }
