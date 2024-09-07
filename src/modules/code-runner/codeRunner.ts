@@ -19,7 +19,7 @@ class CodeRunner {
     private readonly options: CodeRunnerOptions;
     constructor(options: CodeRunnerOptions, logger?: Logger) {
         this.options = options;
-        this.options.server = "/127.0.0.1:" + CRS_PORT;
+        this.options.server = "127.0.0.1:" + CRS_PORT;
         this.logger = logger ? logger.sublogger("codeRunner") : getLogger("codeRunner");
     }
     /**
