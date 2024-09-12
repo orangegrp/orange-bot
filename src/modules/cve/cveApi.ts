@@ -39,7 +39,7 @@ async function openCveApiRequest(query_url: string) {
  * @returns Lookup result.
  */
 async function getCvesData(args: { keyword?: string | null, vendor?: string | null, product?: string | null, cvss?: string | null, cwe?: string | null }, page: number = 1): Promise<OpenCveAPIResults | undefined> {
-    let api_url = 'https://www.opencve.io/api/cve';
+    let api_url = 'https://app.opencve.io/api/cve';
     const append_query = (param: string, value: string) => api_url += `${(api_url.endsWith("/cve") ? '?' : "&")}${param}=${value}`;
 
     for (const [key, value] of Object.entries(args)) {
@@ -59,7 +59,7 @@ async function getCvesData(args: { keyword?: string | null, vendor?: string | nu
  * @returns Lookup result.
  */
 async function getCveInfoData(cveid: string): Promise<OpenCveAPIResultsInfo | undefined> {
-    let api_url = 'https://www.opencve.io/api/cve/' + encodeURIComponent(cveid);
+    let api_url = 'https://app.opencve.io/api/cve/' + encodeURIComponent(cveid);
     return await openCveApiRequest(api_url) as OpenCveAPIResultsInfo;
 }
 
@@ -69,7 +69,7 @@ async function getCveInfoData(cveid: string): Promise<OpenCveAPIResultsInfo | un
  * @returns Lookup result.
  */
 async function getCweInfoData(cweid: string): Promise<OpenCweAPICweResultsInfo | undefined> {
-    let api_url = 'https://www.opencve.io/api/cwe/' + encodeURIComponent(cweid);
+    let api_url = 'https://app.opencve.io/api/cwe/' + encodeURIComponent(cweid);
     return await openCveApiRequest(api_url) as OpenCweAPICweResultsInfo;
 }
 
