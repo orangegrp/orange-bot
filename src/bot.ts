@@ -20,7 +20,7 @@ async function main() {
                 else if ("title" in embed || "description" in embed && !embed.color) {
                     embed.color = 0xff6723;
                     if (environment.NODE_ENV === "development") {
-                        if (embed.footer) embed.footer.text += ` · Instance: ${bot.instanceName}`;
+                        if (embed.footer) embed.footer.text += ` • Instance: ${bot.instanceName}`;
                         else embed.footer = { text: `Instance: ${bot.instanceName}` }
                     }
                 }
