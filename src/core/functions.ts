@@ -1,12 +1,13 @@
 import { decode } from "html-entities";
 import { getLogger } from "orange-common-lib";
+import { Writable } from "stream";
 
 const logger = getLogger("functions");
 
 function damerauLevenshtein(a: string, b: string, bonus: number = 2, sequenceLength: number = 5): number {
     const lenA = a.length;
     const lenB = b.length;
-    const dist: number[][] = Array(lenA +  1).fill(null).map(() => Array(lenB +  1).fill(null));
+    const dist: number[][] = Array(lenA + 1).fill(null).map(() => Array(lenB + 1).fill(null));
 
     if (a === b) {
         return -(a.length * bonus);
@@ -16,16 +17,16 @@ function damerauLevenshtein(a: string, b: string, bonus: number = 2, sequenceLen
         return b.length;
     }
 
-    for (let i =  0; i <= lenA; i++) {
+    for (let i = 0; i <= lenA; i++) {
         dist[i][0] = i;
     }
-    for (let j =  0; j <= lenB; j++) {
+    for (let j = 0; j <= lenB; j++) {
         dist[0][j] = j;
     }
 
-    for (let i =  1; i <= lenA; i++) {
-        for (let j =  1; j <= lenB; j++) {
-            let cost = a[i - 1] === b[j - 1] ?   0 :   1;
+    for (let i = 1; i <= lenA; i++) {
+        for (let j = 1; j <= lenB; j++) {
+            let cost = a[i - 1] === b[j - 1] ? 0 : 1;
             let minDist = dist[i - 1][j] + 1; // deletion
             let tempDist = dist[i][j - 1] + 1; // insertion
             let substitution = dist[i - 1][j - 1] + cost; // substitution
@@ -53,7 +54,7 @@ function damerauLevenshtein(a: string, b: string, bonus: number = 2, sequenceLen
             if (i === 1 && j === 1 && a[0] === b[0]) {
                 minDist -= bonus;
             }
-        
+
             dist[i][j] = minDist;
         }
     }
@@ -80,9 +81,9 @@ function getClosestMatches(input: string, sourcelst: string[], options?: { maxSu
     const max_suggestions = options?.maxSuggestions ?? 25;
     const similarity_threshold = options?.similarityThreshold ?? 10;
 
-    if (sourcelst.length < 1) 
+    if (sourcelst.length < 1)
         return undefined;
-    
+
     console.dir(sourcelst);
 
     let closest_item: { item: string, distance: number }[] = [];
@@ -108,7 +109,7 @@ function getClosestMatches(input: string, sourcelst: string[], options?: { maxSu
                 distance += damerauLevenshtein(item_tokens[i].toLowerCase(), input_tokens[j].toLowerCase(), options?.sequenceLength, options?.bonus);
             }
         }
-        
+
         logger.verbose(`Distance between ${input} and ${item} is ${distance}`);
 
         if (distance <= similarity_threshold) {
@@ -123,4 +124,73 @@ function getClosestMatches(input: string, sourcelst: string[], options?: { maxSu
     return [... new Set(closest)];
 }
 
-export { damerauLevenshtein, number2emoji, removeHtmlTagsAndDecode, getClosestMatches };
+function captureConsole<T>(data: T[]): string {
+    // Create a custom writable stream that captures data into a string
+    class StringWriter extends Writable {
+        private content: string = '';
+
+        _write(chunk: any, encoding: string, callback: (error?: Error | null) => void) {
+            this.content += chunk.toString();
+            callback();
+        }
+
+        getString(): string {
+            return this.content;
+        }
+    }
+
+    // Create an instance of the custom writable stream
+    const writer = new StringWriter();
+
+    // Temporarily replace console.log to capture output
+    const originalConsoleLog = console.log;
+    console.log = (...args: any[]) => {
+        writer.write(args.join(' ') + '\n');
+    };
+
+    // Capture console.table output
+    console.log(data);
+
+    // Restore the original console.log
+    console.log = originalConsoleLog;
+
+    // Return the captured table output as a string
+    return writer.getString();
+}
+
+function captureConsoleTable<T>(data: T[]): string {
+    // Create a custom writable stream that captures data into a string
+    class StringWriter extends Writable {
+        private content: string = '';
+
+        _write(chunk: any, encoding: string, callback: (error?: Error | null) => void) {
+            this.content += chunk.toString();
+            callback();
+        }
+
+        getString(): string {
+            return this.content;
+        }
+    }
+
+    // Create an instance of the custom writable stream
+    const writer = new StringWriter();
+
+    // Temporarily replace console.log to capture output
+    const originalConsoleLog = console.log;
+    console.log = (...args: any[]) => {
+        writer.write(args.join(' ') + '\n');
+    };
+
+    // Capture console.table output
+    console.table(data);
+
+    // Restore the original console.log
+    console.log = originalConsoleLog;
+
+    // Return the captured table output as a string
+    return writer.getString();
+}
+
+
+export { damerauLevenshtein, number2emoji, removeHtmlTagsAndDecode, getClosestMatches, captureConsoleTable as generateTable, captureConsole};
