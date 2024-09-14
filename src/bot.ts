@@ -18,6 +18,15 @@ async function main() {
                 }
                 else if ("title" in embed || "description" in embed && !embed.color) {
                     embed.color = 0xff6723;
+                    if (embed.footer) embed.footer.text += ` - instance: ${bot.instanceName}`;
+                    else embed.footer = { text: `instance: ${bot.instanceName}` }
+                }
+                //@ts-ignore
+                if (embed.data) {
+                    //@ts-ignore
+                    if (embed.data.footer) embed.data.footer.text += ` - instance: ${bot.instanceName}`;
+                    //@ts-ignore
+                    else embed.data.footer = { text: `instance: ${bot.instanceName}` }
                 }
             }
         }
