@@ -1,7 +1,7 @@
 import { AttachmentBuilder, EmbedBuilder, PermissionsBitField as Perms } from "discord.js";
 import type { CacheType, ChatInputCommandInteraction, InteractionEditReplyOptions } from "discord.js";
 import { getLogger } from "orange-common-lib";
-import type { Bot, Command } from "orange-bot-base";
+import type { Bot, Command, Module } from "orange-bot-base";
 import { CommandExecutor } from "./linux-run/commandExecutor.js";
 import { ArgType } from "orange-bot-base";
 import { CodeRunner } from "./code-runner/codeRunner.js";
@@ -89,7 +89,7 @@ const runCommand = {
 } satisfies Command;
 
 
-export default async function(bot: Bot) {
+export default async function(bot: Bot, module: Module) {
     if (!SSH_HOST) return logger.warn("SSH_HOST not set!");
     if (!SSH_USER) return logger.warn("SSH_USER not set!");
     if (!SSH_PASSWORD) return logger.warn("SSH_PASSWORD not set!");
@@ -125,6 +125,7 @@ export default async function(bot: Bot) {
     });
 
     bot.client.on("interactionCreate", async interaction => {
+        if (!module.isHandling) return;
         if (interaction.isAutocomplete()) {
             const option = interaction.options.getFocused(true);
             logger.verbose(`Autocomplete for /${interaction.commandName} ${option.name}: ${option.value}`);
@@ -146,7 +147,7 @@ export default async function(bot: Bot) {
         } 
     });
 
-    bot.addCommand(runCommand, async (interaction, args) => {
+    module.addCommand(runCommand, async (interaction, args) => {
         if (args.subCommand == "linux") {
             await handleLinuxRun(interaction, args.command);
         }
