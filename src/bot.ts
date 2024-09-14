@@ -2,6 +2,7 @@ import { Client, GatewayIntentBits, MessagePayload } from "discord.js";
 import { getLogger } from "orange-common-lib";
 import { Bot } from "orange-bot-base";
 import { join, dirname } from "path";
+import { environment } from "orange-common-lib";
 
 async function main() {
     // this code is absolutely criminal
@@ -18,15 +19,19 @@ async function main() {
                 }
                 else if ("title" in embed || "description" in embed && !embed.color) {
                     embed.color = 0xff6723;
-                    if (embed.footer) embed.footer.text += ` - instance: ${bot.instanceName}`;
-                    else embed.footer = { text: `instance: ${bot.instanceName}` }
+                    if (environment.NODE_ENV === "development") {
+                        if (embed.footer) embed.footer.text += ` · Instance: ${bot.instanceName}`;
+                        else embed.footer = { text: `Instance: ${bot.instanceName}` }
+                    }
                 }
                 //@ts-ignore
                 if (embed.data) {
-                    //@ts-ignore
-                    if (embed.data.footer) embed.data.footer.text += ` - instance: ${bot.instanceName}`;
-                    //@ts-ignore
-                    else embed.data.footer = { text: `instance: ${bot.instanceName}` }
+                    if (environment.NODE_ENV === "development") {
+                        //@ts-ignore
+                        if (embed.data.footer) embed.data.footer.text += ` · Instance: ${bot.instanceName}`;
+                        //@ts-ignore
+                        else embed.data.footer = { text: `Instance: ${bot.instanceName}` }
+                    }
                 }
             }
         }
