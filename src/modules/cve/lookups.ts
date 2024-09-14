@@ -232,7 +232,7 @@ async function getCves(args: { keyword?: string | null, vendor?: string | null, 
 
         embed.addFields({ name: 'Learn More', value: ":information_source: Click on a button to learn more about the particular vulnerability." });
 
-        return { embeds: [embed], components: [buttons] };
+        return { embeds: [embed], components: buttons.components.length > 0 ? [buttons] : undefined };
     }
     catch (err: any) {
         return ({
