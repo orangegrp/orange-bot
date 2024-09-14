@@ -28,7 +28,7 @@ async function main() {
                 if (embed.data) {
                     if (environment.NODE_ENV === "development") {
                         //@ts-ignore
-                        if (embed.data.footer) embed.data.footer.text += ` · Instance: ${bot.instanceName}`;
+                        if (embed.data.footer) embed.data.footer.text += ` • Instance: ${bot.instanceName}`;
                         //@ts-ignore
                         else embed.data.footer = { text: `Instance: ${bot.instanceName}` }
                     }
