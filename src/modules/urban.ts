@@ -2,7 +2,7 @@
 /// Copyright © orangegrp 2024. All rights reserved.
 /// Refactored 27/04/2024.
 
-import type { Bot, Command } from "orange-bot-base";
+import type { Bot, Command, Module } from "orange-bot-base";
 import { getLogger } from "orange-common-lib";
 import { ArgType } from "orange-bot-base";
 import { EmbedBuilder } from "discord.js";
@@ -97,8 +97,8 @@ async function getDefinition(definitions: UrbanDefinition[]) {
  * `urban.ts` - Urban Dictionary module for orange🟠 Bot.
  * @param bot Bot object (`orange-bot-base`)
  */
-export default function (bot: Bot) {
-    bot.addCommand(command, async (interaction, args) => {
+export default function (bot: Bot, module: Module) {
+    module.addCommand(command, async (interaction, args) => {
         logger.log(`"User ${interaction.user.username} (${interaction.user.id}), looked up ${args.word}"`);
         const definitions = await getDefinitions(args.word);
 

@@ -2,7 +2,7 @@
 /// Copyright © orangegrp 2024. All rights reserved.
 /// Refactored 27/04/2024.
 
-import type { Bot, Command } from "orange-bot-base";
+import type { Bot, Command, Module } from "orange-bot-base";
 import { ArgType } from "orange-bot-base";
 import sha256 from "sha256";
 
@@ -46,8 +46,8 @@ function magic(s: string) {
  * `is.ts` - "is <question here>?" module for orange🟠 Bot.
  * @param bot Bot object (`orange-bot-base`)
  */
-export default function (bot: Bot) {
-    bot.addCommand(command, (interaction, args) => {
+export default function (bot: Bot, module: Module) {
+    module.addCommand(command, (interaction, args) => {
         const question = args.question
             .toLowerCase()         // lowercase
             .trim()                // remove leading or trailing spaces
