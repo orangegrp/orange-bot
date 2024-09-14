@@ -25,7 +25,7 @@ async function getClosestMatch(input: string, source: string[]): Promise<string[
 }
 
 async function getAllItems(bucket: string): Promise<string[]> {
-    const { data, error } = await supabase.storage.from(bucket).list();
+    const { data, error } = await (await supabase()).storage.from(bucket).list();
 
     if (error) {
         logger.warn(`Failed to list all content. ${error}`);
@@ -50,7 +50,7 @@ async function getAllStudyMaterials(): Promise<string[]> {
 }
 
 async function getItem(name: string, bucket: "studybot-questions" | "studybot-content"): Promise<StudyBotJson | undefined> {
-    const { data, error } = await supabase.storage.from(bucket).download(name);
+    const { data, error } = await (await supabase()).storage.from(bucket).download(name);
 
     if (error) {
         logger.warn(`Failed to download content. ${error}`);
