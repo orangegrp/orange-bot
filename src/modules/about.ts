@@ -54,11 +54,13 @@ export default function (bot: Bot, module: Module) {
             .addRowMatrix(
                 peersList.map(peer => {
                     const this_peer = peer.name === bot.instanceName;
+                    const controller = bot.syncHandler?.whoIsInControl === peer.name;
+
                     const peer_name = peer.name.length < 16 ? `${peer.name}${this_peer ? " (this)" : ""}` : `${peer.name.substring(0, 8)}...${this_peer ? " (this)" : ""}`;
                     const peer_alive = this_peer ? "-" : peer.alive ? chalk.green("Yes") : chalk.red("No");
                     const peer_dead = this_peer ? "-" : peer.knownDead ? "Yes" : "No";
 
-                    return [this_peer ? chalk.cyan(peer_name) : peer_dead ? chalk.white(peer_name) : peer_alive ? chalk.green(peer_name) : chalk.red(peer_name), chalk.yellow(peer.priority), peer_alive, chalk.gray(peer_dead)]
+                    return [controller ? chalk.magenta(peer_name) : this_peer ? chalk.cyan(peer_name) : peer.knownDead ? chalk.black(peer_name) : peer.alive ? chalk.green(peer_name) : chalk.red(peer_name), chalk.yellow(peer.priority), peer_alive, chalk.gray(peer_dead)]
                 })
             );
 
