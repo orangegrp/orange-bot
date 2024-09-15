@@ -31,7 +31,7 @@ export default async function (bot: Bot, module: Module) {
     scheduler.scheduleJob("0 0 * * *", () => costMgr.resetAllDailyCaps());
 
     bot.client.on("interactionCreate", async interaction => {
-        if (!module.isHandling) return;
+        if (!module.handling) return;
         if (interaction.isButton() && interaction.customId.startsWith("ora_")) {
             await interaction.deferReply();
             await createAccountCmdBtn(interaction, bot);
@@ -48,7 +48,7 @@ export default async function (bot: Bot, module: Module) {
 
     //module.addChatInteraction(async msg => {
     bot.client.on("messageCreate", async msg => {
-        if (!module.isHandling) return;
+        if (!module.handling) return;
         logger.info("Received message: " + msg.content);
 
         if (!bot.client.user) {
