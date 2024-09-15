@@ -72,13 +72,14 @@ export default function (bot: Bot, module: Module) {
             .addRowMatrix(
                 moduleInfo.map(module => {
                     const module_name = module.name.length < 16 ? module.name : `${module.name.substring(0, 8)}...`;
-                    const handler_name = module.handler.length < 16 ? `${module.handler}${module.me ? " (this)" : ""}` : `${module.handler.substring(0, 14)}...${module.me ? " (this)" : ""}`;
+                    const this_peer = module.handler === bot.instanceName && module.me
+                    const handler_name = module.handler.length < 16 ? `${module.handler}${this_peer ? " (this)" : ""}` : `${module.handler.substring(0, 14)}...${this_peer ? " (this)" : ""}`;
                     const module_enabled = !module.disabled || handler_name !== "nobody" ? chalk.green("Yes") : chalk.gray("No");
 
                     return [chalk.white(module_name), module.me ? chalk.cyan(handler_name) : handler_name === "nobody" ? chalk.black(handler_name) : chalk.gray(handler_name), module_enabled];
                 })
             );
-            
+
         const peer_table_str = captureConsole<string>(peer_table.toString() as any);
         const module_table_str = captureConsole<string>(module_table.toString() as any);
 
