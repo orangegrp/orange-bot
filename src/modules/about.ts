@@ -76,7 +76,7 @@ export default function (bot: Bot, module: Module) {
                     const handler_name = module.handler.length < 16 ? `${module.handler}${this_peer ? " (this)" : ""}` : `${module.handler.substring(0, 14)}...${this_peer ? " (this)" : ""}`;
                     const module_enabled = !module.disabled || handler_name !== "nobody" ? chalk.green("Yes") : chalk.gray("No");
 
-                    return [chalk.white(module_name), this_peer ? chalk.cyan(handler_name) : module.me ? chalk.magenta(handler_name) : handler_name === "nobody" ? chalk.black(handler_name) : chalk.gray(handler_name), module_enabled];
+                    return [chalk.white(module_name), this_peer ? chalk.cyan(handler_name) : module.me ? chalk.blue(handler_name) : handler_name === "nobody" ? chalk.black(handler_name) : chalk.gray(handler_name), module_enabled];
                 })
             );
 
