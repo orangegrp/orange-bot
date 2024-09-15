@@ -54,9 +54,7 @@ export default function (bot: Bot, module: Module) {
             .addRowMatrix(
                 peersList.map(peer => {
                     const this_peer = peer.name === bot.instanceName;
-
                     const peer_name = peer.name.length < 16 ? `${peer.name}${this_peer ? " (this)" : ""}` : `${peer.name.substring(0, 8)}...${this_peer ? " (this)" : ""}`;
-
                     const peer_alive = this_peer ? "-" : peer.alive ? chalk.green("Yes") : chalk.red("No");
                     const peer_dead = this_peer ? "-" : peer.knownDead ? "Yes" : "No";
 
