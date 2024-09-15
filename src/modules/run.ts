@@ -85,11 +85,11 @@ const runCommand = {
             }
         }
     }
-    
+
 } satisfies Command;
 
 
-export default async function(bot: Bot, module: Module) {
+export default async function (bot: Bot, module: Module) {
     if (!SSH_HOST) return logger.warn("SSH_HOST not set!");
     if (!SSH_USER) return logger.warn("SSH_USER not set!");
     if (!SSH_PASSWORD) return logger.warn("SSH_PASSWORD not set!");
@@ -113,7 +113,7 @@ export default async function(bot: Bot, module: Module) {
         apiKey: CODERUNNER_API_KEY,
     }, logger);
 
-    
+
     bot.addChatCommand("runreboot", async (msg, args) => {
         await executor.reboot();
         msg.channel.send("rebooting.");
@@ -133,18 +133,18 @@ export default async function(bot: Bot, module: Module) {
                 logger.verbose(`Ignoring autocomplete for /${interaction.commandName} ${option.name}: ${option.value}`);
                 return;
             }
-             
+
             let choices = await getClosestEnvString(option.value);
 
             await interaction.respond(
                 choices.map(choice =>
-                    ({
-                        name: choice,
-                        value: choice
-                    })
+                ({
+                    name: choice,
+                    value: choice
+                })
                 )
             )
-        } 
+        }
     });
 
     module.addCommand(runCommand, async (interaction, args) => {
@@ -236,8 +236,8 @@ export default async function(bot: Bot, module: Module) {
         function onOutput(output: string) {
             outputBuffer += output;
             if (Date.now() - lastEdit < 1000 || paused) return;
-            
-            if (outputBuffer.length > 1000) {
+
+            if (outputBuffer.length > 1500) {
                 interaction.editReply(formatOutput(lastMessage + "\nCommand output is too long. The rest of the output will be sent as an attachment."));
                 paused = true;
                 return;
@@ -248,10 +248,10 @@ export default async function(bot: Bot, module: Module) {
         function formatOutput(output: string, finished: boolean = false, exitCode?: number | string, useFile?: boolean): InteractionEditReplyOptions {
             const run_time = ((Date.now() - start_time) / 1000).toFixed(1);
 
-            return { 
+            return {
                 embeds: [{
                     title: `${finished ? "Finished running" : "Running"} command \`${command}\` (${run_time}s).`,
-                    description: (useFile ? "Command output in attachment." : output.length > 0 ? `\`\`\`${output}\`\`\`` : "Command output is empty.") + (finished ? `\nExit code: ${exitCode}` : ""),
+                    description: (useFile ? "Command output in attachment." : output.length > 0 ? `\`\`\`ansi\n${output}\`\`\`` : "Command output is empty.") + (finished ? `\nExit code: ${exitCode}` : ""),
                     footer: { text: `Powered by Topias Linux-Run` },
                     timestamp: new Date().toISOString()
                 }],
@@ -269,7 +269,7 @@ export default async function(bot: Bot, module: Module) {
             }
         }
 
-        if (outputBuffer.length > 1000) {
+        if (outputBuffer.length > 1500) {
             interaction.editReply(formatOutput(outputBuffer, true, exitCode, true));
             return;
         }
@@ -288,7 +288,7 @@ export default async function(bot: Bot, module: Module) {
         await interaction.deferReply();
 
         const start_time = Date.now();
-        
+
         const result = await codeRunner.runCodeV2(code, runtime_info, stdin, argv.split(" "));
 
         const run_time = ((Date.now() - start_time) / 1000).toFixed(1);
@@ -296,7 +296,7 @@ export default async function(bot: Bot, module: Module) {
         const embed = new EmbedBuilder({
             title: `Executed \`${runtime_info.language}\` code (${run_time}s).`,
             author: { name: `Run ID: ${result.jobId}` },
-            description: (result.processOutput.length > 0 ? `\`\`\`\n${result.processOutput}\`\`\`` : 'No output received.') + `\nExit code: ${result.exitCode}`,
+            description: (result.processOutput.length > 0 ? `\`\`\`ansi\n${result.processOutput}\`\`\`` : 'No output received.') + `\nExit code: ${result.exitCode}`,
             footer: { text: `Runtime: ${runtime} • Powered by Piston (emkc.org)` },
             timestamp: new Date().toISOString(),
         });
