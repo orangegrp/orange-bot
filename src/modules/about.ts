@@ -27,9 +27,9 @@ function getModuleInfo(bot: Bot): { name: string, handler: string, disabled: boo
     const modules_info: { name: string, handler: string, disabled: boolean, me: boolean }[] = [];
     for (const cmd of bot.commandManager.commands.values()) {
         const module = cmd.module.name;
-        const unavailable = cmd.module.isUnavailable;
+        const unavailable = !cmd.module.available;
         const handler = cmd.module.handler;
-        const me = cmd.module.isHandling;
+        const me = cmd.module.handling;
 
         modules_info.push({ name: module, handler: handler ?? "nobody", disabled: unavailable, me: me })
     }
