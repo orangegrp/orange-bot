@@ -4,7 +4,6 @@ import type { Logger } from "orange-common-lib";
 import { Readable } from "stream";
 import crypto from "crypto";
 
-
 const PROCESS_COMMAND = `sudo -S bash -c 'ps -o exe= -u \${SSH_USER}'`
 const KILL_COMMAND = `sudo -S bash -c 'ps -o exe=,pid=,etimes= -u \${SSH_USER} | while read line; do { IFS=" "; declare -a process=($line); if [ "\${process[2]}" -gt "5" ]; then kill -SIGKILL "\${process[1]}"; echo "\${process[0]} (pid \${process[1]})"; fi; }; done;'`
 
@@ -117,7 +116,12 @@ class CommandExecutor {
 
         // evil bash magic 
         commands.splice(0, 0, `${random_fn}() { local ec=$?; local pid=$1; shift; wait $pid && exit $ec; }`);
-        commands[commands.length - 1] = `eval "trap '' CHLD; ${commands[commands.length - 1].replace(/['"`\\]/g, '\\$&')}" &`; 
+        commands.splice(0, 0, "export TERM=xterm; export COLORTERM=ansi; export FORCE_COLOR=1");
+
+        const user_cmd = commands[commands.length - 1].replace(/['"`\\]/g, '\\$&');
+        this.logger.log(`Command being run: "${user_cmd}`);
+        
+        commands[commands.length - 1] = `eval "trap '' CHLD; ${user_cmd}" &`; 
 
         commands.push("child=$!");
         commands.push(`trap '${random_fn} "$child"; exit' CHLD`);
@@ -138,6 +142,9 @@ class CommandExecutor {
 
         try {
             // run the commands
+            
+            // IDEAS FOR ENABLING COLOR TERMINAL
+            //const output = await this.ssh.execCommand(user_cmd, { execOptions: { pty: true }, onStdout: onstdOut, onStderr: onstdOut, encoding: "utf-8" });
             const output = await this.ssh.execCommand("timeout -k 2s 6s bash", { stdin, onStdout: onstdOut, onStderr: onstdOut });
             
             // if finishChunked is defined call it (will execute the callback one last time with the rest of the output)
