@@ -73,7 +73,7 @@ export default function (bot: Bot, module: Module) {
                 moduleInfo.map(module => {
                     const module_name = module.name.length < 16 ? module.name : `${module.name.substring(0, 8)}...`;
                     const handler_name = module.handler.length < 16 ? `${module.handler}${module.me ? " (this)" : ""}` : `${module.handler.substring(0, 14)}...${module.me ? " (this)" : ""}`;
-                    const module_enabled = !module.disabled ? chalk.green("Yes") : chalk.gray("No");
+                    const module_enabled = !module.disabled && module.me ? chalk.green("Yes") : chalk.gray("No");
 
                     return [chalk.white(module_name), module.me ? chalk.cyan(handler_name) : handler_name === "nobody" ? chalk.black(handler_name) : chalk.gray(handler_name), module_enabled];
                 })
