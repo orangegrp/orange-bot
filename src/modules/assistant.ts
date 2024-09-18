@@ -49,7 +49,7 @@ export default async function (bot: Bot, module: Module) {
     //module.addChatInteraction(async msg => {
     bot.client.on("messageCreate", async msg => {
         if (!module.handling) return;
-        logger.info("Received message: " + msg.content);
+        //logger.info("Received message: " + msg.content);
 
         if (!bot.client.user) {
             logger.warn("bot.client.user not set! Cannot reply to AI request!");
@@ -60,7 +60,7 @@ export default async function (bot: Bot, module: Module) {
         const is_starting_new_ctx = msg.content.startsWith(`<@${bot.client.user.id}>`);
 
         if (!is_replying_to_context && !is_starting_new_ctx) {
-            logger.info("Not replying to context or starting new context");
+            //logger.info("Not replying to context or starting new context");
             return;
         }
 
