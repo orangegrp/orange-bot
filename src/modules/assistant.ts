@@ -65,8 +65,11 @@ export default async function (bot: Bot, module: Module) {
         }
 
         if (!(await costMgr.allowUser(msg.author.id))) {
-            logger.info("User is not allowed to use Ora Assistant");
-            return;
+            logger.info("User is not allowed to use Ora Assistant yet, lets make them a new account");
+
+            if ((await createOraAccount(msg, msg.author.id)) === false) {
+                return;
+            }
         }
 
         logger.info("User is allowed to use Ora Assistant");
@@ -244,6 +247,19 @@ export default async function (bot: Bot, module: Module) {
             dailyCost: existing_account.dailyCost + total_cost,
             totalCost: existing_account.totalCost + total_cost
         });
+    }
+
+    async function createOraAccount(message: Message, user_id: string): Promise<boolean> {
+        if (await costMgr.userExists(user_id)) {
+            return true;
+        } else {
+            logger.log("Creating new account ...");
+            const new_account_id = await costMgr.createOraUser(user_id, message.author.displayName);
+            if (!new_account_id) {
+                return false;
+            }
+            return true;
+        }
     }
 
     async function createAccountCmdBtn(interaction: ButtonInteraction, bot: Bot) {
