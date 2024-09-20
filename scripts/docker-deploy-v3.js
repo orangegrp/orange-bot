@@ -210,12 +210,13 @@ async function buildx_init(step, steps) {
 
 async function buildx_build(step, steps, target_img, version, dockerfile, latest) {
     const name = "docker";
+    const latest_tag = latest ? ["-t", target_img + ":latest"] : [""];
     const args = [
         "buildx",
         "build",
         "--platform linux/amd64,linux/arm64",
         "-t", target_img + ":" + version,
-        latest ? ("-t", target_img + ":latest") : "",
+        ...latest_tag,
         "-f", dockerfile,
         "--push",
         "."
@@ -361,7 +362,7 @@ async function install_packages(step, steps, dockerDir) {
     const name = "npm";
     const args = [
         "ci",
-        "--only=production"
+        "--only=production" //(TS errors keep happening cuz of this)
     ];
 
     return await executeStep({
@@ -385,6 +386,7 @@ async function build_project(step, steps, dockerDir) {
         "--esModuleInterop true",
         "--module es2022",
         "--skipDefaultLibCheck true",
+        "--skipLibCheck true",
         "--declaration false",
         "--moduleResolution node",
         "--project tsconfig.json",
