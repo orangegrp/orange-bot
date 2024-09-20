@@ -484,25 +484,27 @@ async function main() {
         path.resolve("./entrypoint.sh")
     ];
 
-    if (!await purge_dockerDir(1, 10, DOCKER_DIR))
+    if (!await restore_dev(1, 11))
         return;
-    if (!await copy_localmodules(2, 10, LMODULES_DIR, DOCKER_DIR))
+    if (!await purge_dockerDir(2, 11, DOCKER_DIR))
         return;
-    if (!await copy_rootfiles(3, 10, SRC_DIR, ROOT_FILES, DOCKER_DIR))
+    if (!await copy_localmodules(3, 11, LMODULES_DIR, DOCKER_DIR))
         return;
-    if (!await install_packages(4, 10, DOCKER_DIR))
+    if (!await copy_rootfiles(4, 11, SRC_DIR, ROOT_FILES, DOCKER_DIR))
         return;
-    if (!await build_project(5, 10, DOCKER_DIR))
+    if (!await install_packages(5, 11, DOCKER_DIR))
         return;
-    if (!await docker_login(6, 10, process.env.DOCKER_USERNAME, process.env.DOCKER_PASSWORD))
+    if (!await build_project(6, 11, DOCKER_DIR))
         return;
-    if (!await buildx_init(7, 10))
+    if (!await docker_login(7, 11, process.env.DOCKER_USERNAME, process.env.DOCKER_PASSWORD))
         return;
-    if (!await buildx_build(8, 10, TARGET_IMAGE, DEPLOY_VERSION, DOCKER_FILE, DEPLOY_LATEST))
+    if (!await buildx_init(8, 11))
         return;
-    if (!await buildx_cleanup(9, 10))
+    if (!await buildx_build(9, 11, TARGET_IMAGE, DEPLOY_VERSION, DOCKER_FILE, DEPLOY_LATEST))
         return;
-    if (!await restore_dev(9, 10))
+    if (!await buildx_cleanup(10, 11))
+        return;
+    if (!await restore_dev(11, 11))
         return;
 
     const end_time = new Date();
