@@ -144,7 +144,7 @@ async function sigintHandler() {
     }
 
     try {
-        await buildx_cleanup(4, 4);
+        await buildx_cleanup(1, 2);
 
         task = showSpinner("❗ > Cleaning up remmants");
         await runCommand("docker", ["buildx", "rm", "--force", buildx_container_name], { stdio: 'pipe', shell: true});
@@ -152,6 +152,15 @@ async function sigintHandler() {
         unshowSpinner(task, "☑️  Clean up completed!");
     } catch (err) {
         unshowSpinner(task, "⚠️  Clean up completed! (Possible issues)");
+        console.log(err);
+    }
+
+    try {
+        task = showSpinner("📦 > Restore dev environment");
+        await restore_dev(2, 2);
+        unshowSpinner(task, "☑️  Restore dev environment completed!");
+    } catch (err) {
+        unshowSpinner(task, "⚠️  Restore dev environment! (Possible issues)");
         console.log(err);
     }
 
@@ -261,7 +270,23 @@ async function buildx_cleanup(step, steps) {
             { name: name, args: args_3 },
         ],
         description: "Cleanup Docker buildx environment",
-        
+    });
+}
+
+async function restore_dev(step, steps) {
+    const name = "npm";
+    const args = [
+        "install",
+        "--dev"
+    ];
+
+    return await executeStep({
+        step: step,
+        steps: steps,
+        commands: [
+            { name: name, args: args },
+        ],
+        description: "Restore dev environment packages",
     });
 }
 
@@ -459,23 +484,25 @@ async function main() {
         path.resolve("./entrypoint.sh")
     ];
 
-    if (!await purge_dockerDir(1, 9, DOCKER_DIR))
+    if (!await purge_dockerDir(1, 10, DOCKER_DIR))
         return;
-    if (!await copy_localmodules(2, 9, LMODULES_DIR, DOCKER_DIR))
+    if (!await copy_localmodules(2, 10, LMODULES_DIR, DOCKER_DIR))
         return;
-    if (!await copy_rootfiles(3, 9, SRC_DIR, ROOT_FILES, DOCKER_DIR))
+    if (!await copy_rootfiles(3, 10, SRC_DIR, ROOT_FILES, DOCKER_DIR))
         return;
-    if (!await install_packages(4, 9, DOCKER_DIR))
+    if (!await install_packages(4, 10, DOCKER_DIR))
         return;
-    if (!await build_project(5, 9, DOCKER_DIR))
+    if (!await build_project(5, 10, DOCKER_DIR))
         return;
-    if (!await docker_login(6, 9, process.env.DOCKER_USERNAME, process.env.DOCKER_PASSWORD))
+    if (!await docker_login(6, 10, process.env.DOCKER_USERNAME, process.env.DOCKER_PASSWORD))
         return;
-    if (!await buildx_init(7, 9))
+    if (!await buildx_init(7, 10))
         return;
-    if (!await buildx_build(8, 9, TARGET_IMAGE, DEPLOY_VERSION, DOCKER_FILE, DEPLOY_LATEST))
+    if (!await buildx_build(8, 10, TARGET_IMAGE, DEPLOY_VERSION, DOCKER_FILE, DEPLOY_LATEST))
         return;
-    if (!await buildx_cleanup(9, 9))
+    if (!await buildx_cleanup(9, 10))
+        return;
+    if (!await restore_dev(9, 10))
         return;
 
     const end_time = new Date();
