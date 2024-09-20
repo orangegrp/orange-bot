@@ -106,7 +106,7 @@ async function executeStep(stage) {
     try {
         if (stage.commands) {
             for (let command of stage.commands) {
-                await runCommand(command.name, command.args, { stdio: 'pipe', shell: true, input: stage.input, cwd: stage.cwd });
+                await runCommand(command.name, command.args, { stdio: 'pipe', shell: true, input: stage.input, cwd: stage.cwd, env: { ...process.env, NODE_ENV: "production" } });
             }
         }
         if (stage.functions) {
@@ -208,14 +208,14 @@ async function buildx_init(step, steps) {
     });
 }
 
-async function buildx_build(step, steps, target_img, version, dockerfile) {
+async function buildx_build(step, steps, target_img, version, dockerfile, latest) {
     const name = "docker";
     const args = [
         "buildx",
         "build",
         "--platform linux/amd64,linux/arm64",
         "-t", target_img + ":" + version,
-        "-t", target_img + ":latest",
+        latest ? ("-t", target_img + ":latest") : "",
         "-f", dockerfile,
         "--push",
         "."
@@ -378,11 +378,13 @@ async function build_project(step, steps, dockerDir) {
     const name = "tsc";
     const args = [
         "--sourceMap false",
-        "--removeComments",
+        "--removeComments true",
         "--downlevelIteration",
         "--target es2016",
-        "--esModuleInterop",
+        "--esModuleInterop true",
         "--module es2022",
+        "--skipDefaultLibCheck true",
+        "--declaration false",
         "--moduleResolution node",
         "--project tsconfig.json",
     ];
@@ -392,9 +394,8 @@ async function build_project(step, steps, dockerDir) {
         steps: steps,
         commands: [
             { name: name, args: args },
-            //{ name: "npm", args: ["dedup"] },
         ],
-        description: "Build project 1/3 (orange-common-lib)",
+        description: "Build project 1/4 (orange-common-lib)",
         cwd: path.join(dockerDir, "local_modules", "orange-common-lib"),
     });
 
@@ -403,9 +404,8 @@ async function build_project(step, steps, dockerDir) {
         steps: steps,
         commands: [
             { name: name, args: args },
-            //{ name: "npm", args: ["dedup"] },
         ],
-        description: "Build project 2/3 (orange-bot-base)",
+        description: "Build project 2/4 (orange-bot-base)",
         cwd: path.join(dockerDir, "local_modules", "orange-bot-base"),
     });
 
@@ -414,75 +414,66 @@ async function build_project(step, steps, dockerDir) {
         steps: steps,
         commands: [
             { name: name, args: args },
-            { name: "npm", args: ["dedup"] },
         ],
-        description: "Build project 3/3 (orange-bot)",
+        description: "Build project 3/4 (orange-bot)",
         cwd: dockerDir
     });
 
+    const result_4 = await executeStep({
+        step: step,
+        steps: steps,
+        commands: [
+            { name: "npm", args: ["dedupe"] },
+            { name: "npm", args: ["prune"] },
+        ],
+        description: "Build project 4/4"
+    });
 
-    return result_1 && result_2 && result_3;
+    return result_1 && result_2 && result_3 && result_4;
 }
 
 async function main() {
-    console.log("orange🟠 docker-deploy.js Script\n");
-
+    console.log("orange🟠 docker-deploy.js V3 Script\n");
     console.log("Executing script ...\n");
 
-    let DEPLOY_VERSION = process.argv[3] || "latest";
-    let DOCKER_FILE = "";
-    let TARGET_IMAGE = "";
-
-    if (process.argv.includes("/drti") || process.argv.includes('/d')) {
-        DOCKER_FILE = "./drti.Dockerfile";
-        TARGET_IMAGE = "a4004/orange-bot-drti";
-
-        if (!await docker_login(1, 4, process.env.DOCKER_USERNAME, process.env.DOCKER_PASSWORD))
-            return;
-        if (!await buildx_init(2, 4))
-            return;
-        if (!await buildx_build(3, 4, TARGET_IMAGE, DEPLOY_VERSION, DOCKER_FILE))
-            return;
-        if (!await buildx_cleanup(4, 4))
-            return;
-    }
-    else if (process.argv.includes("/bot") || process.argv.includes('/b')) {
-        DOCKER_FILE = "./legacy.Dockerfile";
-        TARGET_IMAGE = "a4004/orange-bot";    
-
-        const DOCKER_DIR = path.resolve("./docker");
-        const LMODULES_DIR = path.resolve("./local_modules");
-        const SRC_DIR = path.resolve("./src");
-        const ROOT_FILES = [
-            path.resolve("./tsconfig.json"),
-            path.resolve("./package.json"),
-            path.resolve("./package-lock.json"),
-            path.resolve("./entrypoint.sh")
-        ];
-
-        if (!await purge_dockerDir(1, 9, DOCKER_DIR))
-            return;
-        if (!await copy_localmodules(2, 9, LMODULES_DIR, DOCKER_DIR))
-            return;
-        if (!await copy_rootfiles(3, 9, SRC_DIR, ROOT_FILES, DOCKER_DIR))
-            return;
-        if (!await install_packages(4, 9, DOCKER_DIR))
-            return;
-        if (!await build_project(5, 9, DOCKER_DIR))
-            return;
-        if (!await docker_login(6, 9, process.env.DOCKER_USERNAME, process.env.DOCKER_PASSWORD))
-            return;
-        if (!await buildx_init(7, 9))
-            return;
-        if (!await buildx_build(8, 9, TARGET_IMAGE, DEPLOY_VERSION, DOCKER_FILE))
-            return;
-        if (!await buildx_cleanup(9, 9))
-            return;
-    } 
-    else {
-        console.log("Usage: npm run docker-deploy </bot | /b | /drti | /d> <version>");
+    if (process.argv.length < 3) {
+        console.log("Usage: npm run docker-deploy <version | latest> <opt:latest>");
         process.exit(0);
     }
+
+    let DEPLOY_VERSION = process.argv[2] || "latest";
+    let DEPLOY_LATEST = process.argv[3] === "latest" || DEPLOY_VERSION === "latest";
+    let DOCKER_FILE = "./Dockerfile";
+    let TARGET_IMAGE = "a4004/orange-bot";    
+
+    const DOCKER_DIR = path.resolve("./docker");
+    const LMODULES_DIR = path.resolve("./local_modules");
+    const SRC_DIR = path.resolve("./src");
+    const ROOT_FILES = [
+        path.resolve("./tsconfig.json"),
+        path.resolve("./package.json"),
+        path.resolve("./package-lock.json"),
+        path.resolve("./entrypoint.sh")
+    ];
+
+    if (!await purge_dockerDir(1, 9, DOCKER_DIR))
+        return;
+    if (!await copy_localmodules(2, 9, LMODULES_DIR, DOCKER_DIR))
+        return;
+    if (!await copy_rootfiles(3, 9, SRC_DIR, ROOT_FILES, DOCKER_DIR))
+        return;
+    if (!await install_packages(4, 9, DOCKER_DIR))
+        return;
+    if (!await build_project(5, 9, DOCKER_DIR))
+        return;
+    if (!await docker_login(6, 9, process.env.DOCKER_USERNAME, process.env.DOCKER_PASSWORD))
+        return;
+    if (!await buildx_init(7, 9))
+        return;
+    if (!await buildx_build(8, 9, TARGET_IMAGE, DEPLOY_VERSION, DOCKER_FILE, DEPLOY_LATEST))
+        return;
+    if (!await buildx_cleanup(9, 9))
+        return;
 
     const end_time = new Date();
     const delta = end_time - start_time;
