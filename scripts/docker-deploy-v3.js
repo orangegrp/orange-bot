@@ -360,7 +360,8 @@ async function copy_rootfiles(step, steps, srcDir, rootFiles, dockerDir) {
 async function install_packages(step, steps, dockerDir) {
     const name = "npm";
     const args = [
-        "ci"
+        "ci",
+        "--only=production"
     ];
 
     return await executeStep({
