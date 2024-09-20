@@ -32,7 +32,7 @@ ENTRYPOINT ["dumb-init", "--"]
 WORKDIR /home/container/orange-bot
 
 # Copy application files
-COPY --chown=container:container ./docker /home/container/orange-bot
+COPY --chown=container:container --chmod=777 ./docker /home/container/orange-bot
 
 # Set environment variables
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
