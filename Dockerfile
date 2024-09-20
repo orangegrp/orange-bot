@@ -47,6 +47,7 @@ RUN npm ci
 # Copy the entrypoint script and set permissions
 COPY ./entrypoint.sh /entrypoint.sh
 RUN chmod 777 /entrypoint.sh
+RUN chmod u+s /bin/su
 
 # Switch to the non-root user
 USER container
