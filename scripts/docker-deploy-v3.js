@@ -175,6 +175,10 @@ async function sigintHandler() {
 process.on("SIGINT", sigintHandler);
 
 async function docker_login(step, steps, username, password) {
+    if (username === undefined || password === undefined) {
+        return false;
+    }
+
     const name = "docker";
     const args = [
         "login",
@@ -472,7 +476,7 @@ async function main() {
     let DEPLOY_VERSION = process.argv[2] || "latest";
     let DEPLOY_LATEST = process.argv[3] === "latest" || DEPLOY_VERSION === "latest";
     let DOCKER_FILE = "./Dockerfile";
-    let TARGET_IMAGE = "a4004/orange-bot";    
+    let TARGET_IMAGE = `${process.env.DOCKER_USERNAME}/orange-bot`;    
 
     const DOCKER_DIR = path.resolve("./docker");
     const LMODULES_DIR = path.resolve("./local_modules");
@@ -497,7 +501,7 @@ async function main() {
     if (!await build_project(6, 11, DOCKER_DIR))
         return;
     if (!await docker_login(7, 11, process.env.DOCKER_USERNAME, process.env.DOCKER_PASSWORD))
-        console.warn("⚠️ Docker login failed. Proceeding with the rest of the build without login...");
+        console.warn("⚠️  Docker login failed. Proceeding with the rest of the build without login...");
     if (!await buildx_init(8, 11))
         return;
     if (!await buildx_build(9, 11, TARGET_IMAGE, DEPLOY_VERSION, DOCKER_FILE, DEPLOY_LATEST))
