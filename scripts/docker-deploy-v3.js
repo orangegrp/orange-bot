@@ -497,7 +497,7 @@ async function main() {
     if (!await build_project(6, 11, DOCKER_DIR))
         return;
     if (!await docker_login(7, 11, process.env.DOCKER_USERNAME, process.env.DOCKER_PASSWORD))
-        return;
+        console.warn("⚠️ Docker login failed. Proceeding with the rest of the build without login...");
     if (!await buildx_init(8, 11))
         return;
     if (!await buildx_build(9, 11, TARGET_IMAGE, DEPLOY_VERSION, DOCKER_FILE, DEPLOY_LATEST))
