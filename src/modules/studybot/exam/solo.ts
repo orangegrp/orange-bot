@@ -27,9 +27,10 @@ async function nextQuestion(game_id: string, correct: boolean) {
 
         const embed = new EmbedBuilder({
             footer: { text: `Question ${currentQuestion + 1} of ${resource.data.length} • Ref: ${game.examref}_${question.ref}` },
-            title: question.question,
-            description: question.description,
-            fields: question.answerOptions.map(x => ({ name: x.id, value: x.text, inline: true })),
+            title: question.question.substring(0, 255),
+            description: question.description?.substring(0, 1000) +
+                `\n\n${question.answerOptions.map(option => `:regional_indicator_${option.id.toLowerCase()}: *${option.text}*`).join("\n\n")}`,
+            //fields: question.answerOptions.map(option => ({ name: option.id, value: option.text.substring(0, 255) })),
             image: { url: question.referenceImg?.startsWith("http") ? question.referenceImg : `${S3_PUBLIC_MEDIA_BUCKET}/${question.referenceImg}` },
         });
 
@@ -59,9 +60,9 @@ async function playSolo(interaction: ChatInputCommandInteraction<CacheType>, exa
     const currentQuestion = 0;
 
     if (resource) {
-        setTimeout(() => GAME_SESSIONS.delete(game_id), 3600000);
+        setTimeout(() => GAME_SESSIONS.delete(game_id), 3600000 * 2);
 
-        await interaction.reply(`:clock1: You've started the exam, **${examref.replace(".json", "")}**. You have up to **1 hour** to answer **all** questions.`);
+        await interaction.reply(`:clock1: You've started the exam, **${examref.replace(".json", "")}**. You have up to **2 hours** to answer **all** questions.`);
 
         const message = await interaction.followUp("\0");
 

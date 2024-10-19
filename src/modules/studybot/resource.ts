@@ -9,13 +9,11 @@ const studyBotQuestions: CachedLookup<null, string[]> = new CachedLookup(async (
 const studyBotMaterials: CachedLookup<null, string[]> = new CachedLookup(async () => await getAllStudyMaterials());
 
 async function getClosestMatch(input: string, source: string[]): Promise<string[]> {
-    let target = source;
-
-    if (target === undefined) {
+    if (source === undefined) {
         return [] as string[];
     }
 
-    let result = getClosestMatches(input, target, { similarityThreshold: 20, bonus: 10, sequenceLength: 5});
+    let result = getClosestMatches(input, source, { similarityThreshold: 20, bonus: 10, sequenceLength: 5});
 
     if (result === undefined) {
         return [] as string[];
@@ -65,7 +63,7 @@ async function getItem(name: string, bucket: "studybot-questions" | "studybot-co
     }
 }
 
-export const S3_PUBLIC_MEDIA_BUCKET = `${environment.SUPABASE_SERVER!}/storage/v1/object/public/studybot-media`;
+export const S3_PUBLIC_MEDIA_BUCKET = `${environment.SUPABASE_SERVER}/storage/v1/object/public/studybot-media`;
 export { studyBotQuestions, studyBotMaterials, getClosestMatch, getItem };
 
 export type StudyBotMultiChoiceQuestion = {
