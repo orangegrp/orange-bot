@@ -11,7 +11,8 @@ RUN echo https://dl-cdn.alpinelinux.org/alpine/v3.19/main > /etc/apk/repositorie
     echo @edge https://dl-cdn.alpinelinux.org/alpine/edge/main >> /etc/apk/repositories
 
 # Install necessary packages
-RUN apk add --no-cache --update bash chromium@edge nss@edge wget
+# RUN apk add --no-cache --update bash chromium@edge nss@edge wget
+RUN apk add --no-cache --update bash wget
 
 # Download dumb-init based on the target platform
 ARG TARGETPLATFORM
@@ -38,7 +39,10 @@ COPY --chown=container:container --chmod=777 ./docker /home/container/orange-bot
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 ENV USER=container 
 ENV HOME=/home/container 
-ENV CHROME_BIN=/usr/bin/chromium-browser
+
+#ENV CHROME_BIN=/usr/bin/chromium-browser
+ENV CHROME_BIN=/dev/null
+
 ENV STARTUP="npm run prod"
 
 # Install Node.js dependencies
