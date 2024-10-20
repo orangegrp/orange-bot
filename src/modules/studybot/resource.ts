@@ -86,8 +86,15 @@ export type StudyBotStudyMaterial = {
     sourceUrl?: string
 };
 
+export type StudyBotMetainfo = {
+    type: "Question" | "StudyMaterial",
+    durationMins: number
+    passScore: number
+};
+
 export type StudyBotJson = {
     ref: string,
     type: "Question" | "StudyMaterial",
+    metaInfo: StudyBotMetainfo,
     data: StudyBotMultiChoiceQuestion[] | StudyBotStudyMaterial[]
 };
