@@ -1,5 +1,6 @@
-import { ActionRowBuilder, ButtonBuilder, ButtonInteraction, ButtonStyle, CacheType, ChatInputCommandInteraction, EmbedBuilder, Message } from "discord.js";
-import { getItem, S3_PUBLIC_MEDIA_BUCKET, StudyBotJson, StudyBotMultiChoiceQuestion, StudyBotStudyMaterial } from "../resource.js";
+import { ActionRowBuilder, ButtonBuilder, ButtonInteraction, ButtonStyle, CacheType, ChatInputCommandInteraction, EmbedBuilder, GuildTextBasedChannel, Message, Snowflake, TextBasedChannel, TextChannel, ThreadAutoArchiveDuration } from "discord.js";
+import { getItem, S3_PUBLIC_MEDIA_BUCKET, StudyBotJson, StudyBotMultiChoiceQuestion } from "../resource.js";
+import crypto from "crypto";
 
 type StudyBotSoloGameSession = {
     id: string,
@@ -23,8 +24,8 @@ async function nextQuestion(game_id: string, correct: boolean) {
     if (game) {
         const resource = game.resource;
         const currentQuestion = game.currentQuestion;
-        const question = (resource.data as StudyBotMultiChoiceQuestion[])[currentQuestion];
 
+        const question = (resource.data as StudyBotMultiChoiceQuestion[])[currentQuestion];
         const embed = new EmbedBuilder({
             footer: { text: `Question ${currentQuestion + 1} of ${resource.data.length} • Ref: ${game.examref}_${question.ref}` },
             title: question.question.substring(0, 255),
@@ -54,7 +55,8 @@ async function nextQuestion(game_id: string, correct: boolean) {
 }
 
 async function playSolo(interaction: ChatInputCommandInteraction<CacheType>, examref: string) {
-    const game_id = Math.random().toString(26).substring(2, 8);
+    const game_id = crypto.randomBytes(4).toString('hex');
+    const exam_code = examref.replace(".json", "");
     const uid = interaction.user.id;
     const resource = await getItem(examref, "studybot-questions");
     const currentQuestion = 0;
@@ -62,13 +64,26 @@ async function playSolo(interaction: ChatInputCommandInteraction<CacheType>, exa
     if (resource) {
         setTimeout(() => GAME_SESSIONS.delete(game_id), resource.metaInfo.durationMins * 60 * 1000);
 
-        await interaction.reply({ ephemeral: true, content: `:clock1: You've started the exam, **${examref.replace(".json", "")}**. You have up to **${resource.metaInfo.durationMins} minutes** to answer **all** questions.` });
+        const thread = await (await interaction.client.channels.fetch("1297606662655311994") as GuildTextBasedChannel as TextChannel).threads.create({
+            name: `${interaction.user.displayName}'s ${exam_code} exam ⸺ REF${game_id}`,
+            autoArchiveDuration: ThreadAutoArchiveDuration.OneDay,
+            reason: `${interaction.user.displayName}'s ${exam_code} exam ⸺ REF${game_id}`
+        });
 
-        const message = await interaction.followUp( { ephemeral: false, content: "\0" });
+        //const message = await interaction.followUp( { ephemeral: false, content: "\0" });
+        const message = await thread.send({ content: `<@${uid}>, you've started the **${exam_code}** exam. Exam attempt identifier: \`REF${game_id}\`` });
+
+        await interaction.reply({
+            ephemeral: false, content: `:clock1: You've started the exam, **${exam_code}**. You have up to **${resource.metaInfo.durationMins} minutes** to answer **all** questions.`,
+            components: [
+                new ActionRowBuilder<ButtonBuilder>().addComponents(new ButtonBuilder({ label: "Go to Exam", style: ButtonStyle.Link, url: message.url }))
+            ]
+        });
+
 
         GAME_SESSIONS.set(game_id, {
             id: game_id,
-            examref: examref.replace(".json", ""),
+            examref: exam_code,
             originalMessage: message,
             uid: uid,
             resource: resource,
@@ -82,7 +97,7 @@ async function playSolo(interaction: ChatInputCommandInteraction<CacheType>, exa
 
         const { embeds, components } = await nextQuestion(game_id, false);
 
-        await message.edit({ embeds: embeds, components: components});
+        await message.reply({ embeds: embeds, components: components });
     } else {
         await interaction.reply({ ephemeral: true, content: "Invalid exam reference." });
         return;
@@ -100,12 +115,13 @@ async function processResponse(btnInteraction: ButtonInteraction) {
     }
 
     if (game.uid !== btnInteraction.user.id) {
-        await btnInteraction.reply({ ephemeral: true, embeds: [{ title: "Error", description: "This exam is being taken by somebody else. Please start an exam yourself by running `/studybot exam` to get started." }]});
+        await btnInteraction.reply({ ephemeral: true, embeds: [{ title: "Error", description: "This exam is being taken by somebody else. Please start an exam yourself by running `/studybot exam` to get started." }] });
         return;
     }
 
 
-    const originalMessage = game.originalMessage;
+    //const originalMessage = game.originalMessage;
+    const originalMessage = btnInteraction.message as Message;
     const resource = game.resource;
     const currentQuestion = game.currentQuestion;
     const question = (resource.data as StudyBotMultiChoiceQuestion[])[currentQuestion];
@@ -119,15 +135,18 @@ async function processResponse(btnInteraction: ButtonInteraction) {
 
     GAME_SESSIONS.set(game_id, { ...game, currentQuestion: currentQuestion + 1 });
 
+    const answer_prefix = `-# Your answer to Question ${currentQuestion + 1} was ${answer.toUpperCase()}\n\n`;
+    const wrong_answer_feedback = `${answer_prefix}:no_mouth: **Not quite!**\n`;
+    const correct_answer_feedback = `${answer_prefix}:white_check_mark: **Correct!**`;
+
     if (currentQuestion < (resource.data as StudyBotMultiChoiceQuestion[]).length - 1) {
         const { embeds, components, explanation } = await nextQuestion(game_id, correct);
-
         await btnInteraction.deferUpdate();
-
-        if (explanation) {
-            await originalMessage.edit({ content: `:no_mouth: **Not quite!**\n${explanation}`, embeds: embeds, components: components });
+ 
+        if (explanation && !correct) {
+            await originalMessage.reply({ content: wrong_answer_feedback + explanation, embeds: embeds, components: components });
         } else {
-            await originalMessage.edit({ content: `:white_check_mark: **Correct!**`, embeds: embeds, components: components });
+            await originalMessage.reply({ content: correct_answer_feedback, embeds: embeds, components: components });
         }
     } else {
         const score = Math.round(metrics.correct / (metrics.correct + metrics.incorrect) * 100);
@@ -138,18 +157,20 @@ async function processResponse(btnInteraction: ButtonInteraction) {
         else if (score < 40) { feedback += "You're on the right track, but you have a lot more work to do to get better. Keep going!"; }
         else if (score < 50) { feedback += "Nice work! But there's a lot of room for improvement. Try to get some practical experience."; }
         else if (score < 75) { feedback += "Very strong attempt, but you're not quite there yet."; }
-        else if (score < 90) { feedback += "You did really well. But there is still room for improvement. Try to get some practical experience."; } 
+        else if (score < 90) { feedback += "You did really well. But there is still room for improvement. Try to get some practical experience."; }
         else if (score < 97) { feedback += "You scored extremely high which is commendable. You're almost there!"; }
         else if (score < 100) { feedback += "Near perfect! It's just that one stubborn question holding you back."; }
         else { feedback += "Woop! :100: all the way!"; }
 
         await btnInteraction.deferUpdate();
-        await originalMessage.edit({
+
+        await originalMessage.reply({
+            content: correct ? correct_answer_feedback : wrong_answer_feedback + question.explanation,
             embeds: [{
                 title: `${pass ? "Exam Passed" : "Exam Failed"}`, description: `You have completed the **${game.examref}** exam. ${feedback}`,
-                footer: { text: `Ref: ${game.examref}`}, 
+                footer: { text: `Ref: ${game.examref}` },
                 timestamp: new Date().toISOString(),
-                fields: [{ name: "Score", value: `${score}%`, inline: true}, metrics.wrongQuestions.length > 0 ? { name: "Areas for Improvement", value: metrics.wrongQuestions.join("\n") } : { name: "Next Steps", value: "If you haven't already, get some practical experience under your belt and then get certified." }]
+                fields: [{ name: "Score", value: `${score}%`, inline: true }, metrics.wrongQuestions.length > 0 ? { name: "Areas for Improvement", value: metrics.wrongQuestions.join("\n") } : { name: "Next Steps", value: "If you haven't already, get some practical experience under your belt and then get certified." }]
             }], components: []
         });
         GAME_SESSIONS.delete(game_id);
