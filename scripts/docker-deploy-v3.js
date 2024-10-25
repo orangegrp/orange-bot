@@ -144,7 +144,7 @@ async function sigintHandler() {
     }
 
     try {
-        await buildx_cleanup(4, 4);
+        await buildx_cleanup(1, 2);
 
         task = showSpinner("❗ > Cleaning up remmants");
         await runCommand("docker", ["buildx", "rm", "--force", buildx_container_name], { stdio: 'pipe', shell: true});
@@ -152,6 +152,15 @@ async function sigintHandler() {
         unshowSpinner(task, "☑️  Clean up completed!");
     } catch (err) {
         unshowSpinner(task, "⚠️  Clean up completed! (Possible issues)");
+        console.log(err);
+    }
+
+    try {
+        task = showSpinner("📦 > Restore dev environment");
+        await restore_dev(2, 2);
+        unshowSpinner(task, "☑️  Restore dev environment completed!");
+    } catch (err) {
+        unshowSpinner(task, "⚠️  Restore dev environment! (Possible issues)");
         console.log(err);
     }
 
@@ -166,6 +175,10 @@ async function sigintHandler() {
 process.on("SIGINT", sigintHandler);
 
 async function docker_login(step, steps, username, password) {
+    if (username === undefined || password === undefined) {
+        return false;
+    }
+
     const name = "docker";
     const args = [
         "login",
@@ -210,12 +223,13 @@ async function buildx_init(step, steps) {
 
 async function buildx_build(step, steps, target_img, version, dockerfile, latest) {
     const name = "docker";
+    const latest_tag = latest ? ["-t", target_img + ":latest"] : [""];
     const args = [
         "buildx",
         "build",
         "--platform linux/amd64,linux/arm64",
         "-t", target_img + ":" + version,
-        latest ? ("-t", target_img + ":latest") : "",
+        ...latest_tag,
         "-f", dockerfile,
         "--push",
         "."
@@ -260,7 +274,23 @@ async function buildx_cleanup(step, steps) {
             { name: name, args: args_3 },
         ],
         description: "Cleanup Docker buildx environment",
-        
+    });
+}
+
+async function restore_dev(step, steps) {
+    const name = "npm";
+    const args = [
+        "install",
+        "--dev"
+    ];
+
+    return await executeStep({
+        step: step,
+        steps: steps,
+        commands: [
+            { name: name, args: args },
+        ],
+        description: "Restore dev environment packages",
     });
 }
 
@@ -361,7 +391,7 @@ async function install_packages(step, steps, dockerDir) {
     const name = "npm";
     const args = [
         "ci",
-        "--only=production"
+        "--only=production" //(TS errors keep happening cuz of this)
     ];
 
     return await executeStep({
@@ -385,6 +415,7 @@ async function build_project(step, steps, dockerDir) {
         "--esModuleInterop true",
         "--module es2022",
         "--skipDefaultLibCheck true",
+        "--skipLibCheck true",
         "--declaration false",
         "--moduleResolution node",
         "--project tsconfig.json",
@@ -445,7 +476,7 @@ async function main() {
     let DEPLOY_VERSION = process.argv[2] || "latest";
     let DEPLOY_LATEST = process.argv[3] === "latest" || DEPLOY_VERSION === "latest";
     let DOCKER_FILE = "./Dockerfile";
-    let TARGET_IMAGE = "a4004/orange-bot";    
+    let TARGET_IMAGE = `${process.env.DOCKER_USERNAME}/orange-bot`;    
 
     const DOCKER_DIR = path.resolve("./docker");
     const LMODULES_DIR = path.resolve("./local_modules");
@@ -457,23 +488,27 @@ async function main() {
         path.resolve("./entrypoint.sh")
     ];
 
-    if (!await purge_dockerDir(1, 9, DOCKER_DIR))
+    if (!await restore_dev(1, 11))
         return;
-    if (!await copy_localmodules(2, 9, LMODULES_DIR, DOCKER_DIR))
+    if (!await purge_dockerDir(2, 11, DOCKER_DIR))
         return;
-    if (!await copy_rootfiles(3, 9, SRC_DIR, ROOT_FILES, DOCKER_DIR))
+    if (!await copy_localmodules(3, 11, LMODULES_DIR, DOCKER_DIR))
         return;
-    if (!await install_packages(4, 9, DOCKER_DIR))
+    if (!await copy_rootfiles(4, 11, SRC_DIR, ROOT_FILES, DOCKER_DIR))
         return;
-    if (!await build_project(5, 9, DOCKER_DIR))
+    if (!await install_packages(5, 11, DOCKER_DIR))
         return;
-    if (!await docker_login(6, 9, process.env.DOCKER_USERNAME, process.env.DOCKER_PASSWORD))
+    if (!await build_project(6, 11, DOCKER_DIR))
         return;
-    if (!await buildx_init(7, 9))
+    if (!await docker_login(7, 11, process.env.DOCKER_USERNAME, process.env.DOCKER_PASSWORD))
+        console.warn("⚠️  Docker login failed. Proceeding with the rest of the build without login...");
+    if (!await buildx_init(8, 11))
         return;
-    if (!await buildx_build(8, 9, TARGET_IMAGE, DEPLOY_VERSION, DOCKER_FILE, DEPLOY_LATEST))
+    if (!await buildx_build(9, 11, TARGET_IMAGE, DEPLOY_VERSION, DOCKER_FILE, DEPLOY_LATEST))
         return;
-    if (!await buildx_cleanup(9, 9))
+    if (!await buildx_cleanup(10, 11))
+        return;
+    if (!await restore_dev(11, 11))
         return;
 
     const end_time = new Date();
