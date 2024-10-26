@@ -49,7 +49,7 @@ async function generateImage(inputHtml: string) {
     }
 }
 
-async function generateCaptcha() {
+async function generateCaptcha(user_id: string) {
     const html = captcha_html_data;
 
     const v1 = String.fromCharCode(97 + Math.floor(Math.random() * 26));
@@ -70,6 +70,8 @@ async function generateCaptcha() {
 
     const answer = eval(`let ${v1} = ${d1}; let ${v2} = ${d2}; ${op1} ${op} ${op2}`);
 
+    const id = crypto.randomUUID().split("-").slice(0, 2).join("-");
+
     const modifiedHtml = html.replace("{{v1}}", v1)
         .replace("{{v2}}", v2)
         .replace("{{d1}}", d1.toString())
@@ -80,14 +82,17 @@ async function generateCaptcha() {
         .replace("{{dd2}}", dd2.toString())
         .replace("{{op}}", op)
         .replace("{{op1}}", op1)
-        .replace("{{op2}}", op2);
+        .replace("{{op2}}", op2)
+        .replace("{{date}}", new Date().toISOString())
+        .replace("{{userid}}", user_id)
+        .replace("{{reference}}", id);
 
-    console.log(modifiedHtml)
+    console.log(modifiedHtml);
 
     return {
         image: await generateImage(modifiedHtml),
         answer,
-        id: crypto.randomUUID()
+        id
     }
 }
 
