@@ -62,10 +62,11 @@ async function playSolo(interaction: ChatInputCommandInteraction<CacheType>, exa
     const currentQuestion = 0;
 
     if (resource) {
+        resource.metaInfo.durationMins = 1/6
         setTimeout(() => {
             const game = GAME_SESSIONS.get(game_id);
             if (game) {
-                finishGame(game, game.originalMessage, ":clock1: Out of time!");
+                finishGame(game, game.originalMessage, ":clock1: **Out of time!**");
             }
         }, resource.metaInfo.durationMins * 60 * 1000);
 
