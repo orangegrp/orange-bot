@@ -62,7 +62,12 @@ async function playSolo(interaction: ChatInputCommandInteraction<CacheType>, exa
     const currentQuestion = 0;
 
     if (resource) {
-        setTimeout(() => GAME_SESSIONS.delete(game_id), resource.metaInfo.durationMins * 60 * 1000);
+        setTimeout(() => {
+            const game = GAME_SESSIONS.get(game_id);
+            if (game) {
+                finishGame(game, game.originalMessage, ":clock1: Out of time!");
+            }
+        }, resource.metaInfo.durationMins * 60 * 1000);
 
         const thread = await (await interaction.client.channels.fetch("1297606662655311994") as GuildTextBasedChannel as TextChannel).threads.create({
             name: `${interaction.user.displayName}'s ${exam_code} exam ⸺ REF${game_id}`,
