@@ -149,32 +149,41 @@ async function processResponse(btnInteraction: ButtonInteraction) {
             await originalMessage.reply({ content: correct_answer_feedback, embeds: embeds, components: components });
         }
     } else {
-        const score = Math.round(metrics.correct / (metrics.correct + metrics.incorrect) * 100);
-        const pass = metrics.correct >= resource.metaInfo.passScore;
-        let feedback = "";
-
-        if (score < 20) { feedback += "You should consider studying this topic a lot more to get better. Good effort though."; }
-        else if (score < 40) { feedback += "You're on the right track, but you have a lot more work to do to get better. Keep going!"; }
-        else if (score < 50) { feedback += "Nice work! But there's a lot of room for improvement. Try to get some practical experience."; }
-        else if (score < 75) { feedback += "Very strong attempt, but you're not quite there yet."; }
-        else if (score < 90) { feedback += "You did really well. But there is still room for improvement. Try to get some practical experience."; }
-        else if (score < 97) { feedback += "You scored extremely high which is commendable. You're almost there!"; }
-        else if (score < 100) { feedback += "Near perfect! It's just that one stubborn question holding you back."; }
-        else { feedback += "Woop! :100: all the way!"; }
-
         await btnInteraction.deferUpdate();
-
-        await originalMessage.reply({
-            content: correct ? correct_answer_feedback : wrong_answer_feedback + question.explanation,
-            embeds: [{
-                title: `${pass ? "Exam Passed" : "Exam Failed"}`, description: `You have completed the **${game.examref}** exam. ${feedback}`,
-                footer: { text: `Ref: ${game.examref}` },
-                timestamp: new Date().toISOString(),
-                fields: [{ name: "Score", value: `${score}%`, inline: true }, metrics.wrongQuestions.length > 0 ? { name: "Areas for Improvement", value: metrics.wrongQuestions.join("\n") } : { name: "Next Steps", value: "If you haven't already, get some practical experience under your belt and then get certified." }]
-            }], components: []
-        });
-        GAME_SESSIONS.delete(game_id);
+        const lastFeedback = correct ? correct_answer_feedback : wrong_answer_feedback + question.explanation;
+        finishGame(game, originalMessage, lastFeedback);
     }
+}
+
+async function finishGame(game: StudyBotSoloGameSession, originalMessage: Message | ChatInputCommandInteraction, lastFeedback: string) {
+    const resource = game.resource;
+    const currentQuestion = game.currentQuestion;
+    const question = (resource.data as StudyBotMultiChoiceQuestion[])[currentQuestion];
+    const metrics = game.metrics;
+
+    const score = Math.round(metrics.correct / (metrics.correct + metrics.incorrect) * 100);
+    const pass = metrics.correct >= resource.metaInfo.passScore;
+    let feedback = "";
+
+    if (score < 20) { feedback += "You should consider studying this topic a lot more to get better. Good effort though."; }
+    else if (score < 40) { feedback += "You're on the right track, but you have a lot more work to do to get better. Keep going!"; }
+    else if (score < 50) { feedback += "Nice work! But there's a lot of room for improvement. Try to get some practical experience."; }
+    else if (score < 75) { feedback += "Very strong attempt, but you're not quite there yet."; }
+    else if (score < 90) { feedback += "You did really well. But there is still room for improvement. Try to get some practical experience."; }
+    else if (score < 97) { feedback += "You scored extremely high which is commendable. You're almost there!"; }
+    else if (score < 100) { feedback += "Near perfect! It's just that one stubborn question holding you back."; }
+    else { feedback += "Woop! :100: all the way!"; }
+
+    await originalMessage.reply({
+        content: lastFeedback,
+        embeds: [{
+            title: `${pass ? "Exam Passed" : "Exam Failed"}`, description: `You have completed the **${game.examref}** exam. ${feedback}`,
+            footer: { text: `Ref: ${game.examref}` },
+            timestamp: new Date().toISOString(),
+            fields: [{ name: "Score", value: `${score}%`, inline: true }, metrics.wrongQuestions.length > 0 ? { name: "Areas for Improvement", value: metrics.wrongQuestions.join("\n") } : { name: "Next Steps", value: "If you haven't already, get some practical experience under your belt and then get certified." }]
+        }], components: []
+    });
+    GAME_SESSIONS.delete(game.id);
 }
 
 export { playSolo, processResponse };
