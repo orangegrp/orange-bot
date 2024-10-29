@@ -16,7 +16,7 @@ let current_line = "";
 function showSpinner(text) {
     const spinner = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
     let i = 0;
-  
+
     return setInterval(() => {
         let end_time = new Date();
         let delta = end_time - start_time;
@@ -130,13 +130,13 @@ async function sigintHandler() {
     clearInterval(task);
     task = showSpinner("❗> Stopping builds");
 
-    try {      
+    try {
         await runCommand("docker", ["buildx", "stop", buildx_container_name], { stdio: 'pipe', shell: true });
-       
+
         for (let pid of active_pids) {
             process.kill(pid, 'SIGTERM');
         }
-        
+
         unshowSpinner(task, `🛑 Stopped build. Had to SIGTERM ${active_pids.length} task(s)`);
     } catch (err) {
         unshowSpinner(task, "⚠️  Could not stop build properly!");
@@ -147,7 +147,7 @@ async function sigintHandler() {
         await buildx_cleanup(1, 2);
 
         task = showSpinner("❗ > Cleaning up remmants");
-        await runCommand("docker", ["buildx", "rm", "--force", buildx_container_name], { stdio: 'pipe', shell: true});
+        await runCommand("docker", ["buildx", "rm", "--force", buildx_container_name], { stdio: 'pipe', shell: true });
 
         unshowSpinner(task, "☑️  Clean up completed!");
     } catch (err) {
@@ -217,7 +217,7 @@ async function buildx_init(step, steps) {
             { name: name, args: args },
         ],
         description: "Initialise Docker buildx environment",
-        
+
     });
 }
 
@@ -242,7 +242,7 @@ async function buildx_build(step, steps, target_img, version, dockerfile, latest
             { name: name, args: args },
         ],
         description: "Run Docker buildx build for multiarch",
-        
+
     });
 }
 
@@ -261,7 +261,7 @@ async function buildx_cleanup(step, steps) {
     const args_3 = [
         "buildx",
         "prune",
-        "--force",       
+        "--force",
     ];
 
 
@@ -310,7 +310,7 @@ async function purge_dockerDir(step, steps, dockerDir) {
         functions: [
             { name: `DELETE "${dockerDir}"`, func: func1 },
             { name: `CREATE DIR "${dockerDir}"`, func: func2 },
-        ], 
+        ],
         description: "Purge docker output directory",
     });
 }
@@ -326,13 +326,13 @@ async function copy_localmodules(step, steps, modulesDir, dockerDir) {
     const func2 = async () => {
         const target = path.join(dockerDir, "local_modules", "orange-common-lib", "dist");
         if (fs.existsSync(target)) {
-            fs.rmSync(target, { recursive: true, force: true });   
+            fs.rmSync(target, { recursive: true, force: true });
         }
     }
     const func3 = async () => {
         const target = path.join(dockerDir, "local_modules", "orange-bot-base", "dist");
         if (fs.existsSync(target)) {
-            fs.rmSync(target, { recursive: true, force: true });   
+            fs.rmSync(target, { recursive: true, force: true });
         }
     }
     const func4 = async () => {
@@ -357,7 +357,7 @@ async function copy_localmodules(step, steps, modulesDir, dockerDir) {
             { name: `DELETE dist FOR orange-bot-base`, func: func3 },
             { name: `DELETE tsconfig.buildinfo FOR orange-common-lib`, func: func4 },
             { name: `DELETE tsconfig.buildinfo FOR orange-bot-base`, func: func5 },
-        ], 
+        ],
         description: "Copy and clean local modules",
     });
 }
@@ -473,43 +473,75 @@ async function main() {
         process.exit(0);
     }
 
-    let DEPLOY_VERSION = process.argv[2] || "latest";
-    let DEPLOY_LATEST = process.argv[3] === "latest" || DEPLOY_VERSION === "latest";
-    let DOCKER_FILE = "./Dockerfile";
-    let TARGET_IMAGE = `${process.env.DOCKER_USERNAME}/orange-bot`;    
-
+    const DEPLOY_VERSION = process.argv[2] || "latest";
+    const DEPLOY_LATEST = process.argv[3] === "latest" || DEPLOY_VERSION === "latest";
+    const TARGET_IMAGE = `${process.env.DOCKER_USERNAME}/orange-bot`;
     const DOCKER_DIR = path.resolve("./docker");
-    const LMODULES_DIR = path.resolve("./local_modules");
     const SRC_DIR = path.resolve("./src");
-    const ROOT_FILES = [
-        path.resolve("./tsconfig.json"),
-        path.resolve("./package.json"),
-        path.resolve("./package-lock.json"),
-        path.resolve("./entrypoint.sh")
-    ];
+    const LMODULES_DIR = path.resolve("./local_modules");
 
-    if (!await restore_dev(1, 11))
-        return;
-    if (!await purge_dockerDir(2, 11, DOCKER_DIR))
-        return;
-    if (!await copy_localmodules(3, 11, LMODULES_DIR, DOCKER_DIR))
-        return;
-    if (!await copy_rootfiles(4, 11, SRC_DIR, ROOT_FILES, DOCKER_DIR))
-        return;
-    if (!await install_packages(5, 11, DOCKER_DIR))
-        return;
-    if (!await build_project(6, 11, DOCKER_DIR))
-        return;
-    if (!await docker_login(7, 11, process.env.DOCKER_USERNAME, process.env.DOCKER_PASSWORD))
-        console.warn("⚠️  Docker login failed. Proceeding with the rest of the build without login...");
-    if (!await buildx_init(8, 11))
-        return;
-    if (!await buildx_build(9, 11, TARGET_IMAGE, DEPLOY_VERSION, DOCKER_FILE, DEPLOY_LATEST))
-        return;
-    if (!await buildx_cleanup(10, 11))
-        return;
-    if (!await restore_dev(11, 11))
-        return;
+    
+    {
+        const DOCKER_FILE = "./Dockerfile";
+        const ROOT_FILES = [
+            path.resolve("./tsconfig.json"),
+            path.resolve("./package.json"),
+            path.resolve("./package-lock.json"),
+            path.resolve("./entrypoint.sh")
+        ];
+
+        console.log(`Deploying version: ${DEPLOY_VERSION} (latest: ${DEPLOY_LATEST})`);
+
+        if (!await restore_dev(1, 11))
+            return;
+        if (!await purge_dockerDir(2, 11, DOCKER_DIR))
+            return;
+        if (!await copy_localmodules(3, 11, LMODULES_DIR, DOCKER_DIR))
+            return;
+        if (!await copy_rootfiles(4, 11, SRC_DIR, ROOT_FILES, DOCKER_DIR))
+            return;
+        if (!await install_packages(5, 11, DOCKER_DIR))
+            return;
+        if (!await build_project(6, 11, DOCKER_DIR))
+            return;
+        if (!await docker_login(7, 11, process.env.DOCKER_USERNAME, process.env.DOCKER_PASSWORD))
+            console.warn("⚠️  Docker login failed. Proceeding with the rest of the build without login...");
+        if (!await buildx_init(8, 11))
+            return;
+        if (!await buildx_build(9, 11, TARGET_IMAGE, DEPLOY_VERSION, DOCKER_FILE, DEPLOY_LATEST))
+            return;
+        if (!await buildx_cleanup(10, 11))
+            ;
+        if (!await restore_dev(11, 11))
+            return;
+    }
+
+    {
+        console.log("Deploying special Pterodactyl image...");
+
+        const DOCKER_FILE = "./pterodactyl.Dockerfile";
+        const ROOT_FILES = [
+            path.resolve("./entrypoint-pterodactyl.sh")
+        ];
+
+        if (!await restore_dev(1, 8))
+            return;
+        if (!await purge_dockerDir(2, 8, DOCKER_DIR))
+            return;
+        if (!await copy_rootfiles(3, 8, SRC_DIR, ROOT_FILES, DOCKER_DIR))
+            return;
+        if (!await docker_login(4, 8, process.env.DOCKER_USERNAME, process.env.DOCKER_PASSWORD))
+            console.warn("⚠️  Docker login failed. Proceeding with the rest of the build without login...");
+        if (!await buildx_init(5, 8))
+            return;
+        if (!await buildx_build(6, 8, TARGET_IMAGE, `${DEPLOY_VERSION}-pterodactyl`, DOCKER_FILE, false))
+            return;
+        if (!await buildx_cleanup(7, 8))
+            ;
+        if (!await restore_dev(8, 8))
+            return;
+    }
+
 
     const end_time = new Date();
     const delta = end_time - start_time;
