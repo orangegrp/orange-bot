@@ -4,6 +4,7 @@
 
 import { getLogger, environment } from "orange-common-lib";
 import util from "util";
+import { OpenCveV2CveSearch, OpenCveV2InfoResult } from "./cve2";
 
 const logger = getLogger("CVE API");
 
@@ -21,6 +22,8 @@ async function openCveApiRequest(query_url: string) {
             'Accept': 'application/json'
         }
     });
+    
+    console.log(query_url);
 
     if (response.status === 404) {
         return undefined;
@@ -29,7 +32,9 @@ async function openCveApiRequest(query_url: string) {
         throw new Error(`Failed to retrieve data. Server returned code ${response.status}`);
     }
 
-    return response.json();
+    const x =  await response.json();
+    console.log(util.inspect(x, { depth: null }));
+    return  x;
 }
 
 /**
@@ -38,7 +43,7 @@ async function openCveApiRequest(query_url: string) {
  * @param page Page number to query.
  * @returns Lookup result.
  */
-async function getCvesData(args: { keyword?: string | null, vendor?: string | null, product?: string | null, cvss?: string | null, cwe?: string | null }, page: number = 1): Promise<OpenCveAPIResults | undefined> {
+async function getCvesData(args: { keyword?: string | null, vendor?: string | null, product?: string | null, cvss?: string | null, cwe?: string | null }, page: number = 1): Promise<OpenCveV2CveSearch | undefined> {
     let api_url = 'https://app.opencve.io/api/cve';
     const append_query = (param: string, value: string) => api_url += `${(api_url.endsWith("/cve") ? '?' : "&")}${param}=${value}`;
 
@@ -50,7 +55,7 @@ async function getCvesData(args: { keyword?: string | null, vendor?: string | nu
         append_query("page", page.toString());
     }
     
-    return await openCveApiRequest(api_url) as OpenCveAPIResults;
+    return await openCveApiRequest(api_url) as OpenCveV2CveSearch; //as OpenCveAPIResults;
 }
 
 /**
@@ -58,13 +63,13 @@ async function getCvesData(args: { keyword?: string | null, vendor?: string | nu
  * @param cveid Common vulnerabilites and exposures (CVE) identifier.
  * @returns Lookup result.
  */
-async function getCveInfoData(cveid: string): Promise<OpenCveAPIResultsInfo | undefined> {
+async function getCveInfoData(cveid: string): Promise<OpenCveV2InfoResult | undefined> {
     let api_url = 'https://app.opencve.io/api/cve/' + encodeURIComponent(cveid);
-    return await openCveApiRequest(api_url) as OpenCveAPIResultsInfo;
+    return await openCveApiRequest(api_url) as OpenCveV2InfoResult;//as OpenCveAPIResultsInfo;
 }
 
 /**
- * CWE ID lookup method.
+ * {deprecated} CWE ID lookup method.
  * @param cweid Common Weakness and Exploitation (CWE) identifier.
  * @returns Lookup result.
  */
