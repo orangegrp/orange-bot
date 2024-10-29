@@ -21,36 +21,36 @@ const GAME_SESSIONS = new Map<string, StudyBotSoloGameSession>();
 async function nextQuestion(game_id: string, correct: boolean) {
     const game = GAME_SESSIONS.get(game_id);
 
-    if (game) {
-        const resource = game.resource;
-        const currentQuestion = game.currentQuestion;
-
-        const question = (resource.data as StudyBotMultiChoiceQuestion[])[currentQuestion];
-        const embed = new EmbedBuilder({
-            footer: { text: `Question ${currentQuestion + 1} of ${resource.data.length} • Ref: ${game.examref}_${question.ref}` },
-            title: question.question.substring(0, 255),
-            description: question.description?.substring(0, 1000) +
-                `\n\n${question.answerOptions.map(option => `:regional_indicator_${option.id.toLowerCase()}: *${option.text}*`).join("\n\n")}`,
-            //fields: question.answerOptions.map(option => ({ name: option.id, value: option.text.substring(0, 255) })),
-            image: { url: question.referenceImg?.startsWith("http") ? question.referenceImg : `${S3_PUBLIC_MEDIA_BUCKET}/${question.referenceImg}` },
-        });
-
-        const buttons = new ActionRowBuilder<ButtonBuilder>();
-
-        for (const { id } of question.answerOptions) {
-            buttons.addComponents(new ButtonBuilder(
-                { label: id, style: ButtonStyle.Secondary, customId: `sb_${game_id}_${id}` }
-            ));
-        }
-
-        if (correct || currentQuestion <= 0) {
-            return { embeds: [embed], components: [buttons] };
-        } else {
-            const explanation = (resource.data as StudyBotMultiChoiceQuestion[])[currentQuestion - 1].explanation;
-            return { embeds: [embed], components: [buttons], explanation: explanation };
-        }
-    } else {
+    if (!game) {
         return { embeds: [{ title: "Error", description: "Game session not found." }] };
+    }
+
+    const resource = game.resource;
+    const currentQuestion = game.currentQuestion;
+
+    const question = (resource.data as StudyBotMultiChoiceQuestion[])[currentQuestion];
+    const embed = new EmbedBuilder({
+        footer: { text: `Question ${currentQuestion + 1} of ${resource.data.length} • Ref: ${game.examref}_${question.ref}` },
+        title: question.question.substring(0, 255),
+        description: question.description?.substring(0, 1000) +
+            `\n\n${question.answerOptions.map(option => `:regional_indicator_${option.id.toLowerCase()}: *${option.text}*`).join("\n\n")}`,
+        //fields: question.answerOptions.map(option => ({ name: option.id, value: option.text.substring(0, 255) })),
+        image: { url: question.referenceImg?.startsWith("http") ? question.referenceImg : `${S3_PUBLIC_MEDIA_BUCKET}/${question.referenceImg}` },
+    });
+
+    const buttons = new ActionRowBuilder<ButtonBuilder>();
+
+    for (const { id } of question.answerOptions) {
+        buttons.addComponents(new ButtonBuilder(
+            { label: id, style: ButtonStyle.Secondary, customId: `sb_${game_id}_${id}` }
+        ));
+    }
+
+    if (correct || currentQuestion <= 0) {
+        return { embeds: [embed], components: [buttons] };
+    } else {
+        const explanation = (resource.data as StudyBotMultiChoiceQuestion[])[currentQuestion - 1].explanation;
+        return { embeds: [embed], components: [buttons], explanation: explanation };
     }
 }
 
