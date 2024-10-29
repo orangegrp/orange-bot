@@ -166,7 +166,7 @@ async function finishGame(game: StudyBotSoloGameSession, originalMessage: Messag
     const question = (resource.data as StudyBotMultiChoiceQuestion[])[currentQuestion];
     const metrics = game.metrics;
 
-    const score = Math.round(metrics.correct / (metrics.correct + metrics.incorrect) * 100);
+    const score = Math.round(metrics.correct / resource.data.length * 100);
     const pass = metrics.correct >= resource.metaInfo.passScore;
     let feedback = "";
 
