@@ -22,7 +22,7 @@ async function nextQuestion(game_id: string, correct: boolean) {
     const game = GAME_SESSIONS.get(game_id);
 
     if (!game) {
-        return { embeds: [{ title: "Error", description: "Game session not found." }] };
+        return { embeds: [{ title: "Error", description: "Game session not found.", ephemeral: true }] };
     }
 
     const resource = game.resource;
