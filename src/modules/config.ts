@@ -15,6 +15,8 @@ const USAGE_ALL = `Usage:\n${FORMAT_LIST}\n${FORMAT_GET}\n${FORMAT_SET}`;
 
 export default function (bot: Bot, module: Module) {
     bot.addChatCommand("config", async (msg, args) => {
+        if (!module.handling) return;
+        
         const allPerms = msg.author.id === "239170246118735873"  // alex
                       || msg.author.id === "321921856611418125"  // topias
                       || msg.author.id === "912484519301500948"; // persist
