@@ -80,9 +80,13 @@ export default function (bot: Bot, module: Module) {
         const storage = bot.configApi.storages.get(value.module);
         if (!storage) return `There's no storage for module ${value.module}!`;
 
-        const [exists, err] = checkValueExists(value, storage);
+        const [exists, err, valueSchema] = checkValueExists(value, storage);
         if (!exists)
             return err;
+
+        if (valueSchema.uiVisibility === "hidden") {
+            return `Value ${value.module}.${value.scope}.${value.name} cannot be read`;
+        }
 
         const configurable = (value.scope === "user"   ? storage.user(message.author)
                             : value.scope === "guild"  ? storage.guild(message.guild)
@@ -102,6 +106,10 @@ export default function (bot: Bot, module: Module) {
         const [exists, err, valueSchema] = checkValueExists(data, storage);
         if (!exists)
             return err;
+
+        if (valueSchema.uiVisibility === "readonly" || valueSchema.uiVisibility === "hidden") {
+            return `Value ${data.module}.${data.scope}.${data.name} cannot be written`;
+        }
 
         const configurable = (data.scope === "user"   ? storage.user(message.author)
                             : data.scope === "guild"  ? storage.guild(message.guild)
