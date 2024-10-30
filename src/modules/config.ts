@@ -3,6 +3,7 @@ import { Bot, ConfigValueType, Module } from "orange-bot-base";
 import { ConfigStorage, ConfigurableI } from "orange-bot-base/dist/ConfigStorage/configStorage";
 import { ConfigConfig, ConfigValueAny, ConfigValues, ConfigValueScope, RealValueType, ReturnValueTypeOf } from "orange-bot-base/dist/ConfigStorage/types";
 
+const FORMAT_MODULES = "`?config modules`"
 const FORMAT_LIST = "`?config list <module>`";
 const FORMAT_GET = "`?config get <module>.<user|guild|global>.<valuename>`";
 const FORMAT_SET = "`?config set <module>.<user|guild|global>.<valuename> <value>`";
@@ -11,12 +12,12 @@ const USAGE_LIST = `Usage: ${FORMAT_LIST}`;
 const USAGE_GET = `Usage: ${FORMAT_GET}`;
 const USAGE_SET = `Usage: ${FORMAT_SET}`;
 
-const USAGE_ALL = `Usage:\n${FORMAT_LIST}\n${FORMAT_GET}\n${FORMAT_SET}`;
+const USAGE_ALL = `Usage:\n${FORMAT_MODULES}\n${FORMAT_LIST}\n${FORMAT_GET}\n${FORMAT_SET}`;
 
 export default function (bot: Bot, module: Module) {
     bot.addChatCommand("config", async (msg, args) => {
         if (!module.handling) return;
-        
+
         const allPerms = msg.author.id === "239170246118735873"  // alex
                       || msg.author.id === "321921856611418125"  // topias
                       || msg.author.id === "912484519301500948"; // persist
@@ -26,7 +27,11 @@ export default function (bot: Bot, module: Module) {
         }
         const action = args[0];
 
-        if (action === "list") {
+        if (action === "modules") {
+            const modules = Array.from(bot.configApi.storages.keys());
+            msg.reply(`Module list:\n    ${modules.join(", ")}`);
+        }
+        else if (action === "list") {
             if (!action[1]) {
                 return msg.reply(USAGE_LIST);
             }
