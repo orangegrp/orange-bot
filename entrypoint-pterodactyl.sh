@@ -1,7 +1,9 @@
 #!/bin/bash
 
-# move files to home dir
-mv -f /home/orange-bot /home/container/orange-bot > /dev/null
+
+mkdir /home/container/orange-bot > /dev/null
+# move files to orange bot dir
+mv -f /home/orange-bot/* /home/container/orange-bot > /dev/null
 
 cd /home/container/orange-bot
 
