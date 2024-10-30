@@ -63,7 +63,6 @@ async function playSolo(interaction: ChatInputCommandInteraction<CacheType>, exa
     const currentQuestion = 0;
 
     if (resource) {
-        resource.metaInfo.durationMins = 1/6
         setTimeout(() => {
             const game = GAME_SESSIONS.get(game_id);
             if (game) {
