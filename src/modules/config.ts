@@ -44,7 +44,15 @@ export default function (bot: Bot, module: Module) {
             }
 
             const data = parseValueName(args[1])
-            msg.reply(await getValue(data, msg));
+
+            if (allPerms && data.scope.startsWith("user=")) {
+                const user = data.scope.split("=")[1];
+                data.scope = "user";
+                msg.reply(`user=${user}\n` + await getValue(data, msg, { target: user, allPerms }));
+                return;
+            }
+
+            msg.reply(await getValue(data, msg, { allPerms }));
         }
         else if (action === "set") {
             if (!args[1] || !args[2]) {
@@ -52,7 +60,15 @@ export default function (bot: Bot, module: Module) {
             }
 
             const data = parseValueName(args[1])
-            msg.reply(setValue(data, args[2], msg));
+
+            if (allPerms && data.scope.startsWith("user=")) {
+                const user = data.scope.split("=")[1];
+                data.scope = "user";
+                msg.reply(`user=${user}\n` + await setValue(data, args[2], msg, { target: user, allPerms }));
+                return;
+            }
+
+            msg.reply(setValue(data, args[2], msg, { allPerms }));
         }
         else {
             msg.reply(USAGE_ALL);
@@ -73,7 +89,7 @@ export default function (bot: Bot, module: Module) {
         
         return out;
     }
-    async function getValue(value: ValueData, message: Message) {
+    async function getValue(value: ValueData, message: Message, opts: GetSetOpts) {
         if (!message.inGuild()) {
             return `This can only be used in guilds`;
         }
@@ -84,19 +100,19 @@ export default function (bot: Bot, module: Module) {
         if (!exists)
             return err;
 
-        if (valueSchema.uiVisibility === "hidden") {
+        if (!opts.allPerms && valueSchema.uiVisibility === "hidden") {
             return `Value ${value.module}.${value.scope}.${value.name} cannot be read`;
         }
 
-        const configurable = (value.scope === "user"   ? storage.user(message.author)
-                            : value.scope === "guild"  ? storage.guild(message.guild)
+        const configurable = (value.scope === "user"   ? storage.user(opts.target ?? message.author)
+                            : value.scope === "guild"  ? storage.guild(opts.target ?? message.guild)
                             : storage.global()) as ConfigurableI<ConfigConfig, ConfigValueScope>;
 
         const stringValue = JSON.stringify(await configurable.get(value.name), null, 4);
 
         return `${value.module}.${value.scope}.${value.name} = ${stringValue}`;
     }
-    function setValue(data: ValueData, value: string, message: Message) {
+    function setValue(data: ValueData, value: string, message: Message, opts: GetSetOpts) {
         if (!message.inGuild()) {
             return `This can only be used in guilds`;
         }
@@ -107,12 +123,12 @@ export default function (bot: Bot, module: Module) {
         if (!exists)
             return err;
 
-        if (valueSchema.uiVisibility === "readonly" || valueSchema.uiVisibility === "hidden") {
+        if (!opts.allPerms && (valueSchema.uiVisibility === "readonly" || valueSchema.uiVisibility === "hidden")) {
             return `Value ${data.module}.${data.scope}.${data.name} cannot be written`;
         }
 
-        const configurable = (data.scope === "user"   ? storage.user(message.author)
-                            : data.scope === "guild"  ? storage.guild(message.guild)
+        const configurable = (data.scope === "user"   ? storage.user(opts.target ?? message.author)
+                            : data.scope === "guild"  ? storage.guild(opts.target ?? message.guild)
                             : storage.global()) as ConfigurableI<ConfigConfig, ConfigValueScope>;
 
         const castedValue = tryCastToType(value, valueSchema.type);
@@ -152,6 +168,11 @@ type ValueData = {
     scope: string;
     name: string;
     path: string[];
+}
+
+type GetSetOpts = {
+    allPerms: boolean,
+    target?: string
 }
 
 function parseValueName(valueName: string): ValueData {
