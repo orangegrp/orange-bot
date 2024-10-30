@@ -68,7 +68,7 @@ export default function (bot: Bot, module: Module) {
                 return;
             }
 
-            msg.reply(setValue(data, args[2], msg, { allPerms }));
+            msg.reply(await setValue(data, args[2], msg, { allPerms }));
         }
         else {
             msg.reply(USAGE_ALL);
