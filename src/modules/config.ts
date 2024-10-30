@@ -1,4 +1,4 @@
-import { Message } from "discord.js";
+import { Message, PermissionsBitField } from "discord.js";
 import { Bot, ConfigValueType, Module } from "orange-bot-base";
 import { ConfigStorage, ConfigurableI } from "orange-bot-base/dist/ConfigStorage/configStorage";
 import { ConfigConfig, ConfigValueAny, ConfigValues, ConfigValueScope, RealValueType, ReturnValueTypeOf } from "orange-bot-base/dist/ConfigStorage/types";
@@ -68,7 +68,7 @@ export default function (bot: Bot, module: Module) {
                 return;
             }
 
-            msg.reply(await setValue(data, args[2], msg, { allPerms }));
+            msg.reply(await setValue(data, args.slice(2).join(" "), msg, { allPerms }));
         }
         else {
             msg.reply(USAGE_ALL);
@@ -125,6 +125,13 @@ export default function (bot: Bot, module: Module) {
 
         if (!opts.allPerms && (valueSchema.uiVisibility === "readonly" || valueSchema.uiVisibility === "hidden")) {
             return `Value ${data.module}.${data.scope}.${data.name} cannot be written`;
+        }
+        if (!opts.allPerms && "permissions" in valueSchema && valueSchema.permissions) {
+            const member = await bot.getMember(message.guildId, message.author.id);
+            if (!member || !member.member.permissions.has(valueSchema.permissions)) {
+                const bitField = new PermissionsBitField(valueSchema.permissions);
+                return `You don't have permission to edit this value. (requires ${bitField.toArray().join(", ")})`;
+            }
         }
 
         const configurable = (data.scope === "user"   ? storage.user(opts.target ?? message.author)
