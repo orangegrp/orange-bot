@@ -112,7 +112,7 @@ export default function (bot: Bot, module: Module) {
 
         return `${value.module}.${value.scope}.${value.name} = ${stringValue}`;
     }
-    function setValue(data: ValueData, value: string, message: Message, opts: GetSetOpts) {
+    async function setValue(data: ValueData, value: string, message: Message, opts: GetSetOpts) {
         if (!message.inGuild()) {
             return `This can only be used in guilds`;
         }
@@ -141,7 +141,7 @@ export default function (bot: Bot, module: Module) {
             const type = getValueTypeName(valueSchema.type);
             return `Invalid value: "${value}" is not assignable to ${type}!`;
         }
-        configurable.set(data.name, value);
+        await configurable.set(data.name, value);
 
         return `Set ${data.module}.${data.scope}.${data.name} = ${value}`;
     }
