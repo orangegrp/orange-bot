@@ -148,7 +148,7 @@ export default function (bot: Bot, module: Module) {
             const type = getValueTypeName(valueSchema.type);
             return `Invalid value: "${value}" is not assignable to ${type}!`;
         }
-        await configurable.set(data.name, value);
+        await configurable.set(data.name, castedValue);
 
         return `Set ${data.module}.${data.scope}.${data.name} = ${value}`;
     }
