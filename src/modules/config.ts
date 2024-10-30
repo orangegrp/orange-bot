@@ -1,7 +1,7 @@
 import { Message } from "discord.js";
 import { Bot, ConfigValueType, Module } from "orange-bot-base";
 import { ConfigStorage, ConfigurableI } from "orange-bot-base/dist/ConfigStorage/configStorage";
-import { ConfigConfig, ConfigValues, ConfigValueScope } from "orange-bot-base/dist/ConfigStorage/types";
+import { ConfigConfig, ConfigValueAny, ConfigValues, ConfigValueScope, RealValueType, ReturnValueTypeOf } from "orange-bot-base/dist/ConfigStorage/types";
 
 const FORMAT_LIST = "`?config list <module>`";
 const FORMAT_GET = "`?config get <module>.<user|guild|global>.<valuename>`";
@@ -45,7 +45,7 @@ export default function (bot: Bot, module: Module) {
             }
 
             const data = parseValueName(args[1])
-            //msg.reply(setValue(data, action[2]));
+            msg.reply(setValue(data, args[2], msg));
         }
         else {
             msg.reply(USAGE_ALL);
@@ -86,22 +86,49 @@ export default function (bot: Bot, module: Module) {
         return `${value.module}.${value.scope}.${value.name} = ${stringValue}`;
     }
     function setValue(data: ValueData, value: string, message: Message) {
+        if (!message.inGuild()) {
+            return `This can only be used in guilds`;
+        }
+        const storage = bot.configApi.storages.get(data.module);
+        if (!storage) return `There's no storage for module ${data.module}!`;
+
+        const [exists, err, valueSchema] = checkValueExists(data, storage);
+        if (!exists)
+            return err;
+
+        const configurable = (data.scope === "user"   ? storage.user(message.author)
+                            : data.scope === "guild"  ? storage.guild(message.guild)
+                            : storage.global()) as ConfigurableI<ConfigConfig, ConfigValueScope>;
+
+        const castedValue = tryCastToType(value, valueSchema.type);
+        
+        if (!configurable.checkType(data.name, castedValue)) {
+            const type = getValueTypeName(valueSchema.type);
+            return `Invalid type: "${value}" is not assignable to ${type}!`;
+        }
+        if (!configurable.checkValue(data.name, castedValue)) {
+            const type = getValueTypeName(valueSchema.type);
+            return `Invalid value: "${value}" is not assignable to ${type}!`;
+        }
+        configurable.set(data.name, value);
+
+        return `Set ${data.module}.${data.scope}.${data.name} = ${value}`;
     }
 
-    function checkValueExists(value: ValueData, storage: ConfigStorage<ConfigConfig>): [true, undefined] | [false, string] {
+    function checkValueExists(value: ValueData, storage: ConfigStorage<ConfigConfig>): [true, undefined, ConfigValueAny] | [false, string, undefined] {
         if (!isValidScope(value.scope)) {
-            return [false, `"${value.scope}" is not a valid config scope. Options: "user", "guild", "global"`];
+            return [false, `"${value.scope}" is not a valid config scope. Options: "user", "guild", "global"`, undefined];
         }
 
         const schema = storage.config[value.scope];
         if (!schema) {
-            return [false, `"${value.module}" doesn't have any values in scope "${value.scope}"!`];
+            return [false, `"${value.module}" doesn't have any values in scope "${value.scope}"!`, undefined];
         }
 
         if (!schema[value.name]) {
-            return [false, `"${value.module}.${value.scope}" does not include a value called "${value.name}"`];
+            return [false, `"${value.module}.${value.scope}" does not include a value called "${value.name}"`, undefined];
         }
-        return [true, undefined];
+        return [true, undefined, schema[value.name]];
     }
 }
 
@@ -147,5 +174,31 @@ function getValueTypeName(type: ConfigValueType): string {
         case ConfigValueType.object: return "object"
         case ConfigValueType.boolean: return "boolean"
         default: return "unknown"
+    }
+}
+function tryCastToType<T extends ConfigValueType>(value: string, type: T) {
+    switch (type) {
+        case ConfigValueType.string: 
+        case ConfigValueType.user:
+        case ConfigValueType.channel:
+        case ConfigValueType.member:
+            return value;
+        case ConfigValueType.number:
+            const number = Number.parseFloat(value);
+            return Number.isNaN(number) ? value : number;
+        case ConfigValueType.integer:
+            const integer = Number.parseInt(value);
+            return Number.isNaN(integer) ? value : integer;
+        case ConfigValueType.object:
+            try {
+                return JSON.parse(value)
+            }
+            catch {
+                return value;
+            }
+        case ConfigValueType.boolean:
+            if (value === "true") return true;
+            if (value === "false") return false;
+            return value;
     }
 }
