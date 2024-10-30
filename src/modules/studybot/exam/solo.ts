@@ -1,6 +1,7 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonInteraction, ButtonStyle, CacheType, ChatInputCommandInteraction, EmbedBuilder, GuildTextBasedChannel, Message, Snowflake, TextBasedChannel, TextChannel, ThreadAutoArchiveDuration } from "discord.js";
 import { getItem, S3_PUBLIC_MEDIA_BUCKET, StudyBotJson, StudyBotMultiChoiceQuestion } from "../resource.js";
 import crypto from "crypto";
+import { StudyBotChannel } from "../utils.js";
 
 type StudyBotSoloGameSession = {
     id: string,
@@ -54,7 +55,7 @@ async function nextQuestion(game_id: string, correct: boolean) {
     }
 }
 
-async function playSolo(interaction: ChatInputCommandInteraction<CacheType>, examref: string) {
+async function playSolo(interaction: ChatInputCommandInteraction<CacheType>, examref: string, channel: StudyBotChannel) {
     const game_id = crypto.randomBytes(4).toString('hex');
     const exam_code = examref.replace(".json", "");
     const uid = interaction.user.id;
@@ -70,14 +71,15 @@ async function playSolo(interaction: ChatInputCommandInteraction<CacheType>, exa
             }
         }, resource.metaInfo.durationMins * 60 * 1000);
 
-        const thread = await (await interaction.client.channels.fetch("1297606662655311994") as GuildTextBasedChannel as TextChannel).threads.create({
+
+        const thread = "threads" in channel ? await channel.threads.create({
             name: `${interaction.user.displayName}'s ${exam_code} exam ⸺ REF${game_id}`,
             autoArchiveDuration: ThreadAutoArchiveDuration.OneDay,
             reason: `${interaction.user.displayName}'s ${exam_code} exam ⸺ REF${game_id}`
-        });
+        }) : undefined;
 
         //const message = await interaction.followUp( { ephemeral: false, content: "\0" });
-        const message = await thread.send({ content: `<@${uid}>, you've started the **${exam_code}** exam. Exam attempt identifier: \`REF${game_id}\`` });
+        const message = await (thread ?? channel).send({ content: `<@${uid}>, you've started the **${exam_code}** exam. Exam attempt identifier: \`REF${game_id}\`` });
 
         await interaction.reply({
             ephemeral: false, content: `:clock1: You've started the exam, **${exam_code}**. You have up to **${resource.metaInfo.durationMins} minutes** to answer **all** questions.`,

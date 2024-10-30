@@ -1,7 +1,10 @@
-import { ArgType, Bot, Command, Module } from "orange-bot-base";
+import { ArgType, Bot, Command, DisplayError, Module } from "orange-bot-base";
 import { getLogger } from "orange-common-lib";
 import { getClosestMatch, studyBotMaterials, studyBotQuestions } from "./studybot/resource.js";
 import { playSolo, processResponse } from "./studybot/exam/solo.js";
+import { getConfigStorage } from "./studybot/config.js";
+import { Channel } from "discord.js";
+import { isValidStudyBotChannel } from "./studybot/utils.js";
 
 const logger = getLogger("/studybot");
 
@@ -38,12 +41,39 @@ const studybotCommand = {
 
 
 export default async function(bot: Bot, module: Module) {
+    const configStorage = await getConfigStorage(bot)
+
     module.addCommand(studybotCommand, async (interaction, args) => {
+        if (!interaction.inGuild()) {
+            bot.replyWithError(interaction, "DMs are not supported for StudyBot");
+            return;
+        }
+        if (!interaction.channel) {
+            throw new DisplayError("Interaction channel wasn't found");
+        }
+        if (!isValidStudyBotChannel(interaction.channel)) {
+            interaction.reply({ ephemeral: true, content: "StudyBot can't be used on a channel of this type" });
+            return;
+        }
+
         if (args.subCommand === "study") {
             await interaction.reply("Study mode coming soon!");
         }   
         else if (args.subCommand === "exam") {
-            await playSolo(interaction, args.examref);
+            const channelId = await configStorage.guild(interaction.guildId).get("examChannel");
+
+            let channel: Channel | null = null;
+            if (channelId) {
+                channel = await interaction.client.channels.fetch(channelId);
+                if (channel && (!isValidStudyBotChannel(channel))) {
+                    channel = null;
+                }
+            }
+            if (!channel) {
+                channel = interaction.channel
+            }
+                
+            await playSolo(interaction, args.examref, channel);
         }
     });
 
