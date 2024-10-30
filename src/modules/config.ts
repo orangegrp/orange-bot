@@ -173,7 +173,7 @@ function listOptionsFromSchema(module: string, scope: ConfigValueScope, schema: 
         const value = schema[name];
         if (value.uiVisibility === "hidden" && !showAll) continue;
         const type = getValueTypeName(value.type);
-        out += `${module}.${scope}.${name} (${type}${value.array ? "[]" : ""}): ${value.description}\n`;
+        out += `    ${module}.${scope}.${name} (${type}${value.array ? "[]" : ""}): ${value.description}\n`;
     }
     return out;
 }
