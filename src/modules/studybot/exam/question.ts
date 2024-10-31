@@ -1,5 +1,5 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonInteraction, ButtonStyle, CacheType, ChatInputCommandInteraction, EmbedBuilder, Message } from "discord.js";
-import { getItem, S3_PUBLIC_MEDIA_BUCKET, StudyBotMultiChoiceQuestion } from "../resource.js";
+import { getAllQuestions, getItem, S3_PUBLIC_MEDIA_BUCKET, StudyBotJson, StudyBotMultiChoiceQuestion } from "../resource.js";
 import crypto from "crypto";
 
 type StudyBotQuestionGameSession = {
@@ -11,12 +11,20 @@ type StudyBotQuestionGameSession = {
 
 const GAME_SESSIONS = new Map<string, StudyBotQuestionGameSession>();
 
-async function getRandomQuestion(examref: string) {
-    const resource = await getItem(examref, "studybot-questions");
+async function getRandomQuestion(examref: string = "") {
+    let resource: StudyBotJson | undefined = undefined;
 
+    if (examref === "" || examref === undefined) {
+        const all_exams = await getAllQuestions();
+        const random_exam = all_exams[Math.floor(Math.random() * all_exams.length)];
+        resource = await getItem(random_exam, "studybot-questions");
+    } else {
+        resource = await getItem(examref, "studybot-questions");
+    }
+    
     if (resource) {
         const questions = resource.data as StudyBotMultiChoiceQuestion[];
-        return questions[Math.floor(Math.random() * questions.length)];
+        return { examRef: resource.ref, exam: resource.data[Math.floor(Math.random() * questions.length)] as StudyBotMultiChoiceQuestion };
     } else {
         return undefined;
     }
@@ -58,9 +66,9 @@ async function questionMode(examref: string, interaction: ChatInputCommandIntera
 
         GAME_SESSIONS.set(game_id, {
             id: game_id,
-            examref: examref,
+            examref: question.examRef,
             uid: interaction.user.id,
-            question: question
+            question: question.exam
         });
 
         await interaction.reply(await nextQuestion(game_id));
