@@ -2,6 +2,7 @@ import { ActionRowBuilder, ButtonBuilder, ButtonInteraction, ButtonStyle, CacheT
 import { getItem, S3_PUBLIC_MEDIA_BUCKET, StudyBotJson, StudyBotMultiChoiceQuestion } from "../resource.js";
 import crypto from "crypto";
 import { StudyBotChannel } from "../utils.js";
+import { sleep } from "orange-common-lib";
 
 type StudyBotSoloGameSession = {
     id: string,
@@ -14,7 +15,8 @@ type StudyBotSoloGameSession = {
         correct: number,
         incorrect: number,
         wrongQuestions: string[]
-    }
+    },
+    questionFeedback: string[]
 };
 
 const GAME_SESSIONS = new Map<string, StudyBotSoloGameSession>();
@@ -23,7 +25,7 @@ async function nextQuestion(game_id: string, correct: boolean) {
     const game = GAME_SESSIONS.get(game_id);
 
     if (!game) {
-        return { embeds: [{ title: "Error", description: "Game session not found.", ephemeral: true }] };
+        return { embeds: [{ title: ":mag_right: Looks like the exam ended already.", description: "Feel free to start another one with `/studybot exam`." }], ephemeral: true };
     }
 
     const resource = game.resource;
@@ -66,7 +68,7 @@ async function playSolo(interaction: ChatInputCommandInteraction<CacheType>, exa
         setTimeout(() => {
             const game = GAME_SESSIONS.get(game_id);
             if (game) {
-                finishGame(game, game.originalMessage, ":clock1: **Out of time!**");
+                finishGame(game, game.originalMessage, ":clock1: **Out of time!**\n");
             }
         }, resource.metaInfo.durationMins * 60 * 1000);
 
@@ -99,7 +101,8 @@ async function playSolo(interaction: ChatInputCommandInteraction<CacheType>, exa
                 correct: 0,
                 incorrect: 0,
                 wrongQuestions: []
-            }
+            },
+            questionFeedback: []
         });
 
         const { embeds, components } = await nextQuestion(game_id, false);
@@ -117,7 +120,7 @@ async function processResponse(btnInteraction: ButtonInteraction) {
     const game = GAME_SESSIONS.get(game_id);
 
     if (!game) {
-        await btnInteraction.reply({ ephemeral: true, embeds: [{ title: "Error", description: "Game session not found." }] });
+        await btnInteraction.reply({ embeds: [{ title: ":mag_right: Looks like the exam ended already.", description: "Feel free to start another one with `/studybot exam`." }], ephemeral: true });
         return;
     }
 
@@ -125,7 +128,6 @@ async function processResponse(btnInteraction: ButtonInteraction) {
         await btnInteraction.reply({ ephemeral: true, embeds: [{ title: "Error", description: "This exam is being taken by somebody else. Please start an exam yourself by running `/studybot exam` to get started." }] });
         return;
     }
-
 
     //const originalMessage = game.originalMessage;
     const originalMessage = btnInteraction.message as Message;
@@ -140,32 +142,32 @@ async function processResponse(btnInteraction: ButtonInteraction) {
         metrics.wrongQuestions.push(`${question.topic}`);
     }
 
-    GAME_SESSIONS.set(game_id, { ...game, currentQuestion: currentQuestion + 1 });
-
     const answer_prefix = `-# Your answer to Question ${currentQuestion + 1} was ${answer.toUpperCase()}\n\n`;
-    const wrong_answer_feedback = `${answer_prefix}:no_mouth: **Not quite!**\n`;
-    const correct_answer_feedback = `${answer_prefix}:white_check_mark: **Correct!**`;
+    const wrong_answer_feedback = `### ${currentQuestion + 1}. ${question.question}\n${question.explanation}\n`;
+
+    if (correct) {
+        GAME_SESSIONS.set(game_id, { ...game, currentQuestion: currentQuestion + 1 });
+    } else {
+        GAME_SESSIONS.set(game_id, { ...game, currentQuestion: currentQuestion + 1, questionFeedback: [...game.questionFeedback, wrong_answer_feedback] });
+    }
 
     if (currentQuestion < (resource.data as StudyBotMultiChoiceQuestion[]).length - 1) {
         const { embeds, components, explanation } = await nextQuestion(game_id, correct);
         await btnInteraction.deferUpdate();
  
         if (explanation && !correct) {
-            await originalMessage.reply({ content: wrong_answer_feedback + explanation, embeds: embeds, components: components });
+            await originalMessage.reply({ content: answer_prefix, embeds: embeds, components: components });
         } else {
-            await originalMessage.reply({ content: correct_answer_feedback, embeds: embeds, components: components });
+            await originalMessage.reply({ content: answer_prefix, embeds: embeds, components: components });
         }
     } else {
         await btnInteraction.deferUpdate();
-        const lastFeedback = correct ? correct_answer_feedback : wrong_answer_feedback + question.explanation;
-        finishGame(game, originalMessage, lastFeedback);
+        finishGame(game, originalMessage);
     }
 }
 
-async function finishGame(game: StudyBotSoloGameSession, originalMessage: Message | ChatInputCommandInteraction, lastFeedback: string) {
+async function finishGame(game: StudyBotSoloGameSession, originalMessage: Message | ChatInputCommandInteraction, endMessage: string = "") {
     const resource = game.resource;
-    const currentQuestion = game.currentQuestion;
-    const question = (resource.data as StudyBotMultiChoiceQuestion[])[currentQuestion];
     const metrics = game.metrics;
 
     const score = Math.round(metrics.correct / resource.data.length * 100);
@@ -182,7 +184,6 @@ async function finishGame(game: StudyBotSoloGameSession, originalMessage: Messag
     else { feedback += "Woop! :100: all the way!"; }
 
     await originalMessage.reply({
-        content: lastFeedback,
         embeds: [{
             title: `${pass ? "Exam Passed" : "Exam Failed"}`, description: `You have completed the **${game.examref}** exam. ${feedback}`,
             footer: { text: `Ref: ${game.examref}` },
@@ -190,6 +191,15 @@ async function finishGame(game: StudyBotSoloGameSession, originalMessage: Messag
             fields: [{ name: "Score", value: `${score}%`, inline: true }, metrics.wrongQuestions.length > 0 ? { name: "Areas for Improvement", value: metrics.wrongQuestions.join("\n") } : { name: "Next Steps", value: "If you haven't already, get some practical experience under your belt and then get certified." }]
         }], components: []
     });
+    
+    await originalMessage.reply({ content: "## Here's what you need to know for next time:\n" });
+
+    for (const feedback of game.questionFeedback) {
+        await originalMessage.channel?.sendTyping();
+        await sleep(1000);
+        await originalMessage.reply({ content: feedback });
+    }
+
     GAME_SESSIONS.delete(game.id);
 }
 

@@ -27,6 +27,7 @@ const command = {
 
 export default async function (bot: Bot, module: Module) {
     const costMgr = new CostMgr(bot);
+    await costMgr.config.waitForReady();
 
     scheduler.scheduleJob("0 0 * * *", () => costMgr.resetAllDailyCaps());
 
