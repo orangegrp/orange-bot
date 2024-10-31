@@ -27,6 +27,7 @@ const command = {
 
 export default async function (bot: Bot, module: Module) {
     const costMgr = new CostMgr(bot);
+    await costMgr.config.waitForReady();
 
     scheduler.scheduleJob("0 0 * * *", () => costMgr.resetAllDailyCaps());
 
@@ -49,7 +50,7 @@ export default async function (bot: Bot, module: Module) {
     //module.addChatInteraction(async msg => {
     bot.client.on("messageCreate", async msg => {
         if (!module.handling) return;
-        logger.info("Received message: " + msg.content);
+        //logger.info("Received message: " + msg.content);
 
         if (!bot.client.user) {
             logger.warn("bot.client.user not set! Cannot reply to AI request!");
@@ -60,13 +61,16 @@ export default async function (bot: Bot, module: Module) {
         const is_starting_new_ctx = msg.content.startsWith(`<@${bot.client.user.id}>`);
 
         if (!is_replying_to_context && !is_starting_new_ctx) {
-            logger.info("Not replying to context or starting new context");
+            //logger.info("Not replying to context or starting new context");
             return;
         }
 
         if (!(await costMgr.allowUser(msg.author.id))) {
-            logger.info("User is not allowed to use Ora Assistant");
-            return;
+            logger.info("User is not allowed to use Ora Assistant yet, lets make them a new account");
+
+            if ((await createOraAccount(msg, msg.author.id)) === false) {
+                return;
+            }
         }
 
         logger.info("User is allowed to use Ora Assistant");
@@ -244,6 +248,19 @@ export default async function (bot: Bot, module: Module) {
             dailyCost: existing_account.dailyCost + total_cost,
             totalCost: existing_account.totalCost + total_cost
         });
+    }
+
+    async function createOraAccount(message: Message, user_id: string): Promise<boolean> {
+        if (await costMgr.userExists(user_id)) {
+            return true;
+        } else {
+            logger.log("Creating new account ...");
+            const new_account_id = await costMgr.createOraUser(user_id, message.author.displayName);
+            if (!new_account_id) {
+                return false;
+            }
+            return true;
+        }
     }
 
     async function createAccountCmdBtn(interaction: ButtonInteraction, bot: Bot) {

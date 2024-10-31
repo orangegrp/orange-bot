@@ -24,6 +24,7 @@ const command = {
                 }
             }
         },
+        /*
         cwe: {
             description: "Lookup a CWE number",
             args: {
@@ -34,6 +35,7 @@ const command = {
                 }
             }
         },
+        */
         search: {
             description: "Search for a CVE",
             args: {
@@ -139,11 +141,13 @@ export default function (bot: Bot, module: Module) {
             const param = id.startsWith("CVE-") ? id : "CVE-" + id;
             await interaction.editReply(await getCveInfo(param));
         }
+        /*
         else if (args.subCommand === "cwe") {
             await interaction.deferReply();
             const id = args.cweid.trim();
             const param = id.startsWith("CWE-") ? id : "CWE-" + id;
             await interaction.editReply(await getCweInfo(param));
         }
+        */
     });
 };

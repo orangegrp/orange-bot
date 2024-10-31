@@ -1,8 +1,5 @@
 import { decode } from "html-entities";
-import { getLogger } from "orange-common-lib";
 import { Writable } from "stream";
-
-const logger = getLogger("functions");
 
 function damerauLevenshtein(a: string, b: string, bonus: number = 2, sequenceLength: number = 5): number {
     const lenA = a.length;
@@ -110,17 +107,12 @@ function getClosestMatches(input: string, sourcelst: string[], options?: { maxSu
             }
         }
 
-        logger.verbose(`Distance between ${input} and ${item} is ${distance}`);
-
         if (distance <= similarity_threshold) {
             closest_item.push({ item, distance });
         }
     }
 
-    logger.verbose(`Exact match is ${exact_match}`);
     const closest = closest_item.sort((a, b) => a.distance - b.distance).slice(0, max_suggestions).map(obj => obj.item);
-    logger.verbose(`Closest item is ${closest[0]}`);
-
     return [... new Set(closest)];
 }
 
@@ -192,5 +184,4 @@ function captureConsoleTable<T>(data: T[]): string {
     return writer.getString();
 }
 
-
-export { damerauLevenshtein, number2emoji, removeHtmlTagsAndDecode, getClosestMatches, captureConsoleTable as generateTable, captureConsole};
+export { damerauLevenshtein, number2emoji, removeHtmlTagsAndDecode, getClosestMatches, captureConsoleTable as generateTable, captureConsole };

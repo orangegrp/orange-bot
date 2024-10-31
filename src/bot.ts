@@ -1,10 +1,9 @@
 import { Client, GatewayIntentBits, MessagePayload } from "discord.js";
-import { getLogger } from "orange-common-lib";
+import { getLogger, environment } from "orange-common-lib";
 import { Bot } from "orange-bot-base";
 import { join, dirname } from "path";
-import { environment } from "orange-common-lib";
 
-async function main() {
+async function main() {    
     // this code is absolutely criminal
     // this is used to set the colour on embeds to orange
     //@ts-ignore
