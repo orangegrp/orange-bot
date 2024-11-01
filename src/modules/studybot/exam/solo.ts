@@ -10,6 +10,7 @@ type StudyBotSoloGameSession = {
     uid: string,
     resource: StudyBotJson
     originalMessage: Message,
+    messagesStack: Message[],
     currentQuestion: number,
     metrics: {
         correct: number,
@@ -68,7 +69,7 @@ async function playSolo(interaction: ChatInputCommandInteraction<CacheType>, exa
         setTimeout(() => {
             const game = GAME_SESSIONS.get(game_id);
             if (game) {
-                finishGame(game, game.originalMessage, ":clock1: **Out of time!**\n");
+                finishGame(game, game.originalMessage, ":clock1: **Out of time!** ");
             }
         }, resource.metaInfo.durationMins * 60 * 1000);
 
@@ -94,6 +95,7 @@ async function playSolo(interaction: ChatInputCommandInteraction<CacheType>, exa
             id: game_id,
             examref: exam_code,
             originalMessage: message,
+            messagesStack: [],
             uid: uid,
             resource: resource,
             currentQuestion: currentQuestion,
@@ -130,7 +132,7 @@ async function processResponse(btnInteraction: ButtonInteraction) {
     }
 
     //const originalMessage = game.originalMessage;
-    const originalMessage = btnInteraction.message as Message;
+    const interactionMsg = btnInteraction.message as Message;
     const resource = game.resource;
     const currentQuestion = game.currentQuestion;
     const question = (resource.data as StudyBotMultiChoiceQuestion[])[currentQuestion];
@@ -142,27 +144,29 @@ async function processResponse(btnInteraction: ButtonInteraction) {
         metrics.wrongQuestions.push(`${question.topic}`);
     }
 
-    const answer_prefix = `-# Your answer to Question ${currentQuestion + 1} was ${answer.toUpperCase()}\n\n`;
-    const wrong_answer_feedback = `### ${currentQuestion + 1}. ${question.question}\n${question.explanation}\n`;
-
+    const answer_prefix = `-# Your answer to Question ${currentQuestion + 1} was ${answer.toUpperCase()}`;
+    const wrong_feedback = `That's not quite right. :thinking:\n${question.explanation}\n`;
+    const correct_feedback = `That's right! :white_check_mark:\n${question.explanation}\n`;
+    /*
     if (correct) {
         GAME_SESSIONS.set(game_id, { ...game, currentQuestion: currentQuestion + 1 });
     } else {
         GAME_SESSIONS.set(game_id, { ...game, currentQuestion: currentQuestion + 1, questionFeedback: [...game.questionFeedback, wrong_answer_feedback] });
     }
+        */
 
     if (currentQuestion < (resource.data as StudyBotMultiChoiceQuestion[]).length - 1) {
         const { embeds, components, explanation } = await nextQuestion(game_id, correct);
         await btnInteraction.deferUpdate();
- 
-        if (explanation && !correct) {
-            await originalMessage.reply({ content: answer_prefix, embeds: embeds, components: components });
-        } else {
-            await originalMessage.reply({ content: answer_prefix, embeds: embeds, components: components });
-        }
+        const feedback = !correct && explanation ? wrong_feedback : correct ? correct_feedback : "";
+
+        await interactionMsg.edit({ components: [] });
+        const msg = await interactionMsg.reply({ content: answer_prefix, embeds: embeds, components: components });
+        GAME_SESSIONS.set(game_id, { ...game, currentQuestion: currentQuestion + 1, questionFeedback: [...game.questionFeedback, feedback], messagesStack: [...game.messagesStack, msg] });
     } else {
         await btnInteraction.deferUpdate();
-        finishGame(game, originalMessage);
+        GAME_SESSIONS.set(game_id, { ...game, currentQuestion: currentQuestion + 1, questionFeedback: [...game.questionFeedback, !correct ? wrong_feedback : correct_feedback], messagesStack: [...game.messagesStack, interactionMsg] });
+        finishGame(game, interactionMsg);
     }
 }
 
@@ -191,14 +195,43 @@ async function finishGame(game: StudyBotSoloGameSession, originalMessage: Messag
             fields: [{ name: "Score", value: `${score}%`, inline: true }, metrics.wrongQuestions.length > 0 ? { name: "Areas for Improvement", value: metrics.wrongQuestions.join("\n") } : { name: "Next Steps", value: "If you haven't already, get some practical experience under your belt and then get certified." }]
         }], components: []
     });
-    
-    await originalMessage.reply({ content: "## Here's what you need to know for next time:\n" });
 
+    //await originalMessage.reply({ content: "## Here's what you need to know for next time:\n" });
+
+    /*
     for (const feedback of game.questionFeedback) {
         await originalMessage.channel?.sendTyping();
         await sleep(1000);
         await originalMessage.reply({ content: feedback });
     }
+    */
+
+    await originalMessage.reply({ content: `${endMessage}Great work <@${game.uid}>, now I'm going to add some feedback to your answers. Give me a few seconds.` });
+
+    for (let i = game.messagesStack.length - 1; i >= 0; i--) {
+        await originalMessage.channel?.sendTyping();
+        await sleep(1000);
+
+        const msg = game.messagesStack[i];
+        const feedback = game.questionFeedback[i];
+
+        // Create completely new embeds
+        const newEmbeds = msg.embeds.map(embed => {
+            return new EmbedBuilder()
+                .setTitle(embed.title || null)
+                .setDescription(embed.description || null)
+                .setFooter(embed.footer ? { text: embed.footer.text } : null)
+                .setImage(embed.image?.url || null);
+        });
+
+        await msg.edit({
+            content: `${msg.content}. ${feedback}`,
+            embeds: newEmbeds,
+            components: [],
+        });
+    }
+
+    await originalMessage.reply({ content: `:notepad_spiral: Thanks for taking the exam, <@${game.uid}>. Your feedback is ready to be viewed.` });
 
     GAME_SESSIONS.delete(game.id);
 }
