@@ -10,6 +10,7 @@ type StudyBotSoloGameSession = {
     uid: string,
     resource: StudyBotJson
     originalMessage: Message,
+    messagesStack: Message[],
     currentQuestion: number,
     metrics: {
         correct: number,
@@ -21,42 +22,57 @@ type StudyBotSoloGameSession = {
 
 const GAME_SESSIONS = new Map<string, StudyBotSoloGameSession>();
 
-async function nextQuestion(game_id: string, correct: boolean) {
-    const game = GAME_SESSIONS.get(game_id);
-
-    if (!game) {
-        return { embeds: [{ title: ":mag_right: Looks like the exam ended already.", description: "Feel free to start another one with `/studybot exam`." }], ephemeral: true };
-    }
-
-    const resource = game.resource;
-    const currentQuestion = game.currentQuestion;
-
-    const question = (resource.data as StudyBotMultiChoiceQuestion[])[currentQuestion];
-    const embed = new EmbedBuilder({
-        footer: { text: `Question ${currentQuestion + 1} of ${resource.data.length} • Ref: ${game.examref}_${question.ref}` },
-        title: question.question.substring(0, 255),
-        description: question.description?.substring(0, 1000) +
-            `\n\n${question.answerOptions.map(option => `:regional_indicator_${option.id.toLowerCase()}: *${option.text}*`).join("\n\n")}`,
-        //fields: question.answerOptions.map(option => ({ name: option.id, value: option.text.substring(0, 255) })),
-        image: { url: question.referenceImg?.startsWith("http") ? question.referenceImg : `${S3_PUBLIC_MEDIA_BUCKET}/${question.referenceImg}` },
-    });
-
+/**
+ * Prepares a question for sending to the user in the study session.
+ * @param game_id The ID of the game session
+ * @param question The question to be sent
+ * @returns An object containing the components (buttons) and embed (question text and image)
+ */
+async function getQuestion(game_id: string, question: StudyBotMultiChoiceQuestion) {
     const buttons = new ActionRowBuilder<ButtonBuilder>();
-
     for (const { id } of question.answerOptions) {
         buttons.addComponents(new ButtonBuilder(
             { label: id, style: ButtonStyle.Secondary, customId: `sb_${game_id}_${id}` }
         ));
     }
 
-    if (correct || currentQuestion <= 0) {
-        return { embeds: [embed], components: [buttons] };
-    } else {
-        const explanation = (resource.data as StudyBotMultiChoiceQuestion[])[currentQuestion - 1].explanation;
-        return { embeds: [embed], components: [buttons], explanation: explanation };
+    return {
+        components: [buttons],
+        embed: {
+            title: question.question.substring(0, 255),
+            description: question.description?.substring(0, 1000) +
+                `\n\n${question.answerOptions.map(option => `:regional_indicator_${option.id.toLowerCase()}: *${option.text}*`).join("\n\n")}`,
+            image: { url: question.referenceImg?.startsWith("http") ? question.referenceImg : `${S3_PUBLIC_MEDIA_BUCKET}/${question.referenceImg}` },
+        }
     }
 }
+/**
+ * Sends the next question to the user in the study session.
+ * @param game The StudyBotSoloGameSession object for the user
+ * @param content Optional content to send before the question
+ * @returns The message that was sent
+ */
+async function sendQuestion(game: StudyBotSoloGameSession, content: string | undefined = undefined) {
+    const message = game.originalMessage;
+    const { embed, components } = await getQuestion(game.id, (game.resource.data as StudyBotMultiChoiceQuestion[])[game.currentQuestion]);
 
+    const msg = await message.reply({
+        content,
+        embeds: [{
+            ...embed,
+            footer: { text: `Question ${game.currentQuestion + 1} of ${game.resource.data.length} • Ref: ${game.examref}` }
+        }],
+        components
+    });
+
+    game.messagesStack.push(msg as Message);
+}
+/**
+ * Starts a solo study session for the user, given the exam reference.
+ * @param interaction The interaction object from Discord.js
+ * @param examref The exam reference, must be a valid file name ending in .json
+ * @param channel The channel to start the exam in.
+ */
 async function playSolo(interaction: ChatInputCommandInteraction<CacheType>, examref: string, channel: StudyBotChannel) {
     const game_id = crypto.randomBytes(4).toString('hex');
     const exam_code = examref.replace(".json", "");
@@ -64,59 +80,54 @@ async function playSolo(interaction: ChatInputCommandInteraction<CacheType>, exa
     const resource = await getItem(examref, "studybot-questions");
     const currentQuestion = 0;
 
-    if (resource) {
-        setTimeout(() => {
-            const game = GAME_SESSIONS.get(game_id);
-            if (game) {
-                finishGame(game, game.originalMessage, ":clock1: **Out of time!**\n");
-            }
-        }, resource.metaInfo.durationMins * 60 * 1000);
-
-
-        const thread = "threads" in channel ? await channel.threads.create({
-            name: `${interaction.user.displayName}'s ${exam_code} exam ⸺ REF${game_id}`,
-            autoArchiveDuration: ThreadAutoArchiveDuration.OneDay,
-            reason: `${interaction.user.displayName}'s ${exam_code} exam ⸺ REF${game_id}`
-        }) : undefined;
-
-        //const message = await interaction.followUp( { ephemeral: false, content: "\0" });
-        const message = await (thread ?? channel).send({ content: `<@${uid}>, you've started the **${exam_code}** exam. Exam attempt identifier: \`REF${game_id}\`` });
-
-        await interaction.reply({
-            ephemeral: false, content: `:clock1: You've started the exam, **${exam_code}**. You have up to **${resource.metaInfo.durationMins} minutes** to answer **all** questions.`,
-            components: [
-                new ActionRowBuilder<ButtonBuilder>().addComponents(new ButtonBuilder({ label: "Go to Exam", style: ButtonStyle.Link, url: message.url }))
-            ]
-        });
-
-
-        GAME_SESSIONS.set(game_id, {
-            id: game_id,
-            examref: exam_code,
-            originalMessage: message,
-            uid: uid,
-            resource: resource,
-            currentQuestion: currentQuestion,
-            metrics: {
-                correct: 0,
-                incorrect: 0,
-                wrongQuestions: []
-            },
-            questionFeedback: []
-        });
-
-        const { embeds, components } = await nextQuestion(game_id, false);
-
-        await message.reply({ embeds: embeds, components: components });
-    } else {
+    if (!resource) {
         await interaction.reply({ ephemeral: true, content: "Invalid exam reference." });
         return;
     }
-}
 
+    setTimeout(() => {
+        const game = GAME_SESSIONS.get(game_id);
+        if (game) {
+            finishGame(game, game.originalMessage, ":clock1: **Out of time!** ");
+        }
+    }, resource.metaInfo.durationMins * 60 * 1000);
+
+    const thread = "threads" in channel ? await channel.threads.create({
+        name: `${interaction.user.displayName}'s ${exam_code} exam ⸺ REF${game_id}`,
+        autoArchiveDuration: ThreadAutoArchiveDuration.OneDay,
+        reason: `${interaction.user.displayName}'s ${exam_code} exam ⸺ REF${game_id}`
+    }) : undefined;
+
+    const message = await (thread ?? channel).send({ content: `<@${uid}>, you've started the **${exam_code}** exam. Exam attempt identifier: \`REF${game_id}\`` });
+
+    await interaction.reply({
+        ephemeral: false, content: `:clock1: You've started the exam, **${exam_code}**. You have up to **${resource.metaInfo.durationMins} minutes** to answer **all** questions.`,
+        components: [
+            new ActionRowBuilder<ButtonBuilder>().addComponents(new ButtonBuilder({ label: "Go to Exam", style: ButtonStyle.Link, url: message.url }))
+        ]
+    });
+
+    GAME_SESSIONS.set(game_id, {
+        id: game_id, examref: exam_code, originalMessage: message, messagesStack: [],
+        uid: uid, resource: resource, currentQuestion: currentQuestion,
+        metrics: { correct: 0, incorrect: 0, wrongQuestions: [] }, questionFeedback: []
+    });
+
+    const game = GAME_SESSIONS.get(game_id);
+
+    if (!game) {
+        await message.reply({ embeds: [{ title: ":mag_right: Looks like the exam ended already.", description: "Feel free to start another one with `/studybot exam`." }] });
+        return;
+    }
+
+    await sendQuestion(game);
+}
+/**
+ * Processes a button interaction (answer submission) in the solo study mode.
+ * @param btnInteraction The interaction object from Discord.js
+ */
 async function processResponse(btnInteraction: ButtonInteraction) {
     const [_, game_id, answer] = btnInteraction.customId.split("_");
-
     const game = GAME_SESSIONS.get(game_id);
 
     if (!game) {
@@ -129,43 +140,41 @@ async function processResponse(btnInteraction: ButtonInteraction) {
         return;
     }
 
-    //const originalMessage = game.originalMessage;
-    const originalMessage = btnInteraction.message as Message;
-    const resource = game.resource;
-    const currentQuestion = game.currentQuestion;
-    const question = (resource.data as StudyBotMultiChoiceQuestion[])[currentQuestion];
-    const correct = question.correctAnswerIds.includes(answer);
-    const metrics = game.metrics;
+    await btnInteraction.deferUpdate();
 
-    correct ? metrics.correct++ : metrics.incorrect++
-    if (!correct && !metrics.wrongQuestions.includes(question.topic)) {
-        metrics.wrongQuestions.push(`${question.topic}`);
+    const question_data = (game.resource.data as StudyBotMultiChoiceQuestion[])[game.currentQuestion];
+
+    const generic_feedback = `-# Your answer to Question ${game.currentQuestion + 1} was ${answer.toUpperCase()}`;
+    const wrong_answer_feedback = `That's not quite right. :thinking:\n${question_data.explanation}`;
+    const correct_answer_feedback = `That's right! :white_check_mark:\n${question_data.explanation}`;
+
+    const correct = question_data.correctAnswerIds.includes(answer);
+
+    if (!correct) {
+        game.metrics.wrongQuestions.push(`${question_data.topic}`);
     }
 
-    const answer_prefix = `-# Your answer to Question ${currentQuestion + 1} was ${answer.toUpperCase()}\n\n`;
-    const wrong_answer_feedback = `### ${currentQuestion + 1}. ${question.question}\n${question.explanation}\n`;
+    game.questionFeedback.push(correct ? correct_answer_feedback : wrong_answer_feedback);
 
-    if (correct) {
-        GAME_SESSIONS.set(game_id, { ...game, currentQuestion: currentQuestion + 1 });
+    if (game.currentQuestion === (game.resource.data.length - 1)) {
+        const msg = await game.originalMessage.reply({ content: generic_feedback, });
+        game.messagesStack.push(msg as Message);
+        await finishGame(game, game.originalMessage);
     } else {
-        GAME_SESSIONS.set(game_id, { ...game, currentQuestion: currentQuestion + 1, questionFeedback: [...game.questionFeedback, wrong_answer_feedback] });
-    }
-
-    if (currentQuestion < (resource.data as StudyBotMultiChoiceQuestion[]).length - 1) {
-        const { embeds, components, explanation } = await nextQuestion(game_id, correct);
-        await btnInteraction.deferUpdate();
- 
-        if (explanation && !correct) {
-            await originalMessage.reply({ content: answer_prefix, embeds: embeds, components: components });
-        } else {
-            await originalMessage.reply({ content: answer_prefix, embeds: embeds, components: components });
-        }
-    } else {
-        await btnInteraction.deferUpdate();
-        finishGame(game, originalMessage);
+        game.currentQuestion++;
+        game.messagesStack[game.messagesStack.length - 1].edit({ components: [] });
+        await sendQuestion(game, generic_feedback);
     }
 }
-
+/**
+ * Completes the study session, calculates the score, and provides a summary
+ * of the user's performance. Sends feedback for each question and the overall
+ * exam result.
+ * 
+ * @param game The current StudyBotSoloGameSession containing the user's session data
+ * @param originalMessage The original message or interaction to reply to with results
+ * @param endMessage Optional message to prepend to the final feedback
+ */
 async function finishGame(game: StudyBotSoloGameSession, originalMessage: Message | ChatInputCommandInteraction, endMessage: string = "") {
     const resource = game.resource;
     const metrics = game.metrics;
@@ -191,15 +200,34 @@ async function finishGame(game: StudyBotSoloGameSession, originalMessage: Messag
             fields: [{ name: "Score", value: `${score}%`, inline: true }, metrics.wrongQuestions.length > 0 ? { name: "Areas for Improvement", value: metrics.wrongQuestions.join("\n") } : { name: "Next Steps", value: "If you haven't already, get some practical experience under your belt and then get certified." }]
         }], components: []
     });
-    
-    await originalMessage.reply({ content: "## Here's what you need to know for next time:\n" });
 
-    for (const feedback of game.questionFeedback) {
-        await originalMessage.channel?.sendTyping();
+    await originalMessage.reply({ content: `${endMessage}Great work <@${game.uid}>, now I'm going to add some feedback to your answers. Give me a few seconds.` });
+
+    for (const msg of game.messagesStack.reverse()) { 
+        await msg.channel.sendTyping();
         await sleep(1000);
-        await originalMessage.reply({ content: feedback });
+
+        const feedback = game.questionFeedback.pop();
+
+        if (feedback === undefined)
+            continue;
+
+        const newEmbeds = msg.embeds.map(embed => {
+            return new EmbedBuilder()
+                .setTitle(embed.title || null)
+                .setDescription(embed.description || null)
+                .setFooter(embed.footer ? { text: embed.footer.text } : null)
+                .setImage(embed.image?.url || null);
+        });
+
+        await msg.edit({
+            content: `${msg.content}. ${feedback}`,
+            embeds: newEmbeds,
+            components: [],
+        });
     }
 
+    await originalMessage.reply({ content: `:notepad_spiral: Thanks for taking the exam, <@${game.uid}>. Your feedback is ready to be viewed.` });
     GAME_SESSIONS.delete(game.id);
 }
 
