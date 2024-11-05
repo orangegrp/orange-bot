@@ -19,6 +19,9 @@ const USAGE_ALL = `Usage:\n${FORMAT_MODULES}\n${FORMAT_LIST}\n${FORMAT_GET}\n${F
 export default function (bot: Bot, module: Module) {
     bot.addChatCommand("config", async (msg, args) => {
         if (!module.handling) return;
+        if (!msg.inGuild()) {
+            return msg.reply(`This can only be used in guilds`);
+        }
 
         const allPerms = msg.author.id === "239170246118735873"  // alex
                       || msg.author.id === "321921856611418125"  // topias
@@ -54,11 +57,11 @@ export default function (bot: Bot, module: Module) {
                 data.scope = target.scope;
                 const user = target.user;
 
-                msg.reply(`user=${user}\n` + await getValue(data, msg, { target: user, allPerms }));
+                msg.reply(`user=${user}\n` + await getValue(data, { target: user, allPerms, guild: msg.guildId, user: msg.author.id }));
                 return;
             }
 
-            msg.reply(await getValue(data, msg, { allPerms }));
+            msg.reply(await getValue(data, { allPerms, guild: msg.guildId, user: msg.author.id }));
         }
         else if (action === "set") {
             if (!args[1] || args[2] === undefined) {
@@ -74,11 +77,11 @@ export default function (bot: Bot, module: Module) {
                 data.scope = target.scope;
                 const user = target.user;
 
-                msg.reply(`user=${user}\n` + await setValue(data, args.slice(2).join(" "), msg, { target: user, allPerms }));
+                msg.reply(`user=${user}\n` + await setValue(data, args.slice(2).join(" "), { target: user, allPerms, guild: msg.guildId, user: msg.author.id }));
                 return;
             }
 
-            msg.reply(await setValue(data, args.slice(2).join(" "), msg, { allPerms }));
+            msg.reply(await setValue(data, args.slice(2).join(" "), { allPerms, guild: msg.guildId, user: msg.author.id }));
         }
         else if (action === "clear") {
             if (!args[1]) {
@@ -94,11 +97,11 @@ export default function (bot: Bot, module: Module) {
                 data.scope = target.scope;
                 const user = target.user;
 
-                msg.reply(`user=${user}\n` + await setValue(data, null, msg, { target: user, allPerms }));
+                msg.reply(`user=${user}\n` + await setValue(data, null, { target: user, allPerms, guild: msg.guildId, user: msg.author.id }));
                 return;
             }
 
-            msg.reply(await setValue(data, null, msg, { allPerms }));
+            msg.reply(await setValue(data, null, { allPerms, guild: msg.guildId, user: msg.author.id }));
         }
         else {
             msg.reply(USAGE_ALL);
@@ -126,10 +129,7 @@ export default function (bot: Bot, module: Module) {
         
         return out;
     }
-    async function getValue(value: ValueData, message: Message, opts: GetSetOpts) {
-        if (!message.inGuild()) {
-            return `This can only be used in guilds`;
-        }
+    async function getValue(value: ValueData, opts: GetSetOpts) {
         const storage = bot.configApi.storages.get(value.module);
         if (!storage) return `There's no storage for module ${value.module}!`;
 
@@ -141,19 +141,16 @@ export default function (bot: Bot, module: Module) {
             return `Value ${value.module}.${value.scope}.${value.name} cannot be read`;
         }
 
-        const configurable = (value.scope === "user"   ? storage.user(opts.target ?? message.author)
-                            : value.scope === "guild"  ? storage.guild(opts.target ?? message.guild)
-                            : value.scope === "member" ? storage.member(message.guild, opts.target ?? message.author)
+        const configurable = (value.scope === "user"   ? storage.user(opts.target ?? opts.user)
+                            : value.scope === "guild"  ? storage.guild(opts.target ?? opts.guild)
+                            : value.scope === "member" ? storage.member(opts.guild, opts.target ?? opts.user)
                             : undefined as never) as ConfigurableI<ConfigConfig, ConfigValueScope>;
 
         const stringValue = JSON.stringify(await configurable.get(value.name), null, 4);
 
         return `${value.module}.${value.scope}.${value.name} = ${stringValue}`;
     }
-    async function setValue(data: ValueData, value: string | null, message: Message, opts: GetSetOpts) {
-        if (!message.inGuild()) {
-            return `This can only be used in guilds`;
-        }
+    async function setValue(data: ValueData, value: string | null, opts: GetSetOpts) {
         const storage = bot.configApi.storages.get(data.module);
         if (!storage) return `There's no storage for module ${data.module}!`;
 
@@ -165,16 +162,16 @@ export default function (bot: Bot, module: Module) {
             return `Value ${data.module}.${data.scope}.${data.name} cannot be written`;
         }
         if (!opts.allPerms && "permissions" in valueSchema && valueSchema.permissions) {
-            const member = await bot.getMember(message.guildId, message.author.id);
+            const member = await bot.getMember(opts.guild, opts.user);
             if (!member || !member.member.permissions.has(valueSchema.permissions)) {
                 const bitField = new PermissionsBitField(valueSchema.permissions);
                 return `You don't have permission to edit this value. (requires ${bitField.toArray().join(", ")})`;
             }
         }
 
-        const configurable = (data.scope === "user"   ? storage.user(opts.target ?? message.author)
-                            : data.scope === "guild"  ? storage.guild(opts.target ?? message.guild)
-                            : data.scope === "member" ? storage.member(message.guild, opts.target ?? message.author)
+        const configurable = (data.scope === "user"   ? storage.user(opts.target ?? opts.user)
+                            : data.scope === "guild"  ? storage.guild(opts.target ?? opts.guild)
+                            : data.scope === "member" ? storage.member(opts.guild, opts.target ?? opts.user)
                             : undefined as never) as ConfigurableI<ConfigConfig, ConfigValueScope>;
 
         const castedValue = value === null && valueSchema.default && configurable.useDefaults ? valueSchema.default
@@ -221,9 +218,15 @@ type ValueData = {
 
 type GetSetOpts = {
     allPerms: boolean,
+    user: Snowflake,
+    guild: Snowflake,
     target?: string
 }
-
+function parseScopeFrom(module: string, scope: string, name: string): ValueData {
+    return {
+        module, scope, name, path: []
+    }
+}
 function parseValueName(valueName: string): ValueData {
     const [module, scope, name, ...path] = valueName.split(".");
     
