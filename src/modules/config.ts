@@ -188,7 +188,7 @@ function parseValueName(valueName: string): ValueData {
     }
 }
 
-function isValidScope(scope: string): scope is ConfigValueScope {
+function isValidScope(scope: string): scope is "user" | "guild" {
     return ["user", "guild"].includes(scope);
 }
 
