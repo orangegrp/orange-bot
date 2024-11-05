@@ -148,7 +148,7 @@ export default function (bot: Bot, module: Module) {
         }
         await configurable.set(data.name, castedValue);
 
-        return `Set ${data.module}.${data.scope}.${data.name} = ${value}`;
+        return `Set ${data.module}.${data.scope}.${data.name} = ${castedValue}`;
     }
 
     function checkValueExists(value: ValueData, storage: ConfigStorage<ConfigConfig>): [true, undefined, ConfigValueAny] | [false, string, undefined] {
