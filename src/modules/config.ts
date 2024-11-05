@@ -7,12 +7,14 @@ const FORMAT_MODULES = "`?config modules`"
 const FORMAT_LIST = "`?config list <module>`";
 const FORMAT_GET = "`?config get <module>.<user|guild>.<valuename>`";
 const FORMAT_SET = "`?config set <module>.<user|guild>.<valuename> <value>`";
+const FORMAT_CLEAR = "`?config clear <module>.<user|guild>.<valuename>`";
 
 const USAGE_LIST = `Usage: ${FORMAT_LIST}`;
 const USAGE_GET = `Usage: ${FORMAT_GET}`;
 const USAGE_SET = `Usage: ${FORMAT_SET}`;
+const USAGE_CLEAR = `Usage: ${FORMAT_CLEAR}`;
 
-const USAGE_ALL = `Usage:\n${FORMAT_MODULES}\n${FORMAT_LIST}\n${FORMAT_GET}\n${FORMAT_SET}`;
+const USAGE_ALL = `Usage:\n${FORMAT_MODULES}\n${FORMAT_LIST}\n${FORMAT_GET}\n${FORMAT_SET}\n${FORMAT_CLEAR}`;
 
 export default function (bot: Bot, module: Module) {
     bot.addChatCommand("config", async (msg, args) => {
@@ -55,7 +57,7 @@ export default function (bot: Bot, module: Module) {
             msg.reply(await getValue(data, msg, { allPerms }));
         }
         else if (action === "set") {
-            if (!args[1] || !args[2]) {
+            if (!args[1]) {
                 return msg.reply(USAGE_SET);
             }
 
@@ -65,6 +67,22 @@ export default function (bot: Bot, module: Module) {
                 const user = data.scope.split("=")[1];
                 data.scope = "user";
                 msg.reply(`user=${user}\n` + await setValue(data, args[2], msg, { target: user, allPerms }));
+                return;
+            }
+
+            msg.reply(await setValue(data, args.slice(2).join(" "), msg, { allPerms }));
+        }
+        else if (action === "clear") {
+            if (!args[1]) {
+                return msg.reply(USAGE_CLEAR);
+            }
+
+            const data = parseValueName(args[1])
+
+            if (allPerms && data.scope.startsWith("user=")) {
+                const user = data.scope.split("=")[1];
+                data.scope = "user";
+                msg.reply(`user=${user}\n` + await setValue(data, null, msg, { target: user, allPerms }));
                 return;
             }
 
@@ -104,13 +122,14 @@ export default function (bot: Bot, module: Module) {
 
         const configurable = (value.scope === "user"   ? storage.user(opts.target ?? message.author)
                             : value.scope === "guild"  ? storage.guild(opts.target ?? message.guild)
+                            : value.scope === "member" ? storage.member(message.guild, opts.target ?? message.author)
                             : undefined as never) as ConfigurableI<ConfigConfig, ConfigValueScope>;
 
         const stringValue = JSON.stringify(await configurable.get(value.name), null, 4);
 
         return `${value.module}.${value.scope}.${value.name} = ${stringValue}`;
     }
-    async function setValue(data: ValueData, value: string, message: Message, opts: GetSetOpts) {
+    async function setValue(data: ValueData, value: string | null, message: Message, opts: GetSetOpts) {
         if (!message.inGuild()) {
             return `This can only be used in guilds`;
         }
@@ -134,9 +153,11 @@ export default function (bot: Bot, module: Module) {
 
         const configurable = (data.scope === "user"   ? storage.user(opts.target ?? message.author)
                             : data.scope === "guild"  ? storage.guild(opts.target ?? message.guild)
+                            : data.scope === "member" ? storage.member(message.guild, opts.target ?? message.author)
                             : undefined as never) as ConfigurableI<ConfigConfig, ConfigValueScope>;
 
-        const castedValue = tryCastToType(value, valueSchema.type);
+        const castedValue = value === null && valueSchema.default && configurable.useDefaults ? valueSchema.default
+                          : tryCastToType(value, valueSchema.type);
         
         if (!configurable.checkType(data.name, castedValue)) {
             const type = getValueTypeName(valueSchema.type);
@@ -156,7 +177,9 @@ export default function (bot: Bot, module: Module) {
             return [false, `"${value.scope}" is not a valid config scope. Options: "user", "guild"`, undefined];
         }
 
-        const schema = storage.config[value.scope];
+        const scope = value.scope == "member" ? "user" : value.scope;
+
+        const schema = storage.config[scope];
         if (!schema) {
             return [false, `"${value.module}" doesn't have any values in scope "${value.scope}"!`, undefined];
         }
@@ -188,8 +211,8 @@ function parseValueName(valueName: string): ValueData {
     }
 }
 
-function isValidScope(scope: string): scope is "user" | "guild" {
-    return ["user", "guild"].includes(scope);
+function isValidScope(scope: string): scope is ConfigValueScope {
+    return ["user", "guild", "member"].includes(scope);
 }
 
 function listOptionsFromSchema(module: string, scope: ConfigValueScope, schema: ConfigValues<ConfigValueScope>, showAll: boolean) {
@@ -217,7 +240,8 @@ function getValueTypeName(type: ConfigValueType): string {
         default: return "unknown"
     }
 }
-function tryCastToType<T extends ConfigValueType>(value: string, type: T) {
+function tryCastToType<T extends ConfigValueType>(value: string | null, type: T) {
+    if (value === null) return undefined;
     switch (type) {
         case ConfigValueType.string: 
         case ConfigValueType.user:
