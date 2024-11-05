@@ -47,9 +47,13 @@ export default function (bot: Bot, module: Module) {
 
             const data = parseValueName(args[1])
 
-            if (allPerms && data.scope.startsWith("user=")) {
-                const user = data.scope.split("=")[1];
-                data.scope = "user";
+            if (allPerms && data.scope.includes("@")) {
+                const target = parseTarget(data.scope);
+                if (target.err) return msg.reply(target.err);
+
+                data.scope = target.scope;
+                const user = target.user;
+
                 msg.reply(`user=${user}\n` + await getValue(data, msg, { target: user, allPerms }));
                 return;
             }
@@ -63,9 +67,13 @@ export default function (bot: Bot, module: Module) {
 
             const data = parseValueName(args[1])
 
-            if (allPerms && data.scope.startsWith("user=")) {
-                const user = data.scope.split("=")[1];
-                data.scope = "user";
+            if (allPerms && data.scope.includes("@")) {
+                const target = parseTarget(data.scope);
+                if (target.err) return msg.reply(target.err);
+
+                data.scope = target.scope;
+                const user = target.user;
+
                 msg.reply(`user=${user}\n` + await setValue(data, args.slice(2).join(" "), msg, { target: user, allPerms }));
                 return;
             }
@@ -79,9 +87,13 @@ export default function (bot: Bot, module: Module) {
 
             const data = parseValueName(args[1])
 
-            if (allPerms && data.scope.startsWith("user=")) {
-                const user = data.scope.split("=")[1];
-                data.scope = "user";
+            if (allPerms && data.scope.includes("@")) {
+                const target = parseTarget(data.scope);
+                if (target.err) return msg.reply(target.err);
+
+                data.scope = target.scope;
+                const user = target.user;
+
                 msg.reply(`user=${user}\n` + await setValue(data, null, msg, { target: user, allPerms }));
                 return;
             }
@@ -92,6 +104,15 @@ export default function (bot: Bot, module: Module) {
             msg.reply(USAGE_ALL);
         }
     })
+    function parseTarget(string: string) {
+        const match = string.match(/^([^@< ]+)(?:@| ?<@!?)?(\d+)>?/);
+        if (!match) return { err: `Invalid target: ${string}` } as const;
+        const scope = match[1];
+        const user = match[2];
+        if (!isValidScope(scope)) return { err: `Invalid scope: ${scope}` } as const;
+
+        return { scope, user } as const;
+    }
     function listOptions(moduleName: string, listAll: boolean) {
         const storage = bot.configApi.storages.get(moduleName);
         if (!storage) return `There's no storage for module ${moduleName}!`;
