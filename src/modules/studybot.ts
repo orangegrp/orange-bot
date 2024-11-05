@@ -30,8 +30,8 @@ const studybotCommand = {
             args: {
                 examref: {
                     type: ArgType.STRING,
-                    description: "Choose the exam you'd like to take",
-                    required: true,
+                    description: "Choose the exam you'd like to take (or leave blank for random)",
+                    required: false,
                     autocomplete: true
                 }
             }
@@ -87,7 +87,7 @@ export default async function (bot: Bot, module: Module) {
 
             await playSolo(interaction, args.examref, channel);
         } else if (args.subCommand === "question") {
-            await questionMode(args.examref, interaction);
+            await questionMode(args.examref ?? "", interaction);
         }
     });
 

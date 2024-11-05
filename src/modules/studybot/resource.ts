@@ -64,7 +64,7 @@ async function getItem(name: string, bucket: "studybot-questions" | "studybot-co
 }
 
 export const S3_PUBLIC_MEDIA_BUCKET = `${environment.SUPABASE_SERVER}/storage/v1/object/public/studybot-media`;
-export { studyBotQuestions, studyBotMaterials, getClosestMatch, getItem };
+export { studyBotQuestions, studyBotMaterials, getClosestMatch, getItem, getAllQuestions };
 
 export type StudyBotMultiChoiceQuestion = {
     ref: string,
