@@ -5,8 +5,8 @@ import { ConfigConfig, ConfigValueAny, ConfigValues, ConfigValueScope, RealValue
 
 const FORMAT_MODULES = "`?config modules`"
 const FORMAT_LIST = "`?config list <module>`";
-const FORMAT_GET = "`?config get <module>.<user|guild|global>.<valuename>`";
-const FORMAT_SET = "`?config set <module>.<user|guild|global>.<valuename> <value>`";
+const FORMAT_GET = "`?config get <module>.<user|guild>.<valuename>`";
+const FORMAT_SET = "`?config set <module>.<user|guild>.<valuename> <value>`";
 
 const USAGE_LIST = `Usage: ${FORMAT_LIST}`;
 const USAGE_GET = `Usage: ${FORMAT_GET}`;
@@ -84,8 +84,6 @@ export default function (bot: Bot, module: Module) {
             out += listOptionsFromSchema(moduleName, "user", storage.config.user, listAll) + "\n";
         if (storage.config.guild)
             out += listOptionsFromSchema(moduleName, "guild", storage.config.guild, listAll) + "\n";
-        if (storage.config.global && listAll)
-            out += listOptionsFromSchema(moduleName, "global", storage.config.global, listAll) + "\n";
         
         return out;
     }
@@ -106,7 +104,7 @@ export default function (bot: Bot, module: Module) {
 
         const configurable = (value.scope === "user"   ? storage.user(opts.target ?? message.author)
                             : value.scope === "guild"  ? storage.guild(opts.target ?? message.guild)
-                            : storage.global()) as ConfigurableI<ConfigConfig, ConfigValueScope>;
+                            : undefined as never) as ConfigurableI<ConfigConfig, ConfigValueScope>;
 
         const stringValue = JSON.stringify(await configurable.get(value.name), null, 4);
 
@@ -136,7 +134,7 @@ export default function (bot: Bot, module: Module) {
 
         const configurable = (data.scope === "user"   ? storage.user(opts.target ?? message.author)
                             : data.scope === "guild"  ? storage.guild(opts.target ?? message.guild)
-                            : storage.global()) as ConfigurableI<ConfigConfig, ConfigValueScope>;
+                            : undefined as never) as ConfigurableI<ConfigConfig, ConfigValueScope>;
 
         const castedValue = tryCastToType(value, valueSchema.type);
         
@@ -155,7 +153,7 @@ export default function (bot: Bot, module: Module) {
 
     function checkValueExists(value: ValueData, storage: ConfigStorage<ConfigConfig>): [true, undefined, ConfigValueAny] | [false, string, undefined] {
         if (!isValidScope(value.scope)) {
-            return [false, `"${value.scope}" is not a valid config scope. Options: "user", "guild", "global"`, undefined];
+            return [false, `"${value.scope}" is not a valid config scope. Options: "user", "guild"`, undefined];
         }
 
         const schema = storage.config[value.scope];
@@ -191,7 +189,7 @@ function parseValueName(valueName: string): ValueData {
 }
 
 function isValidScope(scope: string): scope is ConfigValueScope {
-    return ["user", "guild", "global"].includes(scope);
+    return ["user", "guild"].includes(scope);
 }
 
 function listOptionsFromSchema(module: string, scope: ConfigValueScope, schema: ConfigValues<ConfigValueScope>, showAll: boolean) {
