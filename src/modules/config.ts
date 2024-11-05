@@ -57,7 +57,7 @@ export default function (bot: Bot, module: Module) {
             msg.reply(await getValue(data, msg, { allPerms }));
         }
         else if (action === "set") {
-            if (!args[1]) {
+            if (!args[1] || args[2] === undefined) {
                 return msg.reply(USAGE_SET);
             }
 
@@ -66,7 +66,7 @@ export default function (bot: Bot, module: Module) {
             if (allPerms && data.scope.startsWith("user=")) {
                 const user = data.scope.split("=")[1];
                 data.scope = "user";
-                msg.reply(`user=${user}\n` + await setValue(data, args[2], msg, { target: user, allPerms }));
+                msg.reply(`user=${user}\n` + await setValue(data, args.slice(2).join(" "), msg, { target: user, allPerms }));
                 return;
             }
 
@@ -86,7 +86,7 @@ export default function (bot: Bot, module: Module) {
                 return;
             }
 
-            msg.reply(await setValue(data, args.slice(2).join(" "), msg, { allPerms }));
+            msg.reply(await setValue(data, null, msg, { allPerms }));
         }
         else {
             msg.reply(USAGE_ALL);
