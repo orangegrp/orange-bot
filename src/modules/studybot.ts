@@ -91,28 +91,20 @@ export default async function (bot: Bot, module: Module) {
         }
     });
 
+    module.addAutocomplete(studybotCommand, "examref", async interaction => {
+        const option = interaction.options.getFocused(true);
+        logger.verbose(`Autocomplete for /${interaction.commandName} ${option.name}: ${option.value}`);
+        return (await studyBotQuestions.get(null) ?? [""]);
+    });
+    module.addAutocomplete(studybotCommand, "matref", async interaction => {
+        const option = interaction.options.getFocused(true);
+        logger.verbose(`Autocomplete for /${interaction.commandName} ${option.name}: ${option.value}`);
+        return await studyBotMaterials.get(null) ?? [""];
+    });
+
     bot.client.on("interactionCreate", async interaction => {
         if (!module.handling) return;
-        if (interaction.isAutocomplete()) {
-            const option = interaction.options.getFocused(true);
-            logger.verbose(`Autocomplete for /${interaction.commandName} ${option.name}: ${option.value}`);
-            if (interaction.commandName !== "studybot" && !option.name.endsWith("ref")) {
-                logger.verbose(`Ignoring autocomplete for /${interaction.commandName} ${option.name}: ${option.value}`);
-                return;
-            }
-
-            let target = option.name === "examref" ? studyBotQuestions : studyBotMaterials;
-            let choices = await getClosestMatch(option.value, (await target.get(null) ?? []));
-
-            await interaction.respond(
-                choices.map(choice =>
-                ({
-                    name: choice.replace(".json", ""),
-                    value: choice
-                })
-                )
-            )
-        } else if (interaction.isButton() && interaction.customId.startsWith("sb_q_")) {
+        if (interaction.isButton() && interaction.customId.startsWith("sb_q_")) {
             await handleQuestionResponse(interaction);
         }
         else if (interaction.isButton() && interaction.customId.startsWith("sb_")) {
