@@ -75,7 +75,6 @@ async function sendQuestion(game: StudyBotSoloGameSession, content: string | und
  */
 async function playSolo(interaction: ChatInputCommandInteraction<CacheType>, examref: string, channel: StudyBotChannel) {
     const game_id = crypto.randomBytes(4).toString('hex');
-    const exam_code = examref.replace(".json", "");
     const uid = interaction.user.id;
     const resource = await getItem(examref, "studybot-questions");
     const currentQuestion = 0;
@@ -93,22 +92,22 @@ async function playSolo(interaction: ChatInputCommandInteraction<CacheType>, exa
     }, resource.metaInfo.durationMins * 60 * 1000);
 
     const thread = "threads" in channel ? await channel.threads.create({
-        name: `${interaction.user.displayName}'s ${exam_code} exam ⸺ REF${game_id}`,
+        name: `${interaction.user.displayName}'s ${examref} exam ⸺ REF${game_id}`,
         autoArchiveDuration: ThreadAutoArchiveDuration.OneDay,
-        reason: `${interaction.user.displayName}'s ${exam_code} exam ⸺ REF${game_id}`
+        reason: `${interaction.user.displayName}'s ${examref} exam ⸺ REF${game_id}`
     }) : undefined;
 
-    const message = await (thread ?? channel).send({ content: `<@${uid}>, you've started the **${exam_code}** exam. Exam attempt identifier: \`REF${game_id}\`` });
+    const message = await (thread ?? channel).send({ content: `<@${uid}>, you've started the **${examref}** exam. Exam attempt identifier: \`REF${game_id}\`` });
 
     await interaction.reply({
-        ephemeral: false, content: `:clock1: You've started the exam, **${exam_code}**. You have up to **${resource.metaInfo.durationMins} minutes** to answer **all** questions.`,
+        ephemeral: false, content: `:clock1: You've started the exam, **${examref}**. You have up to **${resource.metaInfo.durationMins} minutes** to answer **all** questions.`,
         components: [
             new ActionRowBuilder<ButtonBuilder>().addComponents(new ButtonBuilder({ label: "Go to Exam", style: ButtonStyle.Link, url: message.url }))
         ]
     });
 
     GAME_SESSIONS.set(game_id, {
-        id: game_id, examref: exam_code, originalMessage: message, messagesStack: [],
+        id: game_id, examref: examref, originalMessage: message, messagesStack: [],
         uid: uid, resource: resource, currentQuestion: currentQuestion,
         metrics: { correct: 0, incorrect: 0, wrongQuestions: [] }, questionFeedback: []
     });

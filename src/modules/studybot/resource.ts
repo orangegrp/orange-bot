@@ -34,7 +34,7 @@ async function getAllStudyMaterials(): Promise<string[]> {
 }
 
 async function getItem(name: string, bucket: "studybot-questions" | "studybot-content"): Promise<StudyBotJson | undefined> {
-    const { data, error } = await (await supabase()).storage.from(bucket).download(name);
+    const { data, error } = await (await supabase()).storage.from(bucket).download(name + ".json");
 
     if (error) {
         logger.warn(`Failed to download content. ${error}`);
