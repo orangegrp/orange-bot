@@ -124,29 +124,6 @@ export default async function (bot: Bot, module: Module) {
         msg.channel.send("cleanup done.");
     });
 
-    bot.client.on("interactionCreate", async interaction => {
-        if (!module.handling) return;
-        if (interaction.isAutocomplete()) {
-            const option = interaction.options.getFocused(true);
-            logger.verbose(`Autocomplete for /${interaction.commandName} ${option.name}: ${option.value}`);
-            if (interaction.commandName !== "run" && option.name !== "runtime") {
-                logger.verbose(`Ignoring autocomplete for /${interaction.commandName} ${option.name}: ${option.value}`);
-                return;
-            }
-
-            let choices = await getClosestEnvString(option.value);
-
-            await interaction.respond(
-                choices.map(choice =>
-                ({
-                    name: choice,
-                    value: choice
-                })
-                )
-            )
-        }
-    });
-
     module.addCommand(runCommand, async (interaction, args) => {
         if (args.subCommand == "linux") {
             await handleLinuxRun(interaction, args.command);
@@ -220,6 +197,17 @@ export default async function (bot: Bot, module: Module) {
             await handleCodeRun(interaction, source_code, args.runtime, args.stdin ?? "", args.argv ?? "");
         }
     });
+    module.addAutocomplete(runCommand, "runtime", async interaction => {
+        const option = interaction.options.getFocused(true);
+        logger.verbose(`Autocomplete for /${interaction.commandName} ${option.name}: ${option.value}`);
+
+        let choices = await getClosestEnvString(option.value);
+
+        return choices.map(choice => ({
+                name: choice,
+                value: choice
+        }))
+    })
 
     async function handleLinuxRun(interaction: ChatInputCommandInteraction<CacheType>, command: string) {
         await interaction.deferReply();
