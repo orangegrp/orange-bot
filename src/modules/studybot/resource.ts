@@ -1,26 +1,12 @@
 import { CachedLookup } from "orange-bot-base";
 import { supabase } from "../../core/supabase.js";
 import { environment, getLogger } from "orange-common-lib";
-import { getClosestMatches } from "../../core/functions.js";
 
 const logger = getLogger("StudyBot Resource Manager");
 
 const studyBotQuestions: CachedLookup<null, string[]> = new CachedLookup(async () => await getAllQuestions());
 const studyBotMaterials: CachedLookup<null, string[]> = new CachedLookup(async () => await getAllStudyMaterials());
 
-async function getClosestMatch(input: string, source: string[]): Promise<string[]> {
-    if (source === undefined) {
-        return [] as string[];
-    }
-
-    let result = getClosestMatches(input, source, { similarityThreshold: 20, bonus: 10, sequenceLength: 5});
-
-    if (result === undefined) {
-        return [] as string[];
-    }
-
-    return result;
-}
 
 async function getAllItems(bucket: string): Promise<string[]> {
     const { data, error } = await (await supabase()).storage.from(bucket).list();
@@ -64,7 +50,7 @@ async function getItem(name: string, bucket: "studybot-questions" | "studybot-co
 }
 
 export const S3_PUBLIC_MEDIA_BUCKET = `${environment.SUPABASE_SERVER}/storage/v1/object/public/studybot-media`;
-export { studyBotQuestions, studyBotMaterials, getClosestMatch, getItem, getAllQuestions };
+export { studyBotQuestions, studyBotMaterials, getItem, getAllQuestions };
 
 export type StudyBotMultiChoiceQuestion = {
     ref: string,

@@ -5,7 +5,7 @@ import type { Bot, Command, Module } from "orange-bot-base";
 import { CommandExecutor } from "./linux-run/commandExecutor.js";
 import { ArgType } from "orange-bot-base";
 import { CodeRunner } from "./code-runner/codeRunner.js";
-import { getClosestEnvString, getRunEnvInfo, languages } from "./code-runner/languages.js";
+import { crsLanguages, getRunEnvInfo, languages } from "./code-runner/languages.js";
 
 const logger = getLogger("/run");
 
@@ -201,12 +201,7 @@ export default async function (bot: Bot, module: Module) {
         const option = interaction.options.getFocused(true);
         logger.verbose(`Autocomplete for /${interaction.commandName} ${option.name}: ${option.value}`);
 
-        let choices = await getClosestEnvString(option.value);
-
-        return choices.map(choice => ({
-                name: choice,
-                value: choice
-        }))
+        return await crsLanguages.get(null) ?? [""];
     })
 
     async function handleLinuxRun(interaction: ChatInputCommandInteraction<CacheType>, command: string) {

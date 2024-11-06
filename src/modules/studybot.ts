@@ -1,6 +1,6 @@
 import { ArgType, Bot, Command, DisplayError, Module } from "orange-bot-base";
 import { getLogger } from "orange-common-lib";
-import { getClosestMatch, studyBotMaterials, studyBotQuestions } from "./studybot/resource.js";
+import { studyBotMaterials, studyBotQuestions } from "./studybot/resource.js";
 import { playSolo, processResponse } from "./studybot/exam/solo.js";
 import { getConfigStorage } from "./studybot/config.js";
 import { Channel } from "discord.js";
