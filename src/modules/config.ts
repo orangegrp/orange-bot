@@ -57,54 +57,6 @@ const configCommand = {
 } satisfies Command;
 
 export default function (bot: Bot, module: Module) {
-    bot.client.on("interactionCreate", interaction => {
-        if (!module.handling) return;
-        if (!interaction.isAutocomplete()) return;
-        if (interaction.commandName !== configCommand.name) return;
-        const focused = interaction.options.getFocused(true);
-
-        const allPerms = interaction.user.id === "239170246118735873"  // alex
-                      || interaction.user.id === "321921856611418125"  // topias
-                      || interaction.user.id === "912484519301500948"; // persist
-        
-        if (focused.name === "module") {
-            const modules = Array.from(bot.configApi.storages.keys());
-            interaction.respond(modules.map(name => ({ name: name, value: name })));
-        }
-        else if (focused.name === "scope") {
-            const moduleName = interaction.options.getString("module") ?? "";
-            const storage = bot.configApi.storages.get(moduleName);
-            if (!storage) {
-                interaction.respond([{ name: `There's no storage for module ${moduleName}!`, value: "none" }]);
-                return;
-            }
-            const scopes = Object.keys(storage.config).filter(scope => ["guild", "user", "member"].includes(scope));
-            interaction.respond(scopes.map(name => ({ name: name, value: name })));
-        }
-        else if (focused.name === "name") {
-            const moduleName = interaction.options.getString("module") ?? "";
-            let scopeName = interaction.options.getString("scope") ?? "";
-            const storage = bot.configApi.storages.get(moduleName);
-            if (!storage) {
-                interaction.respond([{ name: `There's no storage for module ${moduleName}!`, value: "none" }]);
-                return;
-            }
-            if (scopeName.includes("@") && allPerms) {
-                scopeName = scopeName.split("@")[0];
-            }
-            if (!isValidScope(scopeName)) {
-                interaction.respond([{ name: `Scope ${scopeName} is not valid!`, value: "none" }]);
-                return;
-            }
-            const configSchema = storage.config[scopeName === "member" ? "user" : scopeName];
-            if (!configSchema) {
-                interaction.respond([{ name: `Module ${moduleName} doesn't have scope ${scopeName}!`, value: "none" }]);
-                return;
-            }
-            const names = Object.keys(configSchema);
-            interaction.respond(names.map(name => ({ name: `[${name}] ${configSchema[name].displayName} (${getValueTypeName(configSchema[name].type)})`, value: name })));
-        }
-    });
     module.addCommand(configCommand, async (interaction, args) => {
         if (!interaction.inGuild()) {
             interaction.reply("`This can only be used in guilds`");
@@ -128,6 +80,44 @@ export default function (bot: Bot, module: Module) {
             interaction.reply(await setValue(parseScopeFrom(args.module, args.scope, args.name), null, { allPerms, user: interaction.user.id, guild: interaction.guildId, clear: true }))
         }
     });
+    module.addAutocomplete(configCommand, "module", interaction => {
+        return Array.from(bot.configApi.storages.keys());
+    });
+    module.addAutocomplete(configCommand, "scope", interaction => {
+        const moduleName = interaction.options.getString("module") ?? "";
+        const storage = bot.configApi.storages.get(moduleName);
+        if (!storage) {
+            return [{ name: `There's no storage for module ${moduleName}!`, value: "none" }]
+        }
+        const scopes = Object.keys(storage.config).filter(scope => ["guild", "user", "member"].includes(scope));
+        
+        return scopes;
+    });
+    module.addAutocomplete(configCommand, "name", interaction => {
+        const allPerms = interaction.user.id === "239170246118735873"  // alex
+                      || interaction.user.id === "321921856611418125"  // topias
+                      || interaction.user.id === "912484519301500948"; // persist
+
+        const moduleName = interaction.options.getString("module") ?? "";
+        let scopeName = interaction.options.getString("scope") ?? "";
+        const storage = bot.configApi.storages.get(moduleName);
+        if (!storage) {
+            return [{ name: `There's no storage for module ${moduleName}!`, value: "none" }];
+        }
+        if (scopeName.includes("@") && allPerms) {
+            scopeName = scopeName.split("@")[0];
+        }
+        if (!isValidScope(scopeName)) {
+            return [{ name: `Scope ${scopeName} is not valid!`, value: "none" }];
+        }
+        const configSchema = storage.config[scopeName === "member" ? "user" : scopeName];
+        if (!configSchema) {
+            return [{ name: `Module ${moduleName} doesn't have scope ${scopeName}!`, value: "none" }];
+        }
+        const names = Object.keys(configSchema);
+        
+        return names.map(name => ({ name: `[${name}] ${configSchema[name].displayName} (${getValueTypeName(configSchema[name].type)})`, value: name }));
+    })
     bot.addChatCommand("config", async (msg, args) => {
         if (!module.handling) return;
         if (!msg.inGuild()) {
