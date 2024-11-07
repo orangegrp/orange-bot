@@ -77,7 +77,7 @@ export default function (bot: Bot, module: Module) {
             interaction.reply(await setValue(parseScopeFrom(args.module, args.scope, args.name), args.value, { allPerms, user: interaction.user.id, guild: interaction.guildId }))
         }
         else if (args.action === "clear") {
-            interaction.reply(await setValue(parseScopeFrom(args.module, args.scope, args.name), null, { allPerms, user: interaction.user.id, guild: interaction.guildId }))
+            interaction.reply(await setValue(parseScopeFrom(args.module, args.scope, args.name), null, { allPerms, user: interaction.user.id, guild: interaction.guildId, clear: true }))
         }
     });
     module.addAutocomplete(configCommand, "module", interaction => {
@@ -198,18 +198,18 @@ export default function (bot: Bot, module: Module) {
                 data.scope = target.scope;
                 const user = target.user;
 
-                msg.reply(`user=${user}\n` + await setValue(data, null, { target: user, allPerms, guild: msg.guildId, user: msg.author.id }));
+                msg.reply(`user=${user}\n` + await setValue(data, null, { target: user, allPerms, guild: msg.guildId, user: msg.author.id, clear: true }));
                 return;
             }
 
-            msg.reply(await setValue(data, null, { allPerms, guild: msg.guildId, user: msg.author.id }));
+            msg.reply(await setValue(data, null, { allPerms, guild: msg.guildId, user: msg.author.id, clear: true }));
         }
         else {
             msg.reply(USAGE_ALL);
         }
     })
     function parseTarget(string: string) {
-        const match = string.match(/^([^@< ]+)(?:@| ?<@!?)?(\d+)>?/);
+        const match = string.match(/^([^@< ]+)(?:@| ?<@!?)?(\d+|override)>?/);
         if (!match) return { err: `Invalid target: ${string}` } as const;
         const scope = match[1];
         const user = match[2];
@@ -275,9 +275,14 @@ export default function (bot: Bot, module: Module) {
                             : data.scope === "member" ? storage.member(opts.guild, opts.target ?? opts.user)
                             : undefined as never) as ConfigurableI<ConfigConfig, ConfigValueScope>;
 
-        const castedValue = value === null && valueSchema.default && configurable.useDefaults ? valueSchema.default
+        const castedValue = value === null && valueSchema.default ? valueSchema.default
                           : tryCastToType(value, valueSchema.type);
         
+        if (opts.clear) {
+            configurable.clear(data.name);
+            return `Cleared ${data.module}.${data.scope}.${data.name}`;
+        }
+
         if (!configurable.checkType(data.name, castedValue)) {
             const type = getValueTypeName(valueSchema.type);
             return `Invalid type: "${value}" is not assignable to ${type}!`;
@@ -322,6 +327,7 @@ type GetSetOpts = {
     user: Snowflake,
     guild: Snowflake,
     target?: string
+    clear?: boolean
 }
 function parseScopeFrom(module: string, scope: string, name: string): ValueData {
     return {
