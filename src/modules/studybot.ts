@@ -94,12 +94,12 @@ export default async function (bot: Bot, module: Module) {
     module.addAutocomplete(studybotCommand, "examref", async interaction => {
         const option = interaction.options.getFocused(true);
         logger.verbose(`Autocomplete for /${interaction.commandName} ${option.name}: ${option.value}`);
-        return (await studyBotQuestions.get(null) ?? [""]);
+        return (await studyBotQuestions.get(null) ?? [""]).map(name => name.replace(/\.json$/i, ""));
     });
     module.addAutocomplete(studybotCommand, "matref", async interaction => {
         const option = interaction.options.getFocused(true);
         logger.verbose(`Autocomplete for /${interaction.commandName} ${option.name}: ${option.value}`);
-        return await studyBotMaterials.get(null) ?? [""];
+        return (await studyBotMaterials.get(null) ?? [""].map(name => name.replace(/\.json$/i, "")));
     });
 
     bot.client.on("interactionCreate", async interaction => {
