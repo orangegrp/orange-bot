@@ -1,9 +1,8 @@
-import { Bot, Module } from "orange-bot-base";
+import { Bot, ConfigConfig, ConfigStorage, ConfigValueType, Module } from "orange-bot-base";
 import scheduler from "node-schedule";
 import { ButtonStyle, ComponentType, Guild, GuildMember, Message, SnowflakeUtil } from "discord.js";
 import { sleep } from "orange-common-lib";
 import { getLogger } from "orange-common-lib";
-import { environment } from "orange-common-lib";
 
 const logger = getLogger("autokick");
 
@@ -14,7 +13,6 @@ async function getAllPrunableMembers(guild: Guild, bot: Bot) {
 
 async function checkIfMemberSentMessageRecently(member: GuildMember, guild: Guild, bot: Bot, timeout: number = 1 * 1 * 24 * 60 * 60 * 1000,) {
     const channels = await guild.channels.fetch();
-    let lastMessage: Message | undefined = undefined;
     for (const [_, channel] of channels) {
         if (!channel) continue;
         // this is a nicer way to filter, but sometimes it thinks it doesn't have perms and skips channels, so lets just catch the error and ignore
@@ -26,28 +24,39 @@ async function checkIfMemberSentMessageRecently(member: GuildMember, guild: Guil
             const messages = await channel.messages.fetch({ after: startTime });
             for (const [_, message] of messages.filter(m => m.author?.id === member.id)) {
                 //logger.verbose(`${message.author?.displayName} on ${message.createdTimestamp} at ${Date.now() - message.createdTimestamp} in ${message.channel.name} said "${message.content}"`);
-                if (Date.now() - message.createdTimestamp < timeout) return { active: true, lastMessage: message };
+                if (Date.now() - message.createdTimestamp < timeout) return true;
             }
-            const allMessages = await channel.messages.fetch();
-            if (allMessages) {
-                const filtered = allMessages.filter(m => m.author?.id === member.id);
-                lastMessage = filtered.last();
-            }
-
-            await sleep(100); // add delay to prevent discord from rate limiting
+            await sleep(50); // add delay to prevent discord from rate limiting
         }
         catch { /* ignore */ }
     }
 
-    return { active: false, lastMessage: lastMessage };
+    return false;
 }
+
+const autoKickConfigManifest = {
+    name: "autokick",
+    displayName: "Autokick Notifier",
+    guild: {
+        autokickChannel: {
+            type: ConfigValueType.channel,
+            displayName: "Autokick Channel",
+            description: "Channel to send autokick notifications in",
+            permissions: "SendMessages"
+        }
+    }
+} satisfies ConfigConfig;
+
+let autoKickConfig: ConfigStorage<typeof autoKickConfigManifest> | undefined;
 
 async function main(bot: Bot, module: Module) {
     //if (!module.handling) return;
+    if (!autoKickConfig) autoKickConfig = new ConfigStorage(autoKickConfigManifest, bot);
+    await autoKickConfig.waitForReady();
 
     await sleep(10000);
 
-    const member_list: { member: GuildMember, lastMessage: Message | undefined }[] = [];
+    const member_list: { member: GuildMember }[] = [];
 
     logger.info("Checking for members that are inactive ...");
 
@@ -59,14 +68,14 @@ async function main(bot: Bot, module: Module) {
             if (member.user.bot) continue;
             if (member.user.id === bot.client.user?.id) continue;
 
-            const { active, lastMessage } = await checkIfMemberSentMessageRecently(member, guild, bot)
+            const active = await checkIfMemberSentMessageRecently(member, guild, bot)
             if (active) {
                 logger.log(`Member sent message recently ${member.user.tag} (${member.id})`);
             } else {
                 logger.log(`Member did not send message recently ${member.user.tag} (${member.id})`);
 
-                if (member_list.includes({ member: member, lastMessage })) continue;
-                member_list.push({ member: member, lastMessage: lastMessage });
+                if (member_list.includes({ member: member })) continue;
+                member_list.push({ member: member });
             }
         }
         
@@ -75,14 +84,16 @@ async function main(bot: Bot, module: Module) {
 
     logger.ok("The pruning has completed. Sending out notifications now ...");
 
-    for (const { member, lastMessage } of member_list) {
+    for (const { member } of member_list) {
         await sleep(1000);
-        await onMemberInActive(bot, module, member, lastMessage?.createdTimestamp !== undefined ? new Date(lastMessage.createdTimestamp) : undefined);    
+        await onMemberInActive(bot, module, member);    
     }
 }
 
-async function onMemberInActive(bot: Bot, module: Module, member: GuildMember, lastActive: Date | undefined) {
-    const notif_channel = await bot.client.channels.fetch(environment.AUTOKICK_CHANNEL);
+async function onMemberInActive(bot: Bot, module: Module, member: GuildMember) {
+    const notif_channel_id = await autoKickConfig?.guild(member.guild).get("autokickChannel");
+    if (!notif_channel_id) { logger.error("Autokick channel not set. Cannot send notifications!"); return; }
+    const notif_channel = await bot.client.channels.fetch(notif_channel_id);
     if (!notif_channel) return;
 
     if (notif_channel.isTextBased()) {
@@ -92,7 +103,6 @@ async function onMemberInActive(bot: Bot, module: Module, member: GuildMember, l
                 thumbnail: { url: member.user.avatarURL() || "" },
                 description: `<@${member.user.id}> has not engaged with the community recently.`,
                 fields: [ { name: "Joined", value: member.joinedAt?.toUTCString() ?? "Unknown" },
-                          { name: "Last Active", value: lastActive?.toUTCString() ?? "Unknown" }
                  ],
             }],
             components: [
@@ -120,6 +130,7 @@ async function onMemberInActive(bot: Bot, module: Module, member: GuildMember, l
 
 export default function (bot: Bot, module: Module) {
     //if (!module.handling) return;
+    autoKickConfig = new ConfigStorage(autoKickConfigManifest, bot);
 
     bot.client.on("interactionCreate", async interaction => {
         //if (!module.handling) return;
