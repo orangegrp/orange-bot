@@ -18,7 +18,7 @@ async function getAllItems(bucket: string): Promise<string[]> {
 
     if (data) {
         console.log(data);
-        return data.map(item => item.name);
+        return data.map(item => item.name.replace(/\.json$/, ""));
     } else {
         logger.warn("Failed to list content. `data` was undefined.");
         return [];
