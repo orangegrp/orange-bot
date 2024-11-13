@@ -44,8 +44,9 @@ async function checkIfMemberSentMessageRecently(member: GuildMember, guild: Guil
             const startTime = SnowflakeUtil.generate({ timestamp: Date.now() - timeout }).toString();
             const messages = await channel.messages.fetch({ after: startTime });
             for (const [_, message] of messages.filter(m => m.author?.id === member.id)) {
+                setLastActive(message); // store this in the db so we don't need to find it again!
+
                 if (Date.now() - message.createdTimestamp < timeout) {
-                    setLastActive(message); // store this in the db so we don't need to find it again!
                     return true;
                 }
             }
