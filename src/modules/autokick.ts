@@ -26,8 +26,14 @@ async function getAllPrunableMembers(guild: Guild, bot: Bot) {
 async function checkIfMemberSentMessageRecently(member: GuildMember, guild: Guild, timeout: number = 2 * 7 * 24 * 60 * 60 * 1000,) {
     if (autoKickConfig) {
         // First, check the db for any known timestamps
-        const lastActive = await autoKickConfig.member(guild, member).get("lastActive");
-        if (Date.now() - lastActive < timeout) {
+        const memberConfig = autoKickConfig.member(guild, member);
+
+        if (await memberConfig.get("whitelisted")) {
+            logger.verbose(`Ignored whitelisted member ${member.user.tag} (${member.id})`);
+            return true;
+        }
+        
+        if (Date.now() - await memberConfig.get("lastActive") < timeout) {
             return true;
         }
     }
@@ -85,6 +91,13 @@ const autoKickConfigManifest = {
             description: "When were you last active?",
             uiVisibility: "readonly",
             default: 0,
+        },
+        whitelisted: {
+            type: ConfigValueType.boolean,
+            displayName: "Whitelisted",
+            description: "Users that are whitelisted will be ignored in future autokicks",
+            uiVisibility: "readonly",
+            default: false,
         }
     }
 } satisfies ConfigConfig;
@@ -147,7 +160,8 @@ async function onMemberInActive(bot: Bot, member: GuildMember) {
                     type: ComponentType.ActionRow,
                     components: [
                         { type: ComponentType.Button, label: "Kick", style: ButtonStyle.Danger, customId: `ak_k_${member.id}` },
-                        { type: ComponentType.Button, label: "Pardon", style: ButtonStyle.Success, customId: `ak_p_${member.id}` }
+                        { type: ComponentType.Button, label: "Ignore", style: ButtonStyle.Success, customId: `ak_p_${member.id}` },
+                        { type: ComponentType.Button, label: "Whitelist", style: ButtonStyle.Primary, customId: `ak_w_${member.id}` },
                     ]
                 }
             ]
@@ -163,6 +177,9 @@ export default async function (bot: Bot, module: Module) {
     bot.client.on("interactionCreate", async interaction => {
         //if (!module.handling) return;
         if (interaction.isButton()) {
+            if (!interaction.inGuild()) {
+                interaction.reply({ content: "This can't be used outside guilds", ephemeral: true });
+            }
             if (interaction.customId.startsWith("ak_k_")) {
                 if (!interaction.memberPermissions?.has("KickMembers")) {
                     await interaction.reply({ content: "You do not have permission to kick members.", ephemeral: true });
@@ -175,6 +192,14 @@ export default async function (bot: Bot, module: Module) {
             } else if (interaction.customId.startsWith("ak_p_")) {
                 const member = await bot.client.guilds.cache.get(interaction.guildId ?? "")?.members.fetch(interaction.customId.split("_")[2]);
                 await interaction.update({ content: `:scales: <@${interaction.user.id}> has pardoned **${member?.user.username}**.`, embeds: [], components: [] });
+            } else if (interaction.customId.startsWith("ak_w_")) {
+                const member = await bot.client.guilds.cache.get(interaction.guildId ?? "")?.members.fetch(interaction.customId.split("_")[2]);
+                if (!member) {
+                    await interaction.reply({ content: "Member not found!", ephemeral: true });
+                    return;
+                }
+                await autoKickConfig?.member(member.guild, member.id).set("whitelisted", true);
+                await interaction.update({ content: `:roll_of_paper: <@${interaction.user.id}> has whitelisted **${member?.user.username}**.\n(He won't show up in autokicks again)`, embeds: [], components: [] });
             }
         }
     });
