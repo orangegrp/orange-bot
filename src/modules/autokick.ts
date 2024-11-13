@@ -48,7 +48,8 @@ const autoKickConfigManifest = {
             type: ConfigValueType.channel,
             displayName: "Autokick Channel",
             description: "Channel to send autokick notifications in",
-            permissions: "SendMessages"
+            permissions: "ManageChannels"
+        }
         }
     }
 } satisfies ConfigConfig;
