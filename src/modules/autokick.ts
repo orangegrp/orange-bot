@@ -1,4 +1,4 @@
-import { Bot, ConfigConfig, ConfigStorage, ConfigValueType, Module } from "orange-bot-base";
+import { ArgType, Bot, Command, ConfigConfig, ConfigStorage, ConfigValueType, Module } from "orange-bot-base";
 import { ButtonStyle, ComponentType, Guild, GuildMember, Message, SnowflakeUtil } from "discord.js";
 import { sleep, getLogger } from "orange-common-lib";
 import scheduler from "node-schedule";
@@ -169,6 +169,38 @@ async function onMemberInActive(bot: Bot, member: GuildMember) {
     }
 }
 
+const autokickCommand = {
+    name: "autokick",
+    description: "Manage autokick",
+    options: {
+        whitelist: {
+            description: "Manage autokick whitelist",
+            args: {
+                action: {
+                    description: "Whitelist action",
+                    type: ArgType.STRING,
+                    choices: [{
+                        name: "List whitelisted users",
+                        value: "list"
+                    }, {
+                        name: "Add user to whitelist",
+                        value: "add"
+                    }, {
+                        name: "Remove user from whitelist",
+                        value: "remove"
+                    }],
+                    required: true
+                },
+                user: {
+                    description: "User to add to or remove from whitelist",
+                    type: ArgType.USER,
+                    required: false
+                }
+            }
+        }
+    }
+} as const satisfies Command;
+
 export default async function (bot: Bot, module: Module) {
    //if (!module.handling) return;
     autoKickConfig = new ConfigStorage(autoKickConfigManifest, bot);
@@ -211,4 +243,47 @@ export default async function (bot: Bot, module: Module) {
     logger.log("Registering scheduler job ...");
     scheduler.scheduleJob("0 0 * * *", () => main(bot, module));
     logger.ok("Scheduler job registered.");
+
+    module.addCommand(autokickCommand, async (interaction, args) => {
+        if (!interaction.inGuild()) {
+            await interaction.reply({ content: "This can't be used outside guilds", ephemeral: true });
+            return;
+        }
+        if (args.action === "list") {
+            const guild = interaction.guild ?? (await bot.getGuild(interaction.guildId))?.guild;
+            if (!guild) {
+                await bot.replyWithError(interaction, "Guild not found. :(");
+                return;
+            }
+            const members = await guild.members.fetch();
+            const whitelist: string[] = []; 
+            for (const [id, _] of members) {
+                const whitelisted = await autoKickConfig?.member(interaction.guildId, id).get("whitelisted");
+                if (whitelisted) {
+                    whitelist.push(id);
+                }
+            }
+            await bot.noPingReply(interaction, { content: `Whitelisted users: \n    ${whitelist.map(id => `<@${id}>`).join("\n    ")}` });
+            return;
+        }
+        if (args.user === undefined) {
+            await bot.replyWithError(interaction, "You need to specify a user to use this action. :(");
+            return;
+        }
+
+        const member = autoKickConfig?.member(interaction.guildId, args.user.id);
+        if (!member) {
+            await bot.replyWithError(interaction, "Sorry, an error has occurred with this action. :(");
+            return;
+        }
+        
+        if (args.action === "add") {
+            await member.set("whitelisted", true);
+            await interaction.reply(`Added <@${args.user.id}> to the whitelist!`);
+        } 
+        if (args.action === "remove") {
+            await member.set("whitelisted", false);
+            await interaction.reply(`Removed <@${args.user.id}> from the whitelist!`);
+        }
+    });
 }
