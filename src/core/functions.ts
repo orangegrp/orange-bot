@@ -184,4 +184,47 @@ function captureConsoleTable<T>(data: T[]): string {
     return writer.getString();
 }
 
-export { damerauLevenshtein, number2emoji, removeHtmlTagsAndDecode, getClosestMatches, captureConsoleTable as generateTable, captureConsole };
+function discordMessageSplitter(message: string): string[] {
+    const maxLength = 1900;
+    if (message.length <= maxLength) return [message];
+
+    const messageChunks: string[] = [];
+    let currentChunk = "";
+
+    // Split by lines first
+    const lines = message.split('\n');
+
+    for (const line of lines) {
+        // If a single line is longer than maxLength, split by markdown-safe boundaries
+        if (line.length >= maxLength) {
+            const words = line.split(/(\s+)/);
+            for (const word of words) {
+                if (currentChunk.length + word.length > maxLength) {
+                    messageChunks.push(currentChunk.trim());
+                    currentChunk = "";
+                }
+                currentChunk += word;
+            }
+            continue;
+        }
+
+        // If adding this line would exceed maxLength, start a new chunk
+        if (currentChunk.length + line.length + 1 > maxLength) {
+            messageChunks.push(currentChunk.trim());
+            currentChunk = "";
+        }
+        
+        currentChunk += line + '\n';
+    }
+
+    // Push the last chunk if it's not empty
+    if (currentChunk.trim()) {
+        messageChunks.push(currentChunk.trim());
+    }
+
+    return messageChunks;
+}
+    
+
+
+export { damerauLevenshtein, number2emoji, removeHtmlTagsAndDecode, getClosestMatches, captureConsoleTable as generateTable, captureConsole, discordMessageSplitter };

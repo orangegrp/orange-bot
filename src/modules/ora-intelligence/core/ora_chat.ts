@@ -32,10 +32,15 @@ class OraChat extends AssistantCore {
         message_ids.push(message_id);
         this.chat_map.set(thread_id, message_ids);
     }
-    async newChat(message: Message | undefined = undefined) {
+    async newChat(message: Message | undefined = undefined, agentFirst: boolean = false) {
         const thread = await super.createNewThread();
         if (!thread) return false;
         if (message) {
+            if (agentFirst) {
+                await this.waitForThread(thread.id);
+                const message_part = await super.createThreadMessage(thread.id, `The user who is going to speak to you next has clicked a button on a CVE information card, and your response followed as a result. Continue this conversation about the topic at hand. Your response was this:\n\n\`\`\`${message.content}\`\`\``);
+                if (!message_part) return false;
+            }
             this.chat_map.set(thread.id, [message.id]);
         } else {
             this.chat_map.set(thread.id, []);
@@ -45,12 +50,14 @@ class OraChat extends AssistantCore {
     async getChat(thread_id_or_message_id: string) {
         return this.getChatByThreadId(thread_id_or_message_id) || this.getChatByMessageId(thread_id_or_message_id);
     }
-    async sendMessage(thread_id: string, message: Message, prompt: string = `User: "{{message.author.username}}" with mentionable tag: <@{{message.author.id}}> said:\n\n{{message.content}}`) {
+    async sendMessage(thread_id: string, message: Message, prompt: string = `User: "{{message.author.username}}" with the ID: <@{{message.author.id}}>, said:\n\n{{message.content}}`) {
         const thread = await super.getExistingThread(thread_id);
         if (!thread) return false;
-        const text_prompt = prompt.replace("{{message.author.username}}", message.author.username)
+        message.mentions.users.forEach(m => message.content = message.content.replace(`<@${m.id}>`, m.displayName));
+        const text_prompt = prompt.replace("{{message.author.username}}", message.author.displayName)
             .replace("{{message.author.id}}", message.author.id)
             .replace("{{message.content}}", message.content);
+        console.log(text_prompt);
         await this.waitForThread(thread.id);
         if (message.attachments.size > 0 && message.content) {
             const message_parts = await super.createMultiModalThreadMessage(thread.id, text_prompt, message.attachments.map(a => a.url));
@@ -64,12 +71,8 @@ class OraChat extends AssistantCore {
             return [message_part.id];
         }
     }
-    async replyToMessage(thread_id: string, message: Message, replyTarget: Message, prompt: string = `User: \"{{message.author.username}}\" with mentionable tag: <@{{message.author.id}}>, replying to "{{replyTarget}}" who said "{{replyContent}}", said:\n\n{{message.content}}`) {
-        const text_prompt = prompt.replace("{{message.author.username}}", message.author.username)
-            .replace("{{message.author.id}}", message.author.id)
-            .replace("{{message.content}}", message.content)
-            .replace("{{replyTarget}}", replyTarget.author.username)
-            .replace("{{replyContent}}", replyTarget.content);
+    async replyToMessage(thread_id: string, message: Message, replyTarget: Message, prompt: string = `User: \"{{message.author.username}}\" with the ID: <@{{message.author.id}}>, replying to "{{replyTarget}}" who said "{{replyContent}}", said:\n\n{{message.content}}`) {
+        const text_prompt = prompt.replace("{{replyTarget}}", replyTarget.author.displayName).replace("{{replyContent}}", replyTarget.content);
         return this.sendMessage(thread_id, message, text_prompt);
     }
     async runChat(thread_id: string) {
@@ -83,12 +86,16 @@ class OraChat extends AssistantCore {
     }
     async waitForChat(thread_id: string, run_id: string, typingIndicatorFunction: Function | undefined = undefined) {
         let run = await super.getThreadRun(thread_id, run_id);
-        for (let i = 0; i < 100; i++) {
+        for (let i = 0; i < 600; i++) {
             run = await super.getThreadRun(thread_id, run_id);
-            if (!run || run.status === "in_progress" || run.status === "queued") await sleep(100);
-            else break;
-
             if (typingIndicatorFunction) typingIndicatorFunction();
+            
+            if (!run) { await sleep(100); continue; }
+
+            this.logger.verbose(`Thread run status: ${run.status} ${run.last_error} ${run.incomplete_details?.reason}`);
+
+            if (run.status === "in_progress" || run.status === "queued") await sleep(100);
+            else break;
         }
         if (this.thread_lock.has(thread_id)) this.thread_lock.delete(thread_id);
         if (!run) return false;

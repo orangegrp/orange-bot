@@ -1,8 +1,9 @@
 import OpenAI from "openai";
 import { environment, getLogger } from "orange-common-lib";
+import util from "util";
 
 class AssistantCore {
-    private readonly logger;
+    readonly logger;
     private readonly openai;
     private readonly assistant_id;
     private readonly model;
@@ -43,6 +44,7 @@ class AssistantCore {
         const messages = await this.openai.beta.threads.messages.list(thread_id);
         if (!messages) return undefined;
         this.logger.ok(`Thread messages retrieved! ID: ${thread_id}`);
+        this.logger.verbose(util.inspect(messages, { depth: null, colors: true }));
         return messages;
     }
     async createThreadMessage(thread_id: string, message_text: string) {
