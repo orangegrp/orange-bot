@@ -32,14 +32,41 @@ class OraChat extends AssistantCore {
         message_ids.push(message_id);
         this.chat_map.set(thread_id, message_ids);
     }
-    async newChat(message: Message | undefined = undefined, agentFirst: boolean = false) {
+    async newChat(message: Message | undefined = undefined, prependMessage: boolean = false, isBot: boolean = false) {
         const thread = await super.createNewThread();
         if (!thread) return false;
         if (message) {
-            if (agentFirst) {
+            if (prependMessage) {
                 await this.waitForThread(thread.id);
-                const message_part = await super.createThreadMessage(thread.id, `The user who is going to speak to you next has clicked a button on a CVE information card, and your response followed as a result. Continue this conversation about the topic at hand. Your response was this:\n\n\`\`\`${message.content}\`\`\``);
-                if (!message_part) return false;
+                const messageData = {
+                    messageAuthor: isBot ? "(You wrote this Ora)" : `User with ID: <@${message.author.id}> Name: ${message.author.displayName}`,
+                    messageText: message.content,
+                    discordEmbeds: [
+                        message.embeds.map(e => {
+                            return {
+                                title: e.title,
+                                description: e.description,
+                                url: e.url,
+                                fields: e.fields.map(f => {
+                                    return {
+                                        name: f.name,
+                                        value: f.value
+                                    }
+                                }),
+                                footerText: e.footer?.text,
+                                author: e.author?.name,
+                            }
+                        })
+                    ]
+                }
+                const prompt = `The user who is going to speak to you next has replied to a previous message, below is the information (in JSON) about that message:\n\`\`\`${JSON.stringify(messageData)}\`\`\``;
+                if (message.attachments.size > 0) {
+                    const message_part = await super.createMultiModalThreadMessage(thread.id, prompt, message.attachments.map(a => a.url));
+                    if (!message_part) return false;
+                } else {
+                    const message_part = await super.createThreadMessage(thread.id, prompt);
+                    if (!message_part) return false;
+                }
             }
             this.chat_map.set(thread.id, [message.id]);
         } else {

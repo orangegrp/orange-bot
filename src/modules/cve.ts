@@ -124,8 +124,8 @@ async function cveButtonHandler(interaction: ButtonInteraction) {
         }
 
         await interaction.editReply( { content: response.substring(0, 1999), embeds: [
-            { color: 0xff6723, footer: { text: "✨ Powered by Ora Intelligence • AI can make mistakes" } }
-        ] } );
+            { color: 0xff6723, footer: { text: "✨ Powered by Ora Intelligence" } }
+        ] } );` `
     }
     
     if (interaction.customId.startsWith("cve_")) {
@@ -167,9 +167,8 @@ async function searchCommandHandler(interaction: ChatInputCommandInteraction, ar
  * @param bot Bot object (`orange-bot-base`)
  */
 export default function (bot: Bot, module: Module) {
-
     oraCve = new OraCve("asst_PPiDj623siqnJN6tpHZTmX5m");
-
+    
     bot.client.on("interactionCreate", async interaction => {
         if (interaction.isButton()) {
             await cveButtonHandler(interaction);

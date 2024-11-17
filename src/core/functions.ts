@@ -225,6 +225,18 @@ function discordMessageSplitter(message: string): string[] {
     return messageChunks;
 }
     
+function getCodeBlock(content: string) { 
+    // Check for code blocks with language specifiers
+    const codeBlockMatch = content.match(/```([^\n]+)\n([\s\S]*?)```/);
+    if (codeBlockMatch) {
+        const language = codeBlockMatch[1];
+        const source_code = codeBlockMatch[2];
+
+        return { language, source_code };
+    } 
+    
+    return false;
+}
 
 
-export { damerauLevenshtein, number2emoji, removeHtmlTagsAndDecode, getClosestMatches, captureConsoleTable as generateTable, captureConsole, discordMessageSplitter };
+export { damerauLevenshtein, number2emoji, removeHtmlTagsAndDecode, getClosestMatches, captureConsoleTable as generateTable, captureConsole, discordMessageSplitter, getCodeBlock };

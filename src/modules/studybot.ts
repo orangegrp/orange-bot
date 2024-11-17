@@ -92,7 +92,7 @@ export default async function (bot: Bot, module: Module) {
     });
 
     bot.client.on("interactionCreate", async interaction => {
-        if (!module.handling) return;
+        //if (!module.handling) return;
         if (interaction.isAutocomplete()) {
             const option = interaction.options.getFocused(true);
             logger.verbose(`Autocomplete for /${interaction.commandName} ${option.name}: ${option.value}`);
