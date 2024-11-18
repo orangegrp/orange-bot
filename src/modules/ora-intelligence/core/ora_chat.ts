@@ -1,6 +1,9 @@
 import { Message } from "discord.js";
 import { AssistantCore } from "../openai/assistant_core.js";
 import { sleep } from "orange-common-lib";
+import { Run } from "openai/resources/beta/threads/runs/runs.js";
+import { ToolCallsStepDetails } from "openai/resources/beta/threads/runs/steps.js";
+import { performWebSearch } from "./web_search.js";
 
 class OraChat extends AssistantCore {
     private chat_map: Map<string, string[]> = new Map();
@@ -83,7 +86,7 @@ class OraChat extends AssistantCore {
         message.mentions.users.forEach(m => message.content = message.content.replace(`<@${m.id}>`, m.displayName));
         const text_prompt = prompt.replace("{{message.author.username}}", message.author.displayName)
             .replace("{{message.author.id}}", message.author.id)
-            .replace("{{message.content}}", message.content);
+            .replace("{{message.content}}", message.content );
         console.log(text_prompt);
         await this.waitForThread(thread.id);
         if (message.attachments.size > 0 && message.content) {
@@ -111,17 +114,67 @@ class OraChat extends AssistantCore {
         if (!run) return false;
         return run.id;
     }
+    async runTool(thread_id: string, run: Run | undefined = undefined) {
+        const error_msg = "Tool call failed, tell the user there was a problem finding the relevant information.";
+        if (!run || !this.openai) return false;
+        const steps = await this.openai.beta.threads.runs.steps.list(thread_id, run.id);
+        if (!steps) return false;
+
+        this.logger.verbose(`Running tool...`);
+
+        const tool_calls: { call_id: string, response: string }[] = [];
+        for (const step of steps.data) {
+            if (step.type !== "tool_calls" && step.step_details.type !== "tool_calls" && step.status !== "in_progress") continue;
+            for (const tool_call of (step.step_details as ToolCallsStepDetails).tool_calls) {
+                if (tool_calls.find(tc => tc.call_id === tool_call.id)) continue;
+                if (tool_call.type !== "function") continue;
+                switch (tool_call.function.name) {
+                    case "web_search":
+                        const query = JSON.parse(tool_call.function.arguments).searchQuery;
+                        this.logger.verbose(`Running web search for query "${query}"...`);
+                        tool_calls.push({ call_id: tool_call.id, response: JSON.stringify(await performWebSearch(query)) });
+                        break;
+                    default:
+                        tool_calls.push({ call_id: tool_call.id, response: error_msg });
+                        break;
+                }
+            }
+        }
+
+        return tool_calls;
+    }
     async waitForChat(thread_id: string, run_id: string, typingIndicatorFunction: Function | undefined = undefined) {
         let run = await super.getThreadRun(thread_id, run_id);
         for (let i = 0; i < 600; i++) {
             run = await super.getThreadRun(thread_id, run_id);
             if (typingIndicatorFunction) typingIndicatorFunction();
-            
+
             if (!run) { await sleep(100); continue; }
 
             this.logger.verbose(`Thread run status: ${run.status} ${run.last_error} ${run.incomplete_details?.reason}`);
 
             if (run.status === "in_progress" || run.status === "queued") await sleep(100);
+            else if (run.status === "requires_action") {
+                const toolResult = await this.runTool(thread_id, run);
+                if (!toolResult) {
+                    await this.openai!.beta.threads.runs.cancel(thread_id, run_id);
+                    continue;
+                }
+                console.dir(toolResult);
+                await this.openai!.beta.threads.runs.submitToolOutputs(
+                    thread_id, run_id, {
+                    tool_outputs:
+                        toolResult.map(t => {
+                            return {
+                                tool_call_id: t.call_id,
+                                output: `{
+                                    "currentTime": "${new Date().toISOString()}",
+                                    "data": ${t.response}
+                                }`
+                            }
+                        })
+                });
+            }
             else break;
         }
         if (this.thread_lock.has(thread_id)) this.thread_lock.delete(thread_id);
