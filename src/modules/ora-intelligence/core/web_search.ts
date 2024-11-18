@@ -10,13 +10,17 @@ async function performWebSearch(query: string) {
 
     await sleep(1000); // prevent brave from getting angry
 
-    const result = await fetch(`${url}${encodeURIComponent(query)}`, {
-        headers: { "Accept": "application/json", "Accept-Encoding": "gzip", "X-Subscription-Token": api_key }
-    });
-    
-    const json_result = await result.json();
-    //console.log(util.inspect(json_result, { depth: null }));
-    return json_result;
+    try {
+        const result = await fetch(`${url}${encodeURIComponent(query)}`, {
+            headers: { "Accept": "application/json", "Accept-Encoding": "gzip", "X-Subscription-Token": api_key }
+        });
+        
+        const json_result = await result.json();
+        //console.log(util.inspect(json_result, { depth: null }));
+        return json_result;
+    }  catch  {
+        return false;
+    }
 }
 
 export { performWebSearch };

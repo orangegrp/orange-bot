@@ -102,7 +102,7 @@ class OraChat extends AssistantCore {
         }
     }
     async replyToMessage(thread_id: string, message: Message, replyTarget: Message, prompt: string = `User: \"{{message.author.username}}\" with the ID: <@{{message.author.id}}>, replying to "{{replyTarget}}" who said "{{replyContent}}", said:\n\n{{message.content}}`) {
-        const text_prompt = prompt.replace("{{replyTarget}}", replyTarget.author.displayName).replace("{{replyContent}}", replyTarget.content);
+        const text_prompt = prompt.replace("\"{{replyTarget}}\"", replyTarget.client.user.id === replyTarget.author.id ? "(You, Ora)": `"${replyTarget.author.displayName}"`).replace("{{replyContent}}", replyTarget.content);
         return this.sendMessage(thread_id, message, text_prompt);
     }
     async runChat(thread_id: string) {

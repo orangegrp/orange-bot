@@ -61,7 +61,7 @@ export default async function (bot: Bot, module: Module) {
             const thread = await oraChat.getChat(thread_id);
             if (!thread) return false;
             await msg.channel.sendTyping();
-            if (!msg.reference?.messageId || (await msg.channel.messages.fetch(msg.reference.messageId)).author.id === bot.client.user?.id) {
+            if (!msg.reference?.messageId) {
                 const message = await oraChat.sendMessage(thread, msg);
                 if (!message) return false;
             } else {
@@ -116,6 +116,7 @@ export default async function (bot: Bot, module: Module) {
         }
 
         if (msg.content.startsWith(`<@${bot.client.user.id}>`)) {
+            msg.content = msg.content.replace(`<@${bot.client.user.id}>`, "");
             if (msg.reference?.messageId) {
                 msg.channel.sendTyping();
                 const message = await msg.channel.messages.fetch(msg.reference.messageId);
