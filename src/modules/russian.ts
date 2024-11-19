@@ -60,12 +60,19 @@ export default function (bot: Bot, module: Module) {
                     member.roles.add(muted);
 
                     // Respond with "you have been muted for 5 minutes"
-                    await interaction.followUp("You have been muted for 5 minutes.");
+                    await interaction.followUp({
+                        content: "You have been muted for 5 minutes.",
+                        ephemeral: true
+                    });
 
                     setTimeout(async () => { 
                         if (member.roles instanceof GuildMemberRoleManager)
                              member.roles.remove(muted); 
-                            await interaction.followUp("You have been unmuted.");
+                            await interaction.followUp(
+                                { 
+                                    content: "You have been unmuted.", 
+                                    ephemeral: true 
+                                });
                         }, 300000);
                 }
             }
