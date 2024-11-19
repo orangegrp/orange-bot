@@ -7,8 +7,8 @@ import type { Bot, Command, Module } from "orange-bot-base";
 import { ArgType } from "orange-bot-base";
 
 const command = {
-    name: "pp",
-    description: "Measure pp",
+    name: "russian",
+    description: "russian roulette",
     args: {
         person: {
             type: ArgType.USER,
