@@ -1,5 +1,5 @@
-import { getLogger } from "orange-common-lib";
 import { Bot, ConfigConfig, ConfigStorage, ConfigValueType } from "orange-bot-base";
+import { getLogger } from "orange-common-lib";
 
 const logger = getLogger("costMgr");
 
