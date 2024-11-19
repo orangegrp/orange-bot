@@ -27,15 +27,28 @@ const russian = () => { return Math.random() < 0.17; };
  * @param bot Bot object (`orange-bot-base`)
  */
 export default function (bot: Bot, module: Module) {
-    module.addCommand(command, (interaction, args) => {
-        interaction.reply({ files: [roulette] });
+    module.addCommand(command, async (interaction, args) => {
+        await interaction.reply({ 
+            files: [roulette],
+            embeds: [
+                {
+                    title: "Let's play Russian Roulette!",
+                    image: { url: "attachment://roulette.gif" },
+                }
+            ]
+        });
 
         // Wait for 3 seconds
-        setTimeout(() => {
+        setTimeout(async () => {
             const result = russian();
-            interaction.editReply({ 
-                    content: result ? "You are dead!" : "You survived!",
-                    files: [result ? loser : click] 
+            await interaction.editReply({ 
+                    files: [result ? loser : click],
+                    embeds: [
+                        {
+                            title: result ? "You are dead!" : "You survived!",
+                            image: { url: `attachment://${result ? "loser.jpg" : "survivor.gif"}` },
+                        }
+                    ]
                 });
 
             // If the user lost, mute them for 5 minutes
@@ -47,12 +60,12 @@ export default function (bot: Bot, module: Module) {
                     member.roles.add(muted);
 
                     // Respond with "you have been muted for 5 minutes"
-                    interaction.followUp("You have been muted for 5 minutes.");
+                    await interaction.followUp("You have been muted for 5 minutes.");
 
-                    setTimeout(() => { 
+                    setTimeout(async () => { 
                         if (member.roles instanceof GuildMemberRoleManager)
                              member.roles.remove(muted); 
-                            interaction.followUp("You have been unmuted.");
+                            await interaction.followUp("You have been unmuted.");
                         }, 300000);
                 }
             }
