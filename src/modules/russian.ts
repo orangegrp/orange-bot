@@ -2,42 +2,25 @@
 /// Copyright © orangegrp 2024. All rights reserved.
 /// Refactored 27/04/2024.
 
-import type { Snowflake } from "discord.js";
+import { AttachmentBuilder, GuildMemberRoleManager, Role } from "discord.js";
 import type { Bot, Command, Module } from "orange-bot-base";
-import { ArgType } from "orange-bot-base";
+
+const roulette = new AttachmentBuilder("src/modules/russian/roulette.gif", { name: 'roulette.gif' });
+const loser = new AttachmentBuilder("src/modules/russian/loser.jpg", { name: 'loser.gif' });
+const click = new AttachmentBuilder("src/modules/russian/click.png", { name: 'survivor.gif' });
 
 const command = {
     name: "russian",
-    description: "russian roulette",
-    args: {
-        person: {
-            type: ArgType.USER,
-            description: "Person whose pp to measure"
-        }
-    }
+    description: "Russian Roulette",
+    args: {}
 } satisfies Command;
 
 /**
- * Generate pp
- * @param id Snowflake identifier of the user.
- * @param min Minimum size of the pp (default is `1`).
- * @param max Maximum size of the pp (default is `50`).
- * @returns The pp string.
+ * Generate russian
+ * @returns Mute notification
  */
-function pp(id: Snowflake, min: number = 1, max: number = 50) {
-    const count = Math.floor(Math.random() * (max - min)) + min;
-    let p = '8';
 
-    for (let i = 0; i < count; i++)
-        p += '=';
-
-    p += 'D';
-
-    if (id)
-        return `<@${id}>'s pp ${p}`;
-
-    return p;
-}
+const russian = () => { return Math.random() < 0.17; };
 
 /**
  * `pp.ts` - pp module for orange🟠 Bot.
@@ -45,6 +28,34 @@ function pp(id: Snowflake, min: number = 1, max: number = 50) {
  */
 export default function (bot: Bot, module: Module) {
     module.addCommand(command, (interaction, args) => {
-        bot.noPingReply(interaction, { content: pp(args.person?.id || interaction.user.id) });
+        interaction.reply({ files: [roulette] });
+
+        // Wait for 3 seconds
+        setTimeout(() => {
+            const result = russian();
+            interaction.editReply({ 
+                    content: result ? "You are dead!" : "You survived!",
+                    files: [result ? loser : click] 
+                });
+
+            // If the user lost, mute them for 5 minutes
+            if (result) {
+                const muted = interaction.guild?.roles.cache.find(role => role.name === "Muted");
+                const member = interaction.member;
+
+                if (member && member.roles instanceof GuildMemberRoleManager && muted instanceof Role) {
+                    member.roles.add(muted);
+
+                    // Respond with "you have been muted for 5 minutes"
+                    interaction.followUp("You have been muted for 5 minutes.");
+
+                    setTimeout(() => { 
+                        if (member.roles instanceof GuildMemberRoleManager)
+                             member.roles.remove(muted); 
+                            interaction.followUp("You have been unmuted.");
+                        }, 300000);
+                }
+            }
+        }, 5000);
     });
 }
