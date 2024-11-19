@@ -6,8 +6,8 @@ import { AttachmentBuilder, GuildMemberRoleManager, Role } from "discord.js";
 import type { Bot, Command, Module } from "orange-bot-base";
 
 const roulette = new AttachmentBuilder("src/modules/russian/roulette.gif", { name: 'roulette.gif' });
-const loser = new AttachmentBuilder("src/modules/russian/loser.jpg", { name: 'loser.gif' });
-const click = new AttachmentBuilder("src/modules/russian/click.png", { name: 'survivor.gif' });
+const loser = new AttachmentBuilder("src/modules/russian/loser.jpg", { name: 'loser.jpg' });
+const click = new AttachmentBuilder("src/modules/russian/click.png", { name: 'click.png' });
 
 const command = {
     name: "russian",
@@ -46,7 +46,7 @@ export default function (bot: Bot, module: Module) {
                     embeds: [
                         {
                             title: result ? "You are dead!" : "You survived!",
-                            image: { url: `attachment://${result ? "loser.jpg" : "survivor.gif"}` },
+                            image: { url: `attachment://${result ? "loser.jpg" : "click.png"}` },
                         }
                     ]
                 });
