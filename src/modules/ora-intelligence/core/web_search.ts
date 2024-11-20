@@ -5,14 +5,14 @@ import { getLogger } from "orange-common-lib";
 
 const logger = getLogger("web_search");
 
-async function performWebSearch(searchQuery: string, region: string = "ALL", searchType: "news" | "videos" | "web" | "images" | "all" = "all") {
+async function performWebSearch(searchQuery: string, region: string = "ALL", searchType: "news" | "videos" | "web" | "images" | "all" = "all", freshness: string | null | undefined = null) {
     const image_url = `https://api.search.brave.com/res/v1/images/search?count=4&safesearch=off&q=`
     const search_url = `https://api.search.brave.com/res/v1/web/search?summary=true&extra_snippets=true&country=${encodeURIComponent(region)}&count=5&safesearch=off&q=`;
     const api_key = process.env.BRAVE_API_KEY;
 
     if (!api_key) return false;
 
-    logger.log(`${searchType} search for "${searchQuery}", in region "${region}"...`);
+    logger.log(`${searchType} search for "${searchQuery}", in region "${region}", with a freshness of ${freshness}...`);
 
     await sleep(1000); // prevent brave from getting angry
 
@@ -33,7 +33,7 @@ async function performWebSearch(searchQuery: string, region: string = "ALL", sea
 
             return { images: urls };
         } else {
-            const result = await fetch(`${search_url}${encodeURIComponent(searchQuery)}`, {
+            const result = await fetch(`${search_url}${encodeURIComponent(searchQuery)}${freshness !== null && freshness !== undefined ? `&freshness=${encodeURIComponent(freshness)}` : ""}`, {
                 headers: { "Accept": "application/json", "Accept-Encoding": "gzip", "X-Subscription-Token": api_key }
             });
             

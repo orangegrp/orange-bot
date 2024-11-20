@@ -85,13 +85,14 @@ class OraChat extends AssistantCore {
     async getChat(thread_id_or_message_id: string) {
         return this.getChatByThreadId(thread_id_or_message_id) || this.getChatByMessageId(thread_id_or_message_id);
     }
-    async sendMessage(thread_id: string, message: Message, prompt: string = `User: "{{message.author.username}}" with the ID: <@{{message.author.id}}>, said:\n\n{{message.content}}`) {
+    async sendMessage(thread_id: string, message: Message, prompt: string = `The current time is: {{current_time}}\nUser: "{{message.author.username}}" with the ID: <@{{message.author.id}}>, said:\n\n{{message.content}}`) {
         const thread = await super.getExistingThread(thread_id);
         if (!thread) return false;
         message.mentions.users.forEach(m => message.content = message.content.replace(`<@${m.id}>`, m.displayName));
         const text_prompt = prompt.replace("{{message.author.username}}", message.author.displayName)
             .replace("{{message.author.id}}", message.author.id)
-            .replace("{{message.content}}", message.content );
+            .replace("{{message.content}}", message.content )
+            .replace("{{current_time}}", new Date().toISOString());
         console.log(text_prompt);
         await this.waitForThread(thread.id);
         if (message.attachments.size > 0 && message.content) {
@@ -106,7 +107,7 @@ class OraChat extends AssistantCore {
             return [message_part.id];
         }
     }
-    async replyToMessage(thread_id: string, message: Message, replyTarget: Message, prompt: string = `User: \"{{message.author.username}}\" with the ID: <@{{message.author.id}}>, replying to "{{replyTarget}}" who said "{{replyContent}}", said:\n\n{{message.content}}`) {
+    async replyToMessage(thread_id: string, message: Message, replyTarget: Message, prompt: string = `The current time is: {{current_time}}\nUser: \"{{message.author.username}}\" with the ID: <@{{message.author.id}}>, replying to "{{replyTarget}}" who said "{{replyContent}}", said:\n\n{{message.content}}`) {
         const text_prompt = prompt.replace("\"{{replyTarget}}\"", replyTarget.client.user.id === replyTarget.author.id ? "(You, Ora)": `"${replyTarget.author.displayName}"`).replace("{{replyContent}}", replyTarget.content);
         return this.sendMessage(thread_id, message, text_prompt);
     }
@@ -137,7 +138,7 @@ class OraChat extends AssistantCore {
                     case "web_search":
                         const json_data = JSON.parse(tool_call.function.arguments);
                         this.logger.verbose(`Running web search for query "${json_data.searchQuery}"...`);
-                        tool_calls.push({ call_id: tool_call.id, response: JSON.stringify(await performWebSearch(json_data.searchQuery, json_data.region, json_data.searchType)) });
+                        tool_calls.push({ call_id: tool_call.id, response: JSON.stringify(await performWebSearch(json_data.searchQuery, json_data.region, json_data.searchType, json_data.freshness)) });
                         break;
                     default:
                         tool_calls.push({ call_id: tool_call.id, response: error_msg });
