@@ -13,7 +13,7 @@ class OraChat extends AssistantCore {
     }
     private async waitForThread(thread_id: string) {
         if (this.thread_lock.has(thread_id)) {
-            while (this.thread_lock.has(thread_id)) await sleep(Math.round(Math.random() * 100));
+            while (this.thread_lock.has(thread_id)) { await sleep(Math.round(Math.random() * 100)); }
         }
     }
     private async getChatByThreadId(thread_id: string) {
@@ -35,41 +35,46 @@ class OraChat extends AssistantCore {
         message_ids.push(message_id);
         this.chat_map.set(thread_id, message_ids);
     }
+    async addExistingMessageToThread(thread_id: string, message: Message | undefined = undefined, isBot: boolean = false) {
+        if (!message) return false;
+        await this.waitForThread(thread_id);
+        const messageData = {
+            messageAuthor: isBot ? "(You wrote this Ora)" : `User with ID: <@${message.author.id}> Name: ${message.author.displayName}`,
+            messageText: message.content,
+            discordEmbeds: [
+                message.embeds.map(e => {
+                    return {
+                        title: e.title,
+                        description: e.description,
+                        url: e.url,
+                        fields: e.fields.map(f => {
+                            return {
+                                name: f.name,
+                                value: f.value
+                            }
+                        }),
+                        footerText: e.footer?.text,
+                        author: e.author?.name,
+                    }
+                })
+            ]
+        }
+        const prompt = `The user who is going to speak to you next has replied to a previous message, below is the information (in JSON) about that message:\n\`\`\`${JSON.stringify(messageData)}\`\`\``;
+        if (message.attachments.size > 0) {
+            const message_part = await super.createMultiModalThreadMessage(thread_id, prompt, message.attachments.map(a => a.url));
+            if (!message_part) return false;
+        } else {
+            const message_part = await super.createThreadMessage(thread_id, prompt);
+            if (!message_part) return false;
+        }
+    }
     async newChat(message: Message | undefined = undefined, prependMessage: boolean = false, isBot: boolean = false) {
         const thread = await super.createNewThread();
         if (!thread) return false;
         if (message) {
             if (prependMessage) {
                 await this.waitForThread(thread.id);
-                const messageData = {
-                    messageAuthor: isBot ? "(You wrote this Ora)" : `User with ID: <@${message.author.id}> Name: ${message.author.displayName}`,
-                    messageText: message.content,
-                    discordEmbeds: [
-                        message.embeds.map(e => {
-                            return {
-                                title: e.title,
-                                description: e.description,
-                                url: e.url,
-                                fields: e.fields.map(f => {
-                                    return {
-                                        name: f.name,
-                                        value: f.value
-                                    }
-                                }),
-                                footerText: e.footer?.text,
-                                author: e.author?.name,
-                            }
-                        })
-                    ]
-                }
-                const prompt = `The user who is going to speak to you next has replied to a previous message, below is the information (in JSON) about that message:\n\`\`\`${JSON.stringify(messageData)}\`\`\``;
-                if (message.attachments.size > 0) {
-                    const message_part = await super.createMultiModalThreadMessage(thread.id, prompt, message.attachments.map(a => a.url));
-                    if (!message_part) return false;
-                } else {
-                    const message_part = await super.createThreadMessage(thread.id, prompt);
-                    if (!message_part) return false;
-                }
+                await this.addExistingMessageToThread(thread.id, message, isBot);
             }
             this.chat_map.set(thread.id, [message.id]);
         } else {
@@ -130,9 +135,9 @@ class OraChat extends AssistantCore {
                 if (tool_call.type !== "function") continue;
                 switch (tool_call.function.name) {
                     case "web_search":
-                        const query = JSON.parse(tool_call.function.arguments).searchQuery;
-                        this.logger.verbose(`Running web search for query "${query}"...`);
-                        tool_calls.push({ call_id: tool_call.id, response: JSON.stringify(await performWebSearch(query)) });
+                        const json_data = JSON.parse(tool_call.function.arguments);
+                        this.logger.verbose(`Running web search for query "${json_data.searchQuery}"...`);
+                        tool_calls.push({ call_id: tool_call.id, response: JSON.stringify(await performWebSearch(json_data.searchQuery, json_data.region, json_data.searchType)) });
                         break;
                     default:
                         tool_calls.push({ call_id: tool_call.id, response: error_msg });
@@ -169,6 +174,7 @@ class OraChat extends AssistantCore {
                                 tool_call_id: t.call_id,
                                 output: `{
                                     "currentTime": "${new Date().toISOString()}",
+                                    "instructions": "This is a response to a tool call. When generating your response you must NOT embed any links using the traditional markdown format eg \"![text](https://example.com)\", instead you must omit the exclamation point and present it like this \"[text](https://example.com)\", this will ensure that the link is not broken. YOU MUST FOLLOW THIS RULE OTHERWISE PENALTIES WILL APPLY.",
                                     "data": ${t.response}
                                 }`
                             }

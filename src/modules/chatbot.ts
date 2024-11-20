@@ -22,7 +22,7 @@ export default async function (bot: Bot, module: Module) {
 
     bot.client.on("interactionCreate", async interaction => {
         if (interaction.isButton()) {
-            if (interaction.customId === "ora_run_code") {
+            if (interaction.customId.startsWith("ora_run")) {
                 await interaction.deferReply();
                 const result = getCodeBlock(interaction.message.content);
                 if (!result) {
@@ -41,7 +41,21 @@ export default async function (bot: Bot, module: Module) {
                             footer: { text: `Powered by Piston (emkc.org)` },
                             timestamp: new Date().toISOString(),
                         });
-                        await interaction.editReply({ embeds: [embed] });   
+                        const reply = await interaction.editReply({ embeds: [embed] });   
+                        if (reply) {
+                            const original_id = interaction.customId.split("_")[2];
+                            console.log(original_id);
+                            const original_message = await interaction.channel?.messages.fetch(original_id);
+                            console.log(original_message?.id);
+                            if (original_message) {
+                                const thread_id = oraChat.getChatByMessageId(original_id);
+                                console.log(thread_id);
+                                if (thread_id) { 
+                                    await oraChat.updateChatMap(thread_id, reply.id);
+                                    await oraChat.addExistingMessageToThread(thread_id, reply, true);
+                                }
+                            }
+                        }
                     } catch (error: Error | any) {
                         await interaction.editReply({ content: ":x: Something went wrog while trying to run the code." });
                         logger.error(error);
@@ -57,10 +71,10 @@ export default async function (bot: Bot, module: Module) {
         if (msg.author.id === bot.client.user.id) return;
 
         async function runChat(thread_id: string) {
-            await msg.channel.sendTyping();
+            msg.channel.sendTyping();
             const thread = await oraChat.getChat(thread_id);
             if (!thread) return false;
-            await msg.channel.sendTyping();
+            msg.channel.sendTyping();
             if (!msg.reference?.messageId) {
                 const message = await oraChat.sendMessage(thread, msg);
                 if (!message) return false;
@@ -69,13 +83,13 @@ export default async function (bot: Bot, module: Module) {
                 const message = await oraChat.replyToMessage(thread, msg, replyTarget);
                 if (!message) return false;
             }
-            await msg.channel.sendTyping();
+            msg.channel.sendTyping();
             const run = await oraChat.runChat(thread);
             if (!run) return false;
-            await msg.channel.sendTyping();
+            msg.channel.sendTyping();
             const run_result = await oraChat.waitForChat(thread, run, async () => await msg.channel.sendTyping());
             if (!run_result) return false;
-            await msg.channel.sendTyping();
+            msg.channel.sendTyping();
             const chatMessage = await oraChat.getChatMessage(thread);
             if (!chatMessage) return false;
 
@@ -95,7 +109,7 @@ export default async function (bot: Bot, module: Module) {
                     const buttons = new ActionRowBuilder<ButtonBuilder>();
                     buttons.addComponents(new ButtonBuilder({
                         label: 'Run Code',
-                        customId: `ora_run_code`,
+                        customId: `ora_run_${msg.id}`,
                         style: ButtonStyle.Primary
                     }).setEmoji("✨"));
 
@@ -107,10 +121,7 @@ export default async function (bot: Bot, module: Module) {
                     //const msgData = await bot.noPingReply(msg, { content: msgChunk });
                     replies.push(msgData);
                 }
-
-
             }
-
             //const reply = await msg.reply({ content: chatMessage.content.filter(t => t.type === "text").map(t => t.text.value).join("\n") });
             replies.forEach(async r => await oraChat.updateChatMap(thread, r.id));
         }
