@@ -190,18 +190,44 @@ function discordMessageSplitter(message: string): string[] {
 
     const messageChunks: string[] = [];
     let currentChunk = "";
+    let inCodeBlock = false;
+    let currentLanguage = "";
 
     // Split by lines first
     const lines = message.split('\n');
 
     for (const line of lines) {
+        // Check for code block start/end
+        if (line.startsWith('```')) {
+            if (!inCodeBlock) {
+                inCodeBlock = true;
+                const langMatch = line.match(/^```(\w+)/);
+                currentLanguage = langMatch ? langMatch[1] : '';
+            } else {
+                inCodeBlock = false;
+            }
+        }
+
+        // Calculate the line to add, considering code block markers if needed
+        let lineToAdd = line;
+        if (inCodeBlock && currentChunk === "") {
+            // Start new chunk with code block marker
+            lineToAdd = "```" + currentLanguage + "\n" + line;
+        }
+
         // If a single line is longer than maxLength, split by markdown-safe boundaries
         if (line.length >= maxLength) {
             const words = line.split(/(\s+)/);
             for (const word of words) {
                 if (currentChunk.length + word.length > maxLength) {
-                    messageChunks.push(currentChunk.trim());
-                    currentChunk = "";
+                    if (inCodeBlock) {
+                        // Close code block before splitting
+                        messageChunks.push(currentChunk.trim() + "\n```");
+                        currentChunk = "```" + currentLanguage + "\n";
+                    } else {
+                        messageChunks.push(currentChunk.trim());
+                        currentChunk = "";
+                    }
                 }
                 currentChunk += word;
             }
@@ -209,17 +235,27 @@ function discordMessageSplitter(message: string): string[] {
         }
 
         // If adding this line would exceed maxLength, start a new chunk
-        if (currentChunk.length + line.length + 1 > maxLength) {
-            messageChunks.push(currentChunk.trim());
-            currentChunk = "";
+        if (currentChunk.length + lineToAdd.length + 1 > maxLength) {
+            if (inCodeBlock) {
+                // Close code block before splitting
+                messageChunks.push(currentChunk.trim() + "\n```");
+                currentChunk = "```" + currentLanguage + "\n";
+            } else {
+                messageChunks.push(currentChunk.trim());
+                currentChunk = "";
+            }
         }
         
-        currentChunk += line + '\n';
+        currentChunk += lineToAdd + '\n';
     }
 
     // Push the last chunk if it's not empty
     if (currentChunk.trim()) {
-        messageChunks.push(currentChunk.trim());
+        if (inCodeBlock) {
+            messageChunks.push(currentChunk.trim() + "\n```");
+        } else {
+            messageChunks.push(currentChunk.trim());
+        }
     }
 
     return messageChunks;
