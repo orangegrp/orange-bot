@@ -5,9 +5,11 @@
 import type { Bot, Command, Module } from "orange-bot-base";
 import { ArgType } from "orange-bot-base";
 import { getLogger } from "orange-common-lib";
-import { ButtonInteraction, ChatInputCommandInteraction } from "discord.js";
+import { ActionRowBuilder, ButtonBuilder, ButtonInteraction, ButtonStyle, ChatInputCommandInteraction, EmbedBuilder } from "discord.js";
 import { getCveInfo, getCves, getCweInfo } from "./cve/lookups.js";
+import { OraCve } from "./ora-intelligence/core/ora_cve.js";
 
+let oraCve: OraCve | undefined = undefined;
 
 const command = {
     name: "cve",
@@ -86,6 +88,46 @@ const command = {
  * @param interaction Interaction object.
  */
 async function cveButtonHandler(interaction: ButtonInteraction) {
+    if (interaction.customId.startsWith("ora_cve_")){
+        const cveid = interaction.customId.split("_")[2];
+        if (!oraCve) {
+            await interaction.reply({
+                embeds: [{
+                    title:  `This feature is unavailable at the moment.`,
+                    timestamp: new Date().toISOString()
+                }]
+            });
+            return;
+        }
+
+        await interaction.deferReply();
+
+        const buttons = new ActionRowBuilder<ButtonBuilder>();
+
+        buttons.addComponents(new ButtonBuilder({
+            label: 'View on NVD',
+            url: `https://nvd.nist.gov/vuln/detail/${cveid}`,
+            style: ButtonStyle.Link
+        }));
+
+        interaction.message.edit({ components: [buttons] });
+
+        const response = await oraCve.askOra(cveid);
+        if (!response) {
+            await interaction.editReply({
+                embeds: [{
+                    title:  `Something went wrong.`,
+                    timestamp: new Date().toISOString()
+                }]
+            });
+            return;
+        }
+
+        await interaction.editReply( { content: response.substring(0, 1999), embeds: [
+            { color: 0xff6723, footer: { text: "✨ Powered by Ora Intelligence" } }
+        ] } );` `
+    }
+    
     if (interaction.customId.startsWith("cve_")) {
         const cveid = interaction.customId.split("_")[1];
         await interaction.reply(await getCveInfo(cveid));
@@ -125,6 +167,8 @@ async function searchCommandHandler(interaction: ChatInputCommandInteraction, ar
  * @param bot Bot object (`orange-bot-base`)
  */
 export default function (bot: Bot, module: Module) {
+    oraCve = new OraCve("asst_PPiDj623siqnJN6tpHZTmX5m");
+    
     bot.client.on("interactionCreate", async interaction => {
         if (interaction.isButton()) {
             await cveButtonHandler(interaction);
