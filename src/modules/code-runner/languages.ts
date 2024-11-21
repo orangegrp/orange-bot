@@ -1,6 +1,5 @@
 import { CachedLookup } from "orange-bot-base";
 import { getLogger } from "orange-common-lib";
-import { damerauLevenshtein, getClosestMatches } from "../../core/functions.js";
 import { CRS_PORT } from "./crsCompat/index.js";
 
 const logger = getLogger("code-runner-languages");
@@ -50,21 +49,6 @@ type PistonRuntimes = {
 const crsLanguages: CachedLookup<null, string[]> = new CachedLookup(async () => await getLanguages(true));
 const pistonRuntimes: CachedLookup<null, PistonRuntimes> = new CachedLookup(async () => await getLanguages(false));
 
-async function getClosestEnvString(language: string): Promise<string[]> {
-    let envs = await crsLanguages.get(null);
-
-    if (envs === undefined) {
-        return [] as string[];
-    }
-
-    let result = getClosestMatches(language, envs, { similarityThreshold: 15, bonus: 10, sequenceLength: 5});
-
-    if (result === undefined) {
-        return [] as string[];
-    }
-
-    return result;
-}
 
 declare const CrsRunLanguageSymbol: unique symbol;
 type CrsRunLanguage = "" & { readonly [CrsRunLanguageSymbol]: typeof CrsRunLanguageSymbol };
@@ -141,5 +125,5 @@ async function getLanguages<T extends boolean>(strings: T): Promise<T extends tr
     return data as T extends true ? string[] : PistonRuntimes;
 }
 
-export { languages, languageAliases, crsLanguages, getRunEnvInfo, getClosestEnvString };
+export { languages, languageAliases, crsLanguages, getRunEnvInfo };
 export type { Language, LanguageAlias, CrsRunEnvInfo };

@@ -1,6 +1,6 @@
 import { ArgType, Bot, Command, DisplayError, Module } from "orange-bot-base";
 import { getLogger } from "orange-common-lib";
-import { getClosestMatch, studyBotMaterials, studyBotQuestions } from "./studybot/resource.js";
+import { studyBotMaterials, studyBotQuestions } from "./studybot/resource.js";
 import { playSolo, processResponse } from "./studybot/exam/solo.js";
 import { getConfigStorage } from "./studybot/config.js";
 import { Channel } from "discord.js";
@@ -91,28 +91,20 @@ export default async function (bot: Bot, module: Module) {
         }
     });
 
+    module.addAutocomplete(studybotCommand, "examref", async interaction => {
+        const option = interaction.options.getFocused(true);
+        logger.verbose(`Autocomplete for /${interaction.commandName} ${option.name}: ${option.value}`);
+        return (await studyBotQuestions.get(null) ?? [""]).map(name => name.replace(/\.json$/i, ""));
+    });
+    module.addAutocomplete(studybotCommand, "matref", async interaction => {
+        const option = interaction.options.getFocused(true);
+        logger.verbose(`Autocomplete for /${interaction.commandName} ${option.name}: ${option.value}`);
+        return (await studyBotMaterials.get(null) ?? [""].map(name => name.replace(/\.json$/i, "")));
+    });
+
     bot.client.on("interactionCreate", async interaction => {
         if (!module.handling) return;
-        if (interaction.isAutocomplete()) {
-            const option = interaction.options.getFocused(true);
-            logger.verbose(`Autocomplete for /${interaction.commandName} ${option.name}: ${option.value}`);
-            if (interaction.commandName !== "studybot" && !option.name.endsWith("ref")) {
-                logger.verbose(`Ignoring autocomplete for /${interaction.commandName} ${option.name}: ${option.value}`);
-                return;
-            }
-
-            let target = option.name === "examref" ? studyBotQuestions : studyBotMaterials;
-            let choices = await getClosestMatch(option.value, (await target.get(null) ?? []));
-
-            await interaction.respond(
-                choices.map(choice =>
-                ({
-                    name: choice.replace(".json", ""),
-                    value: choice
-                })
-                )
-            )
-        } else if (interaction.isButton() && interaction.customId.startsWith("sb_q_")) {
+        if (interaction.isButton() && interaction.customId.startsWith("sb_q_")) {
             await handleQuestionResponse(interaction);
         }
         else if (interaction.isButton() && interaction.customId.startsWith("sb_")) {
