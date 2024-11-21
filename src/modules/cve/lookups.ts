@@ -31,7 +31,7 @@ async function getCweInfo(cweid: string): Promise<InteractionReplyOptions> {
         const embed = new EmbedBuilder({
             title: `Information for ${data.id}`,
             description: removeHtmlTagsAndDecode(`### ${data.name}\n${data.description}`, 1512),
-            footer: { text: `Content for this search retrieved from opencve.io` },
+            footer: { text: `Data from opencve.io` },
             timestamp: new Date().toISOString()
         });
 
@@ -136,7 +136,7 @@ async function getCveInfo(cveid: string): Promise<InteractionReplyOptions> {
             title: `Information for ${data.cve_id}`,
             description: removeHtmlTagsAndDecode(data.description, 1024),
             url: `https://www.cve.org/CVERecord?id=${data.cve_id}`,
-            footer: { text: `Content for this search retrieved from opencve.io` },
+            footer: { text: `Data from opencve.io` },
             timestamp: new Date().toISOString()
         });
 
@@ -217,7 +217,21 @@ async function getCveInfo(cveid: string): Promise<InteractionReplyOptions> {
 
         embed.addFields({ name: 'Date Submitted', value: new Date(data.created_at).toDateString() });
 
-        return { embeds: [embed] };
+        const buttons = new ActionRowBuilder<ButtonBuilder>();
+
+        buttons.addComponents(new ButtonBuilder({
+            label: 'View on NVD',
+            url: `https://nvd.nist.gov/vuln/detail/${cveid}`,
+            style: ButtonStyle.Link
+        }));
+
+        buttons.addComponents(new ButtonBuilder({
+            label: 'Ask Ora',
+            customId: `ora_cve_${cveid}`,
+            style: ButtonStyle.Primary
+        }).setEmoji("✨"));
+
+        return { embeds: [embed], components: [buttons] };
     }
     catch (err: any) {
         return ({
@@ -255,7 +269,7 @@ async function getCves(args: { keyword?: string | null, vendor?: string | null, 
         const embed = new EmbedBuilder({
             title: `Top ${len} CVEs found out of ${data.count}`,
             description: "Can't find what you are looking for? Trying specifying the \`vendor\`, \`product\`, \`cvss\` or a different \`page\` number.",
-            footer: { text: `Content for this search retrieved from opencve.io.` },
+            footer: { text: `Data from opencve.io` },
             timestamp: new Date().toISOString()
         });
 
