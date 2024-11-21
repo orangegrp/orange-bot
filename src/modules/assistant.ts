@@ -1,9 +1,9 @@
-import { Bot, Command, Module } from "orange-bot-base";
-import { generate_no_context, generate_with_context } from "./gpt/openai.js";
-import { getLogger } from "orange-common-lib";
-import { APIEmbed, ActionRowBuilder, ButtonBuilder, ButtonInteraction, ButtonStyle, ChatInputCommandInteraction, Interaction, Message } from "discord.js";
-import { CostMgr, ora_user } from "./gpt/costmgr.js";
+import { APIEmbed, ActionRowBuilder, ButtonBuilder, ButtonInteraction, ButtonStyle, ChatInputCommandInteraction, Message } from "discord.js";
 import scheduler from "node-schedule";
+import { Bot, Command, Module } from "orange-bot-base";
+import { getLogger } from "orange-common-lib";
+import { CostMgr } from "./gpt/costmgr.js";
+import { generate_no_context, generate_with_context } from "./gpt/openai.js";
 
 // THIS MODULE WILL BE RE-WRITTEN IN THE NEXT UPDATE TO BETA!
 
