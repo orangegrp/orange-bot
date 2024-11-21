@@ -31,9 +31,10 @@ class OraChat extends AssistantCore {
     }
     async updateChatMap(thread_id: string, message_id: string) {
         const message_ids = this.chat_map.get(thread_id);
-        if (!message_ids) return;
+        if (!message_ids) return false;
         message_ids.push(message_id);
         this.chat_map.set(thread_id, message_ids);
+        return true;
     }
     async addExistingMessageToThread(thread_id: string, message: Message | undefined = undefined, isBot: boolean = false) {
         if (!message) return false;
@@ -67,6 +68,7 @@ class OraChat extends AssistantCore {
             const message_part = await super.createThreadMessage(thread_id, prompt);
             if (!message_part) return false;
         }
+        return this.updateChatMap(thread_id, message.id);
     }
     async newChat(message: Message | undefined = undefined, prependMessage: boolean = false, isBot: boolean = false) {
         const thread = await super.createNewThread();
@@ -91,7 +93,7 @@ class OraChat extends AssistantCore {
         message.mentions.users.forEach(m => message.content = message.content.replace(`<@${m.id}>`, m.displayName));
         const text_prompt = prompt.replace("{{message.author.username}}", message.author.displayName)
             .replace("{{message.author.id}}", message.author.id)
-            .replace("{{message.content}}", message.content )
+            .replace("{{message.content}}", message.content)
             .replace("{{current_time}}", new Date().toISOString());
         console.log(text_prompt);
         await this.waitForThread(thread.id);
@@ -108,7 +110,7 @@ class OraChat extends AssistantCore {
         }
     }
     async replyToMessage(thread_id: string, message: Message, replyTarget: Message, prompt: string = `The current time is: {{current_time}}\nUser: \"{{message.author.username}}\" with the ID: <@{{message.author.id}}>, replying to "{{replyTarget}}" who said "{{replyContent}}", said:\n\n{{message.content}}`) {
-        const text_prompt = prompt.replace("\"{{replyTarget}}\"", replyTarget.client.user.id === replyTarget.author.id ? "(You, Ora)": `"${replyTarget.author.displayName}"`).replace("{{replyContent}}", replyTarget.content);
+        const text_prompt = prompt.replace("\"{{replyTarget}}\"", replyTarget.client.user.id === replyTarget.author.id ? "(You, Ora)" : `"${replyTarget.author.displayName}"`).replace("{{replyContent}}", replyTarget.content);
         return this.sendMessage(thread_id, message, text_prompt);
     }
     async runChat(thread_id: string) {

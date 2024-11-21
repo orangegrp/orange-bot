@@ -51,7 +51,6 @@ export default async function (bot: Bot, module: Module) {
                                 const thread_id = oraChat.getChatByMessageId(original_id);
                                 console.log(thread_id);
                                 if (thread_id) { 
-                                    await oraChat.updateChatMap(thread_id, reply.id);
                                     await oraChat.addExistingMessageToThread(thread_id, reply, true);
                                 }
                             }
@@ -136,10 +135,32 @@ export default async function (bot: Bot, module: Module) {
                 await oraChat.updateChatMap(thread_id, msg.id);
                 await runChat(thread_id);
                 return;
+            } else if (msg.channel.isThread()) {
+                msg.channel.sendTyping();
+                const messages = await msg.channel.messages.fetch({ before: msg.id, limit: 16 });
+                const thread_id = await oraChat.newChat();
+                if (!thread_id) return;
+                for (const [_, message] of messages) {
+                    await oraChat.addExistingMessageToThread(thread_id, message, message.author.id === bot.client.user.id);
+                }
+                await runChat(thread_id);
+                return;
             }
             msg.channel.sendTyping();
-            const thread_id = await oraChat.newChat(msg);
+            const thread_id = await oraChat.newChat();
             if (!thread_id) return;
+            try {
+                // add other reply contexts
+                const twoHoursAgo = msg.createdTimestamp - (2 * 60 * 60 * 1000);
+                const messages = (await msg.channel.messages.fetch({ before: msg.id, limit: 16 })).filter(m => 
+                    m.mentions.users.has(bot.client.user!.id) && 
+                    m.createdTimestamp >= twoHoursAgo
+                );
+                for (const [_, message] of messages) {
+                    await oraChat.addExistingMessageToThread(thread_id, message, message.author.id === bot.client.user.id);
+                }
+            } catch { }
+            await oraChat.addExistingMessageToThread(thread_id, msg);
             await runChat(thread_id);
         } else if (msg.reference?.messageId) {
             const thread_id = oraChat.getChatByMessageId(msg.reference.messageId);
