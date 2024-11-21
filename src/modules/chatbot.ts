@@ -4,7 +4,7 @@ import { OraChat } from "./ora-intelligence/core/ora_chat.js";
 import { discordMessageSplitter, getCodeBlock } from "../core/functions.js";
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, messageLink } from "discord.js";
 import { CodeRunner } from "./code-runner/codeRunner.js";
-import { Language, LanguageAlias } from "./code-runner/languages.js";
+import { Language, LanguageAlias, languageAliases, languages } from "./code-runner/languages.js";
 
 const logger = getLogger("Ora Chat");
 
@@ -103,8 +103,8 @@ export default async function (bot: Bot, module: Module) {
 
             for (const msgChunk of discordMessageSplitter(chatMessage.content.filter(t => t.type === "text").map(t => t.text.value).join("\n"))) {
                 await msg.channel.sendTyping();
-
-                if (getCodeBlock(msgChunk)) {
+                const result = getCodeBlock(msgChunk);
+                if (result && (languages.includes(result.language as Language) || languageAliases.includes(result.language as LanguageAlias))) {
                     const buttons = new ActionRowBuilder<ButtonBuilder>();
                     buttons.addComponents(new ButtonBuilder({
                         label: 'Run Code',
