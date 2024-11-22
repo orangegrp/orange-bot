@@ -3,7 +3,7 @@
 /// Refactored 27/04/2024.
 
 import { AttachmentBuilder, GuildMemberRoleManager, Role } from "discord.js";
-import type { Bot, Command, Module } from "orange-bot-base";
+import { ConfigStorage, ConfigValueType, type Bot, type Command, type ConfigConfig, type Module } from "orange-bot-base";
 
 const roulette = new AttachmentBuilder("src/modules/russian/roulette.gif", { name: 'roulette.gif' });
 const loser = new AttachmentBuilder("src/modules/russian/loser.jpg", { name: 'loser.jpg' });
@@ -28,6 +28,10 @@ const russian = () => { return Math.random() < 0.17; };
  */
 export default function (bot: Bot, module: Module) {
     module.addCommand(command, async (interaction, args) => {
+        if (!interaction.inGuild()) {
+            await bot.replyWithError(interaction, "This can't be used outside a server. :(");
+            return;
+        }
         await interaction.reply({ 
             files: [roulette],
             embeds: [
@@ -53,28 +57,28 @@ export default function (bot: Bot, module: Module) {
 
             // If the user lost, mute them for 5 minutes
             if (result) {
-                const muted = interaction.guild?.roles.cache.find(role => role.name === "Muted");
-                const member = interaction.member;
 
-                if (member && member.roles instanceof GuildMemberRoleManager && muted instanceof Role) {
-                    member.roles.add(muted);
+                const member = "timeout" in interaction.member
+                    ? interaction.member
+                    : (await bot.getMember(interaction.guildId, interaction.user.id))?.member;
 
-                    // Respond with "you have been muted for 5 minutes"
+                if (!member) {
+                    await bot.replyWithError(interaction, "There was an error fetching member. :(");
+                    return;
+                }
+                if (!member.moderatable) {
                     await interaction.followUp({
-                        content: "You have been muted for 5 minutes.",
+                        content: "Cannot timeout this member (missing permissions). :(",
                         ephemeral: true
                     });
-
-                    setTimeout(async () => { 
-                        if (member.roles instanceof GuildMemberRoleManager)
-                             member.roles.remove(muted); 
-                            await interaction.followUp(
-                                { 
-                                    content: "You have been unmuted.", 
-                                    ephemeral: true 
-                                });
-                        }, 300000);
+                    return;
                 }
+                await member.timeout(5 * 60 * 1000);
+                
+                await interaction.followUp({
+                    content: `You have been timed out for 5 minutes.`,
+                    ephemeral: true
+                });
             }
         }, 5000);
     });
