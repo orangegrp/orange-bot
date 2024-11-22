@@ -1,63 +1,6 @@
 import { decode } from "html-entities";
 import { Writable } from "stream";
 
-function damerauLevenshtein(a: string, b: string, bonus: number = 2, sequenceLength: number = 5): number {
-    const lenA = a.length;
-    const lenB = b.length;
-    const dist: number[][] = Array(lenA + 1).fill(null).map(() => Array(lenB + 1).fill(null));
-
-    if (a === b) {
-        return -(a.length * bonus);
-    }
-
-    if (b > a) {
-        return b.length;
-    }
-
-    for (let i = 0; i <= lenA; i++) {
-        dist[i][0] = i;
-    }
-    for (let j = 0; j <= lenB; j++) {
-        dist[0][j] = j;
-    }
-
-    for (let i = 1; i <= lenA; i++) {
-        for (let j = 1; j <= lenB; j++) {
-            let cost = a[i - 1] === b[j - 1] ? 0 : 1;
-            let minDist = dist[i - 1][j] + 1; // deletion
-            let tempDist = dist[i][j - 1] + 1; // insertion
-            let substitution = dist[i - 1][j - 1] + cost; // substitution
-
-            if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) {
-                tempDist = dist[i - 2][j - 2] + cost;
-            }
-
-            if (i > sequenceLength && j > sequenceLength) {
-                let matchCount = 0;
-                for (let k = 1; k <= sequenceLength; k++) {
-                    if (a[i - k] === b[j - k]) {
-                        matchCount++;
-                    } else {
-                        break;
-                    }
-                }
-                if (matchCount === sequenceLength) {
-                    substitution -= bonus;
-                }
-            }
-
-            minDist = Math.min(minDist, tempDist, substitution);
-
-            if (i === 1 && j === 1 && a[0] === b[0]) {
-                minDist -= bonus;
-            }
-
-            dist[i][j] = minDist;
-        }
-    }
-
-    return dist[lenA][lenB];
-}
 
 function number2emoji(num: number): string {
     return String.fromCodePoint(0x1F51F + num);
@@ -72,48 +15,6 @@ function removeHtmlTagsAndDecode(str: string | undefined, limitLength: number = 
     const old_str = decode(str.replace(/(<([^>]+)>)/ig, '').replace(/\[([\w\s]+)\]/g, '$1'));
     const new_str = old_str.substring(0, limitLength === -1 ? str.length : limitLength);
     return new_str + (new_str.length === old_str.length ? '' : '...');
-}
-
-function getClosestMatches(input: string, sourcelst: string[], options?: { maxSuggestions?: number, similarityThreshold?: number, sequenceLength?: number, bonus?: number }): string[] | undefined {
-    const max_suggestions = options?.maxSuggestions ?? 25;
-    const similarity_threshold = options?.similarityThreshold ?? 10;
-
-    if (sourcelst.length < 1)
-        return undefined;
-
-    console.dir(sourcelst);
-
-    let closest_item: { item: string, distance: number }[] = [];
-    let exact_match: string | undefined = "";
-
-    for (const item of sourcelst) {
-        if (!item)
-            continue;
-
-        if (input === item)
-            return [item];
-
-        const input_tokens = input.split(/[^\w]|[_]/g); // match any non-word char AND underscore.
-        const item_tokens = item.split(/[^\w]|[_]/g);
-
-        if (input_tokens.length > item_tokens.length)
-            continue;
-
-        let distance = 0;
-
-        for (let i = 0; i < item_tokens.length; i++) {
-            for (let j = 0; j < input_tokens.length; j++) {
-                distance += damerauLevenshtein(item_tokens[i].toLowerCase(), input_tokens[j].toLowerCase(), options?.sequenceLength, options?.bonus);
-            }
-        }
-
-        if (distance <= similarity_threshold) {
-            closest_item.push({ item, distance });
-        }
-    }
-
-    const closest = closest_item.sort((a, b) => a.distance - b.distance).slice(0, max_suggestions).map(obj => obj.item);
-    return [... new Set(closest)];
 }
 
 function captureConsole<T>(data: T[]): string {
@@ -184,4 +85,95 @@ function captureConsoleTable<T>(data: T[]): string {
     return writer.getString();
 }
 
-export { damerauLevenshtein, number2emoji, removeHtmlTagsAndDecode, getClosestMatches, captureConsoleTable as generateTable, captureConsole };
+function discordMessageSplitter(message: string): string[] {
+    const maxLength = 1900;
+    if (message.length <= maxLength) return [message];
+
+    const messageChunks: string[] = [];
+    let currentChunk = "";
+    let inCodeBlock = false;
+    let currentLanguage = "";
+
+    // Split by lines first
+    const lines = message.split('\n');
+
+    for (const line of lines) {
+        // Check for code block start/end
+        if (line.startsWith('```')) {
+            if (!inCodeBlock) {
+                inCodeBlock = true;
+                const langMatch = line.match(/^```(\w+)/);
+                currentLanguage = langMatch ? langMatch[1] : '';
+            } else {
+                inCodeBlock = false;
+            }
+        }
+
+        // Calculate the line to add, considering code block markers if needed
+        let lineToAdd = line;
+        if (inCodeBlock && currentChunk === "") {
+            // Start new chunk with code block marker
+            lineToAdd = "```" + currentLanguage + "\n" + line;
+        }
+
+        // If a single line is longer than maxLength, split by markdown-safe boundaries
+        if (line.length >= maxLength) {
+            const words = line.split(/(\s+)/);
+            for (const word of words) {
+                if (currentChunk.length + word.length > maxLength) {
+                    if (inCodeBlock) {
+                        // Close code block before splitting
+                        messageChunks.push(currentChunk.trim() + "\n```");
+                        currentChunk = "```" + currentLanguage + "\n";
+                    } else {
+                        messageChunks.push(currentChunk.trim());
+                        currentChunk = "";
+                    }
+                }
+                currentChunk += word;
+            }
+            continue;
+        }
+
+        // If adding this line would exceed maxLength, start a new chunk
+        if (currentChunk.length + lineToAdd.length + 1 > maxLength) {
+            if (inCodeBlock) {
+                // Close code block before splitting
+                messageChunks.push(currentChunk.trim() + "\n```");
+                currentChunk = "```" + currentLanguage + "\n";
+            } else {
+                messageChunks.push(currentChunk.trim());
+                currentChunk = "";
+            }
+        }
+        
+        currentChunk += lineToAdd + '\n';
+    }
+
+    // Push the last chunk if it's not empty
+    if (currentChunk.trim()) {
+        if (inCodeBlock) {
+            messageChunks.push(currentChunk.trim() + "\n```");
+        } else {
+            messageChunks.push(currentChunk.trim());
+        }
+    }
+
+    return messageChunks;
+}
+    
+function getCodeBlock(content: string) { 
+    // Check for code blocks with language specifiers
+    const codeBlockMatch = content.match(/```([^\n]+)\n([\s\S]*?)```/);
+    if (codeBlockMatch) {
+        const language = codeBlockMatch[1];
+        const source_code = codeBlockMatch[2];
+
+        return { language, source_code };
+    } 
+    
+    return false;
+}
+
+
+export { number2emoji, removeHtmlTagsAndDecode, captureConsoleTable as generateTable, captureConsole, discordMessageSplitter, getCodeBlock };

@@ -31,7 +31,7 @@ async function getCweInfo(cweid: string): Promise<InteractionReplyOptions> {
         const embed = new EmbedBuilder({
             title: `Information for ${data.id}`,
             description: removeHtmlTagsAndDecode(`### ${data.name}\n${data.description}`, 1512),
-            footer: { text: `Content for this search retrieved from opencve.io` },
+            footer: { text: `Data from opencve.io` },
             timestamp: new Date().toISOString()
         });
 
@@ -133,25 +133,62 @@ async function getCveInfo(cveid: string): Promise<InteractionReplyOptions> {
         }
 
         const embed = new EmbedBuilder({
-            title: `Information for ${data.id}`,
-            description: removeHtmlTagsAndDecode(data.summary, 1024),
-            url: `https://www.cve.org/CVERecord?id=${data.id}`,
-            footer: { text: `Content for this search retrieved from opencve.io` },
+            title: `Information for ${data.cve_id}`,
+            description: removeHtmlTagsAndDecode(data.description, 1024),
+            url: `https://www.cve.org/CVERecord?id=${data.cve_id}`,
+            footer: { text: `Data from opencve.io` },
             timestamp: new Date().toISOString()
         });
 
-        if (data.cvss.v3 !== null) {
-            if (data.cvss.v3 < 0.1) { embed.addFields({ name: 'Severity', value: `:white_circle: None - ${data.cvss.v3}` }); }
-            else if (data.cvss.v3 < 4.0) { embed.addFields({ name: 'Severity', value: `:green_circle: Low - ${data.cvss.v3}` }); }
-            else if (data.cvss.v3 < 7.0) { embed.addFields({ name: 'Severity', value: `:yellow_circle: Medium - ${data.cvss.v3}` }); }
-            else if (data.cvss.v3 < 9.0) { embed.addFields({ name: 'Severity', value: `:orange_circle: High - ${data.cvss.v3}` }); }
-            else { embed.addFields({ name: 'Severity', value: `:red_circle: Critical - ${data.cvss.v3}` }); }
-        } else if (data.cvss.v2 !== null) {
-            if (data.cvss.v2 < 4.0) { embed.addFields({ name: 'Severity', value: `:green_circle: Low - ${data.cvss.v2}` }); }
-            else if (data.cvss.v2 < 7.0) { embed.addFields({ name: 'Severity', value: `:yellow_circle: Medium - ${data.cvss.v2}` }); }
-            else { embed.addFields({ name: 'Severity', value: `:red_circle: High - ${data.cvss.v2}` }); }
+        if (data.metrics.cvssV3_0.data!== null || data.metrics.cvssV3_1.data !== null) {
+            const cvss_score = data.metrics.cvssV3_0.data.score ?? data.metrics.cvssV3_1.data.score ?? -1;
+            if (cvss_score === -1) { embed.addFields({ name: 'Severity', value: `:white_circle: Unknown` }); }
+            else if (cvss_score < 0.1) { embed.addFields({ name: 'Severity', value: `:white_circle: None - ${cvss_score}` }); }
+            else if (cvss_score < 4.0) { embed.addFields({ name: 'Severity', value: `:green_circle: Low - ${cvss_score}` }); }
+            else if (cvss_score < 7.0) { embed.addFields({ name: 'Severity', value: `:yellow_circle: Medium - ${cvss_score}` }); }
+            else if (cvss_score < 9.0) { embed.addFields({ name: 'Severity', value: `:orange_circle: High - ${cvss_score}` }); }
+            else { embed.addFields({ name: 'Severity', value: `:red_circle: Critical - ${cvss_score}` }); }
+        } else if (data.metrics.cvssV2_0.data !== null) {
+            const cvss_score = data.metrics.cvssV2_0.data.score ?? -1;
+            if (cvss_score === -1) { embed.addFields({ name: 'Severity', value: `:white_circle: Unknown` }); }
+            else if (cvss_score < 4.0) { embed.addFields({ name: 'Severity', value: `:green_circle: Low - ${cvss_score}` }); }
+            else if (cvss_score < 7.0) { embed.addFields({ name: 'Severity', value: `:yellow_circle: Medium - ${cvss_score}` }); }
+            else { embed.addFields({ name: 'Severity', value: `:red_circle: High - ${cvss_score}` }); }
         }
 
+        let [vendors, products] = data.vendors.map(entry => {
+            const [vendor, product] = entry.split("$PRODUCT$").slice(0, 2);
+            return [vendor, product];
+        }).reduce((acc, [vendor, product]) => {
+            if (vendor !== undefined)
+                acc[0].push(vendor);
+            if (product !== undefined)
+                acc[1].push(product); 
+            return acc;
+        }, [[] as string[], [] as string[]]);
+
+
+        vendors = [...new Set(vendors)];
+        products = [...new Set(products)];
+
+        if (vendors.length > 24) {
+            vendors = vendors.slice(0, 24);
+            vendors.push('...');
+        }
+
+        if (products.length > 24) {
+            products = products.slice(0, 24);
+            products.push('...');
+        }
+
+
+        if (vendors.length > 0)
+            embed.addFields({ name: 'Affected Vendors', value: vendors.map(vendor => `\`${vendor}\``).join(', ') });
+        if (products.length > 0)
+            embed.addFields({ name: 'Affected Products', value: products.map(product => `\`${product}\``).join(', ') });
+
+
+        /*
         const { affectedVendors, affectedProducts, affectedVersions } = await getImpactInformation(data, cveid);
 
         if (affectedVendors.length > 0)
@@ -172,14 +209,29 @@ async function getCveInfo(cveid: string): Promise<InteractionReplyOptions> {
                 cweInformation += '\n';
             }
         }
+        */
 
-        if (data.cwes.length !== 0) {
-            embed.addFields({ name: 'Vulnerability Type', value: cweInformation });
+        if (data.weaknesses.length !== 0) {
+            embed.addFields({ name: 'Vulnerability Type(s)', value: data.weaknesses.map(weakness => `\`${weakness}\``).join(', ') });
         }
 
         embed.addFields({ name: 'Date Submitted', value: new Date(data.created_at).toDateString() });
 
-        return { embeds: [embed] };
+        const buttons = new ActionRowBuilder<ButtonBuilder>();
+
+        buttons.addComponents(new ButtonBuilder({
+            label: 'View on NVD',
+            url: `https://nvd.nist.gov/vuln/detail/${cveid}`,
+            style: ButtonStyle.Link
+        }));
+
+        buttons.addComponents(new ButtonBuilder({
+            label: 'Ask Ora',
+            customId: `ora_cve_${cveid}`,
+            style: ButtonStyle.Primary
+        }).setEmoji("✨"));
+
+        return { embeds: [embed], components: [buttons] };
     }
     catch (err: any) {
         return ({
@@ -212,21 +264,21 @@ async function getCves(args: { keyword?: string | null, vendor?: string | null, 
             });
         }
 
-        const len = Math.min(data.length, 5);
+        const len = Math.min(data.count, 5);
 
         const embed = new EmbedBuilder({
-            title: `Top ${len} CVEs found`,
+            title: `Top ${len} CVEs found out of ${data.count}`,
             description: "Can't find what you are looking for? Trying specifying the \`vendor\`, \`product\`, \`cvss\` or a different \`page\` number.",
-            footer: { text: `Content for this search retrieved from opencve.io.` },
+            footer: { text: `Data from opencve.io` },
             timestamp: new Date().toISOString()
         });
 
         const buttons = new ActionRowBuilder<ButtonBuilder>();
 
         for (let i = 0; i < len; i++) {
-            embed.addFields({ name: `${i + 1}.)  ${data[i].id}`, value: removeHtmlTagsAndDecode(data[i].summary, 200)! });
+            embed.addFields({ name: `${i + 1}.)  ${data.results[i].cve_id}`, value: removeHtmlTagsAndDecode(data.results[i].description, 200)! });
             buttons.addComponents(new ButtonBuilder(
-                { label: `${i + 1}`, style: ButtonStyle.Secondary, customId: `cve_${data[i].id}` }
+                { label: `${i + 1}`, style: ButtonStyle.Secondary, customId: `cve_${data.results[i].cve_id}` }
             ));
         }
 

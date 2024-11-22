@@ -7,6 +7,7 @@ let logger: Logger;
 
 const fastify_request_schema = {
     body: {
+        type: "object",
         properties: {
             code: { type: "string" },
             lang: { type: "string" },
