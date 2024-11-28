@@ -2,7 +2,7 @@ import { ArgType, Bot, Command, ConfigConfig, ConfigStorage, ConfigValueType, Mo
 import { ButtonStyle, ComponentType, Guild, GuildMember, Message, SnowflakeUtil } from "discord.js";
 import { sleep, getLogger } from "orange-common-lib";
 import scheduler from "node-schedule";
-import autokick2 from "./autokick/autokick2";
+import autokick2 from "./autokick/autokick2.js";
 const logger = getLogger("autokick");
 
 /**
