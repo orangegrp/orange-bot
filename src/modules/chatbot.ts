@@ -59,7 +59,7 @@ export default async function (bot: Bot, module: Module) {
             const embed = createCodeExecutionEmbed(language, run_time, run_result);
             const reply = await interaction.editReply({ embeds: [embed] });
 
-            await handleCodeExecutionReply(interaction, reply, oraChat);
+            await handleCodeExecutionReply(interaction, reply);
         } catch (error: unknown) {
             await interaction.editReply({ content: ":x: Something went wrong while trying to run the code." });
             logger.error(error instanceof Error ? error.message : String(error));
@@ -75,9 +75,9 @@ export default async function (bot: Bot, module: Module) {
     bot.client.on("messageCreate", async msg => {
         if (!oraChat || !shouldProcessMessage(msg, bot.client.user)) return;
         if (msg.content.startsWith(`<@${bot.client.user?.id}>`)) {
-            await handleMention(msg, bot, oraChat);
+            await handleMention(msg, bot);
         } else if (msg.reference?.messageId) {
-            await handleReply(msg, bot, oraChat);
+            await handleReply(msg, bot);
         }
     });
 }
@@ -101,8 +101,8 @@ function createCodeExecutionEmbed(language: string, run_time: string, run_result
  * @param reply - The reply message object.
  * @param oraChat - The OraChat instance.
  */
-async function handleCodeExecutionReply(interaction: ButtonInteraction, reply: Message, oraChat: OraChat) {
-    if (!reply) return;
+async function handleCodeExecutionReply(interaction: ButtonInteraction, reply: Message) {
+    if (!reply || !oraChat) return;
 
     const original_id = interaction.customId.split("_")[2];
     const original_message = await interaction.channel?.messages.fetch(original_id);
@@ -251,7 +251,8 @@ async function handleChat(thread_id: string, msg: Message) {
  * @param oraChat OraChat instance.
  * @returns Nothing.
  */
-async function handleMentionWithReference(msg: Message, bot: Bot, oraChat: OraChat) {
+async function handleMentionWithReference(msg: Message, bot: Bot) {
+    if (!oraChat) return;
     msg.channel.sendTyping();
     if (!msg.reference?.messageId) return;
 
@@ -269,7 +270,8 @@ async function handleMentionWithReference(msg: Message, bot: Bot, oraChat: OraCh
  * @param oraChat OraChat instance.
  * @returns Nothing.
  */
-async function handleMentionInThread(msg: Message, bot: Bot, oraChat: OraChat) {
+async function handleMentionInThread(msg: Message, bot: Bot) {
+    if (!oraChat) return;
     msg.channel.sendTyping();
     const messages = await msg.channel.messages.fetch({ before: msg.id, limit: 16 });
     const thread_id = await oraChat.newChat();
@@ -287,7 +289,8 @@ async function handleMentionInThread(msg: Message, bot: Bot, oraChat: OraChat) {
  * @param oraChat OraChat instance.
  * @returns Nothing.
  */
-async function handleDirectMention(msg: Message, bot: Bot, oraChat: OraChat) {
+async function handleDirectMention(msg: Message, bot: Bot) {
+    if (!oraChat) return;
     msg.channel.sendTyping();
 
     const thread_id = await oraChat.newChat();
@@ -315,15 +318,15 @@ async function handleDirectMention(msg: Message, bot: Bot, oraChat: OraChat) {
  * @param oraChat OraChat instance.
  * @returns Nothing.
  */
-async function handleMention(msg: Message, bot: Bot, oraChat: OraChat) {
+async function handleMention(msg: Message, bot: Bot) {
     if (!bot.client.user) return;
     msg.content = msg.content.replace(`<@${bot.client.user.id}>`, "");
     if (msg.reference?.messageId) {
-        await handleMentionWithReference(msg, bot, oraChat);
+        await handleMentionWithReference(msg, bot);
     } else if (msg.channel.isThread()) {
-        await handleMentionInThread(msg, bot, oraChat);
+        await handleMentionInThread(msg, bot);
     } else {
-        await handleDirectMention(msg, bot, oraChat);
+        await handleDirectMention(msg, bot);
     }
 }
 /**
@@ -333,8 +336,8 @@ async function handleMention(msg: Message, bot: Bot, oraChat: OraChat) {
  * @param oraChat OraChat instance.
  * @returns Nothing.
  */
-async function handleReply(msg: Message, bot: Bot, oraChat: OraChat) {
-    if (!msg.reference?.messageId) return;
+async function handleReply(msg: Message, bot: Bot) {
+    if (!oraChat || !msg.reference?.messageId) return;
     const thread_id = oraChat.getChatByMessageId(msg.reference.messageId);
     if (!thread_id) {
         const message = await msg.channel.messages.fetch(msg.reference.messageId);
