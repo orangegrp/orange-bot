@@ -74,7 +74,6 @@ export default async function (bot: Bot, module: Module) {
 
     bot.client.on("messageCreate", async msg => {
         if (!oraChat || !shouldProcessMessage(msg, bot.client.user)) return;
-
         if (msg.content.startsWith(`<@${bot.client.user?.id}>`)) {
             await handleMention(msg, bot, oraChat);
         } else if (msg.reference?.messageId) {
@@ -83,7 +82,6 @@ export default async function (bot: Bot, module: Module) {
     });
 }
 
-// Helper functions
 function createCodeExecutionEmbed(language: string, run_time: string, run_result: CodeRunnerJobResult) {
     return new EmbedBuilder({
         title: `Executed \`${language}\` code (${run_time}s).`,
@@ -95,7 +93,6 @@ function createCodeExecutionEmbed(language: string, run_time: string, run_result
         timestamp: new Date().toISOString(),
     });
 }
-
 /**
  * Processes and replies to a code execution interaction by adding the reply to the associated
  * chat thread. It fetches the original message and thread ID from the interaction custom ID,
@@ -117,7 +114,6 @@ async function handleCodeExecutionReply(interaction: ButtonInteraction, reply: M
         }
     }
 }
-
 /**
  * Sends chat responses by processing and replying to message content within a chat thread.
  * 
@@ -160,8 +156,6 @@ async function sendChatResponses(msg: Message, chatMessageContent: MessageConten
     }
     return replies;
 }
-
-
 /**
  * Checks if the given code block result is a valid, executable code block.
  * @param result - The result of getCodeBlock() to check.
@@ -176,7 +170,6 @@ function isExecutableCode(result: false | {
         languageAliases.includes(result.language as LanguageAlias)
     );
 }
-
 /**
  * Creates a Discord button for running code within a message.
  * The returned button is an ActionRowBuilder containing a single ButtonBuilder.
@@ -196,7 +189,6 @@ function createRunCodeButton(msgId: string) {
     );
     return buttons;
 }
-
 /**
  * Checks if a message should be processed by the chatbot.
  * @param {Message} msg - The message to check
@@ -207,9 +199,9 @@ function shouldProcessMessage(msg: Message, clientUser: ClientUser | null) {
     if (!clientUser) return false;
     if (msg.author.bot) return false;
     if (msg.author.id === clientUser.id) return false;
+    if (!msg.mentions.has(clientUser)) return false;
     return true;
 }
-
 /**
  * Handles a chat interaction by managing message sending, replying, and processing
  * within a specified chat thread. It sends typing indicators at various stages to
@@ -252,7 +244,6 @@ async function handleChat(thread_id: string, msg: Message) {
 
     replies.forEach(async r => await oraChat!.updateChatMap(thread, r.id));
 }
-
 /**
  * Handle a message that mentions the bot and has a message reference.
  * @param msg Message to handle.
@@ -271,7 +262,6 @@ async function handleMentionWithReference(msg: Message, bot: Bot, oraChat: OraCh
     await oraChat.updateChatMap(thread_id, msg.id);
     await handleChat(thread_id, msg);
 }
-
 /**
  * Handle a message that mentions the bot in a thread.
  * @param msg Message to handle.
@@ -290,7 +280,6 @@ async function handleMentionInThread(msg: Message, bot: Bot, oraChat: OraChat) {
     }
     await handleChat(thread_id, msg);
 }
-
 /**
  * Handle a message that mentions the bot but is not a reply.
  * @param msg Message to handle.
@@ -300,6 +289,7 @@ async function handleMentionInThread(msg: Message, bot: Bot, oraChat: OraChat) {
  */
 async function handleDirectMention(msg: Message, bot: Bot, oraChat: OraChat) {
     msg.channel.sendTyping();
+
     const thread_id = await oraChat.newChat();
     if (!thread_id) return;
 
@@ -318,7 +308,6 @@ async function handleDirectMention(msg: Message, bot: Bot, oraChat: OraChat) {
     await oraChat.addExistingMessageToThread(thread_id, msg);
     await handleChat(thread_id, msg);
 }
-
 /**
  * Handle a message that mentions the bot.
  * @param msg Message to handle.
@@ -329,7 +318,6 @@ async function handleDirectMention(msg: Message, bot: Bot, oraChat: OraChat) {
 async function handleMention(msg: Message, bot: Bot, oraChat: OraChat) {
     if (!bot.client.user) return;
     msg.content = msg.content.replace(`<@${bot.client.user.id}>`, "");
-
     if (msg.reference?.messageId) {
         await handleMentionWithReference(msg, bot, oraChat);
     } else if (msg.channel.isThread()) {
@@ -338,7 +326,6 @@ async function handleMention(msg: Message, bot: Bot, oraChat: OraChat) {
         await handleDirectMention(msg, bot, oraChat);
     }
 }
-
 /**
  * Handle a message reply.
  * @param msg Message to handle.
@@ -348,7 +335,6 @@ async function handleMention(msg: Message, bot: Bot, oraChat: OraChat) {
  */
 async function handleReply(msg: Message, bot: Bot, oraChat: OraChat) {
     if (!msg.reference?.messageId) return;
-
     const thread_id = oraChat.getChatByMessageId(msg.reference.messageId);
     if (!thread_id) {
         const message = await msg.channel.messages.fetch(msg.reference.messageId);
