@@ -37,7 +37,7 @@
         "openai": "^4.58.1",
         "orange-bot-base": "file:local_modules/orange-bot-base",
         "orange-common-lib": "file:local_modules/orange-common-lib",
-        "pocketbase": "^0.21.5",
+        "pocketbase": "^0.22.1",
         "puppeteer": "^23.3.0",
         "sha256": "^0.2.0",
         "sqlite3": "^5.1.7",
