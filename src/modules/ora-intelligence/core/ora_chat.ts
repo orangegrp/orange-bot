@@ -8,19 +8,41 @@ import { performWebSearch } from "./web_search.js";
 class OraChat extends AssistantCore {
     private chat_map: Map<string, string[]> = new Map();
     private thread_lock: Map<string, boolean> = new Map();
+    /**
+     * Creates a new OraChat object.
+     *
+     * @param assistant_id - The ID of the AI assistant to use.
+     * @param model - The model to use for the AI assistant. Defaults to "gpt-4o-mini".
+     */
     constructor(assistant_id: string, model: string = "gpt-4o-mini") {
         super("ora_chat", assistant_id, model);
     }
+    /**
+     * Waits until a thread is no longer locked. If the thread is locked, it waits a random amount of time (between 0 and 100ms) before trying again.
+     * @param thread_id - The ID of the thread to wait for.
+     */
     private async waitForThread(thread_id: string) {
         if (this.thread_lock.has(thread_id)) {
             while (this.thread_lock.has(thread_id)) { await sleep(Math.round(Math.random() * 100)); }
         }
     }
+    /**
+     * Retrieves the chat ID associated with a given thread ID.
+     *
+     * @param thread_id - The ID of the thread to search for.
+     * @returns - The ID of the thread if it exists, or false if it does not.
+     */
     private async getChatByThreadId(thread_id: string) {
         const thread = await super.getExistingThread(thread_id);
         if (!thread) return false;
         return thread.id;
     }
+    /**
+     * Retrieves the thread ID associated with a given message ID.
+     *
+     * @param message_id - The ID of the message to search for.
+     * @returns - The ID of the thread if it exists, or false if it does not.
+     */
     getChatByMessageId(message_id: string) {
         for (const [thread_id, message_ids] of this.chat_map) {
             if (message_ids.includes(message_id)) {
@@ -29,6 +51,12 @@ class OraChat extends AssistantCore {
         }
         return false;
     }
+    /**
+     * Updates the chat map with the given message ID.
+     * @param thread_id - The ID of the thread to update.
+     * @param message_id - The ID of the message to add to the thread.
+     * @returns - True if the update was successful, false otherwise.
+     */
     async updateChatMap(thread_id: string, message_id: string) {
         const message_ids = this.chat_map.get(thread_id);
         if (!message_ids) return false;
@@ -36,6 +64,13 @@ class OraChat extends AssistantCore {
         this.chat_map.set(thread_id, message_ids);
         return true;
     }
+    /**
+     * Adds an existing message to the thread with the given ID.
+     * @param thread_id - The ID of the thread to add the message to.
+     * @param message - The message to add to the thread. If not provided, the function does nothing.
+     * @param isBot - Whether the message is from a bot or a user. Defaults to false.
+     * @returns - True if the message was successfully added, false otherwise.
+     */
     async addExistingMessageToThread(thread_id: string, message: Message | undefined = undefined, isBot: boolean = false) {
         if (!message) return false;
         await this.waitForThread(thread_id);
@@ -70,6 +105,14 @@ class OraChat extends AssistantCore {
         }
         return this.updateChatMap(thread_id, message.id);
     }
+    /**
+     * Creates a new chat with the given message.
+     *
+     * @param message - The message to send in the chat. If not provided, the chat will be empty.
+     * @param prependMessage - Whether to prepend the message to the chat. If the message is not provided, this option is ignored.
+     * @param isBot - Whether the message is from a bot or a user. Defaults to false.
+     * @returns - The ID of the new chat, or false if the operation fails.
+     */
     async newChat(message: Message | undefined = undefined, prependMessage: boolean = false, isBot: boolean = false) {
         const thread = await super.createNewThread();
         if (!thread) return false;
@@ -84,9 +127,21 @@ class OraChat extends AssistantCore {
         }
         return thread.id;
     }
+    /**
+     * Retrieves the chat associated with the given ID. If the ID is a message ID, it will be converted to a thread ID first.
+     * @param thread_id_or_message_id - The ID of the thread or message to retrieve the chat for.
+     * @returns - The ID of the chat, or false if the operation fails.
+     */
     async getChat(thread_id_or_message_id: string) {
         return this.getChatByThreadId(thread_id_or_message_id) || this.getChatByMessageId(thread_id_or_message_id);
     }
+    /**
+     * Sends a message to the AI assistant.
+     * @param thread_id - The ID of the thread to send the message to.
+     * @param message - The message to send.
+     * @param prompt - A prompt string to use when sending the message. The string should contain placeholders for the message's author and content, and may also contain placeholders for the current time. The placeholders should be in the format `{{placeholder_name}}`.
+     * @returns - The ID of the message, or false if the operation fails.
+     */
     async sendMessage(thread_id: string, message: Message, prompt: string = `The current time is: {{current_time}}\nUser: "{{message.author.username}}" with the ID: <@{{message.author.id}}>, said:\n\n{{message.content}}`) {
         const thread = await super.getExistingThread(thread_id);
         if (!thread) return false;
@@ -109,10 +164,24 @@ class OraChat extends AssistantCore {
             return [message_part.id];
         }
     }
+    /**
+     * Sends a reply message to the AI assistant within a specified thread.
+     *
+     * @param thread_id - The ID of the thread to send the reply in.
+     * @param message - The message containing the reply content to send.
+     * @param replyTarget - The original message being replied to.
+     * @param prompt - A prompt string to use for the reply message, with placeholders for current time, author, and content.
+     * @returns - An array of the IDs of the sent message parts, or false if the operation fails.
+     */
     async replyToMessage(thread_id: string, message: Message, replyTarget: Message, prompt: string = `The current time is: {{current_time}}\nUser: \"{{message.author.username}}\" with the ID: <@{{message.author.id}}>, replying to "{{replyTarget}}" who said "{{replyContent}}", said:\n\n{{message.content}}`) {
         const text_prompt = prompt.replace("\"{{replyTarget}}\"", replyTarget.client.user.id === replyTarget.author.id ? "(You, Ora)" : `"${replyTarget.author.displayName}"`).replace("{{replyContent}}", replyTarget.content);
         return this.sendMessage(thread_id, message, text_prompt);
     }
+    /**
+     * Starts a new AI run in the given thread.
+     * @param thread_id - The ID of the thread to run the AI in.
+     * @returns - The ID of the run, or false if the operation fails.
+     */
     async runChat(thread_id: string) {
         const thread = await super.getExistingThread(thread_id);
         if (!thread) return false;
@@ -122,28 +191,35 @@ class OraChat extends AssistantCore {
         if (!run) return false;
         return run.id;
     }
+    /**
+     * Runs a tool on a given thread. If no run is specified, the most recent run is used.
+     * @param thread_id - The ID of the thread to run the tool on.
+     * @param run - The run to target. If not specified, the most recent run is used.
+     * @returns An array of tool call results. Each result is an object with a call_id and a response. The call_id is the ID of the tool call, and the response is the JSON response from the tool. If there is an error running the tool, the response will be a string containing the error message.
+     */
     async runTool(thread_id: string, run: Run | undefined = undefined) {
-        const error_msg = "Tool call failed, tell the user there was a problem finding the relevant information.";
         if (!run || !this.openai) return false;
+
         const steps = await this.openai.beta.threads.runs.steps.list(thread_id, run.id);
         if (!steps) return false;
 
         this.logger.verbose(`Running tool...`);
-
         const tool_calls: { call_id: string, response: string }[] = [];
+
         for (const step of steps.data) {
             if (step.type !== "tool_calls" && step.step_details.type !== "tool_calls" && step.status !== "in_progress") continue;
+
             for (const tool_call of (step.step_details as ToolCallsStepDetails).tool_calls) {
-                if (tool_calls.find(tc => tc.call_id === tool_call.id)) continue;
-                if (tool_call.type !== "function") continue;
+                if (tool_calls.find(tc => tc.call_id === tool_call.id) || tool_call.type !== "function") continue;
+
                 switch (tool_call.function.name) {
                     case "web_search":
-                        const json_data = JSON.parse(tool_call.function.arguments);
-                        this.logger.verbose(`Running web search for query "${json_data.searchQuery}"...`);
-                        tool_calls.push({ call_id: tool_call.id, response: JSON.stringify(await performWebSearch(json_data.searchQuery, json_data.region, json_data.searchType, json_data.freshness)) });
+                        const search_params = JSON.parse(tool_call.function.arguments);
+                        this.logger.verbose(`Running web search for query "${search_params.searchQuery}"...`);
+                        tool_calls.push({ call_id: tool_call.id, response: JSON.stringify(await performWebSearch(search_params.searchQuery, search_params.region, search_params.searchType, search_params.freshness)) });
                         break;
                     default:
-                        tool_calls.push({ call_id: tool_call.id, response: error_msg });
+                        tool_calls.push({ call_id: tool_call.id, response: "Tool call failed, tell the user there was a problem finding the relevant information." });
                         break;
                 }
             }
@@ -151,6 +227,13 @@ class OraChat extends AssistantCore {
 
         return tool_calls;
     }
+    /**
+     * Waits for a thread to complete by repeatedly checking its status.
+     * @param thread_id - The ID of the thread to wait for.
+     * @param run_id - The ID of the run to check the status of.
+     * @param typingIndicatorFunction - An optional function to indicate typing status during the wait.
+     * @returns - The completed run object, or false if the run fails to complete.
+     */
     async waitForChat(thread_id: string, run_id: string, typingIndicatorFunction: Function | undefined = undefined) {
         let run = await super.getThreadRun(thread_id, run_id);
         for (let i = 0; i < 600; i++) {
@@ -168,7 +251,6 @@ class OraChat extends AssistantCore {
                     await this.openai!.beta.threads.runs.cancel(thread_id, run_id);
                     continue;
                 }
-                console.dir(toolResult);
                 await this.openai!.beta.threads.runs.submitToolOutputs(
                     thread_id, run_id, {
                     tool_outputs:
@@ -190,6 +272,13 @@ class OraChat extends AssistantCore {
         if (!run) return false;
         return run;
     }
+    /**
+     * Gets the latest message from the OpenAI chat thread.
+     * 
+     * @param thread_id - The ID of the thread to retrieve the message from.
+     * @returns - The latest message from the thread, or false if the operation fails.
+     */
+
     async getChatMessage(thread_id: string) {
         const messages = await super.getThreadMessages(thread_id);
         if (!messages || messages.data.length < 1) return false;
