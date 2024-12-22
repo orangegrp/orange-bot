@@ -26,7 +26,7 @@ type OpenCveV2InfoResult = {
         cvssV2_0: { data: { score: number, vector: string }, provider: string },
         cvssV3_0: { data: { score: number, vector: string }, provider: string },
         cvssV3_1: { data: { score: number, vector: string }, provider: string },
-        cvssV4_0: { data: {}, provider: null },
+        cvssV4_0: { data: { score: number, vector: string }, provider: string },
         threat_severity: { data: string, provider: string }
     },
     weaknesses: string[],
