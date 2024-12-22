@@ -2,7 +2,7 @@ import { ArgType, Bot, Command, ConfigConfig, ConfigStorage, ConfigValueType, Mo
 import { ButtonStyle, ComponentType, Guild, GuildMember, Message, SnowflakeUtil } from "discord.js";
 import { sleep, getLogger } from "orange-common-lib";
 import scheduler from "node-schedule";
-import autokick2 from "./autokick/autokick2";
+import autokick2 from "./autokick/autokick2.js";
 const logger = getLogger("autokick");
 
 /**
@@ -151,7 +151,7 @@ async function onMemberInActive(bot: Bot, member: GuildMember) {
     const notif_channel = await bot.client.channels.fetch(notif_channel_id);
     if (!notif_channel) return;
 
-    if (notif_channel.isTextBased()) {
+    if (notif_channel.isSendable()) {
         const lastActive = await autoKickConfig?.member(member.guild, member).get("lastActive") ?? 0;
 
         await notif_channel.send({

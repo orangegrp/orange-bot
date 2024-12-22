@@ -8,6 +8,11 @@ export default async function(bot: Bot, module: Module, config: ConfigStorage<Au
         if (!module.handling) return;
         if (!msg.inGuild()) return;
 
+        const commandUser = msg.member ?? (await bot.getMember(msg.guildId, msg.author.id))?.member;
+
+        if (!commandUser || !commandUser.permissions.has("KickMembers")) return;
+
+
         if (args.length < 1) {
             msg.reply(`Usage ${bot.prefix}${enabled ? "autokick" : "autokickoff"} <userid>`);
             return;
