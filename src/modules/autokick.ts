@@ -151,7 +151,7 @@ async function onMemberInActive(bot: Bot, member: GuildMember) {
     const notif_channel = await bot.client.channels.fetch(notif_channel_id);
     if (!notif_channel) return;
 
-    if (notif_channel.isTextBased()) {
+    if (notif_channel.isSendable()) {
         const lastActive = await autoKickConfig?.member(member.guild, member).get("lastActive") ?? 0;
 
         await notif_channel.send({

@@ -2,7 +2,7 @@ import { Bot, Module } from "orange-bot-base";
 import { getLogger } from "orange-common-lib";
 import { OraChat } from "./ora-intelligence/core/ora_chat.js";
 import { discordMessageSplitter, getCodeBlock } from "../core/functions.js";
-import { ActionRowBuilder, ButtonBuilder, ButtonInteraction, ButtonStyle, ClientUser, EmbedBuilder, Message } from "discord.js";
+import { ActionRowBuilder, ButtonBuilder, ButtonInteraction, ButtonStyle, ClientUser, EmbedBuilder, Message, OmitPartialGroupDMChannel } from "discord.js";
 import { CodeRunner } from "./code-runner/codeRunner.js";
 import { Language, LanguageAlias, languageAliases, languages } from "./code-runner/languages.js";
 import { CodeRunnerJobResult } from "./code-runner/types/codeRunner.js";
@@ -127,7 +127,7 @@ async function handleCodeExecutionReply(interaction: ButtonInteraction, reply: M
  * @param oraChat - The OraChat instance used for processing messages and threads.
  * @returns An array of message objects that were sent as replies.
  */
-async function sendChatResponses(msg: Message, chatMessageContent: MessageContent[]) {
+async function sendChatResponses(msg: OmitPartialGroupDMChannel<Message>, chatMessageContent: MessageContent[]) {
     const replies = [];
     const messageContent = chatMessageContent
         .filter(t => t.type === "text")
@@ -211,7 +211,7 @@ function shouldProcessMessage(msg: Message, clientUser: ClientUser | null) {
  * @param msg - The message object representing the user's message.
  * @returns A boolean indicating success or failure of handling the chat.
  */
-async function handleChat(thread_id: string, msg: Message) {
+async function handleChat(thread_id: string, msg: OmitPartialGroupDMChannel<Message>) {
     if (!oraChat) return;
 
     msg.channel.sendTyping();
@@ -251,7 +251,7 @@ async function handleChat(thread_id: string, msg: Message) {
  * @param oraChat OraChat instance.
  * @returns Nothing.
  */
-async function handleMentionWithReference(msg: Message, bot: Bot) {
+async function handleMentionWithReference(msg: OmitPartialGroupDMChannel<Message>, bot: Bot) {
     if (!oraChat) return;
     msg.channel.sendTyping();
     if (!msg.reference?.messageId) return;
@@ -270,7 +270,7 @@ async function handleMentionWithReference(msg: Message, bot: Bot) {
  * @param oraChat OraChat instance.
  * @returns Nothing.
  */
-async function handleMentionInThread(msg: Message, bot: Bot) {
+async function handleMentionInThread(msg: OmitPartialGroupDMChannel<Message>, bot: Bot) {
     if (!oraChat) return;
     msg.channel.sendTyping();
     const messages = await msg.channel.messages.fetch({ before: msg.id, limit: 16 });
@@ -289,7 +289,7 @@ async function handleMentionInThread(msg: Message, bot: Bot) {
  * @param oraChat OraChat instance.
  * @returns Nothing.
  */
-async function handleDirectMention(msg: Message, bot: Bot) {
+async function handleDirectMention(msg: OmitPartialGroupDMChannel<Message>, bot: Bot) {
     if (!oraChat) return;
     msg.channel.sendTyping();
 
@@ -318,7 +318,7 @@ async function handleDirectMention(msg: Message, bot: Bot) {
  * @param oraChat OraChat instance.
  * @returns Nothing.
  */
-async function handleMention(msg: Message, bot: Bot) {
+async function handleMention(msg: OmitPartialGroupDMChannel<Message>, bot: Bot) {
     if (!bot.client.user) return;
     msg.content = msg.content.replace(`<@${bot.client.user.id}>`, "");
     if (msg.reference?.messageId) {
@@ -336,7 +336,7 @@ async function handleMention(msg: Message, bot: Bot) {
  * @param oraChat OraChat instance.
  * @returns Nothing.
  */
-async function handleReply(msg: Message, bot: Bot) {
+async function handleReply(msg: OmitPartialGroupDMChannel<Message>, bot: Bot) {
     if (!oraChat || !msg.reference?.messageId) return;
     const thread_id = oraChat.getChatByMessageId(msg.reference.messageId);
     if (!thread_id) {
