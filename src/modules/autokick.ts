@@ -2,6 +2,7 @@ import { ArgType, Bot, Command, ConfigConfig, ConfigStorage, ConfigValueType, Mo
 import { ButtonStyle, ComponentType, Guild, GuildMember, Message, SnowflakeUtil } from "discord.js";
 import { sleep, getLogger } from "orange-common-lib";
 import scheduler from "node-schedule";
+import autokick2 from "./autokick/autokick2.js";
 const logger = getLogger("autokick");
 
 /**
@@ -98,6 +99,13 @@ const autoKickConfigManifest = {
             description: "Users that are whitelisted will be ignored in future autokicks",
             uiVisibility: "readonly",
             default: false,
+        },
+        autokick: {
+            type: ConfigValueType.boolean,
+            displayName: "Autokick",
+            description: "Autokick this user when they send a message",
+            uiVisibility: "hidden",
+            default: false,
         }
     }
 } satisfies ConfigConfig;
@@ -107,6 +115,7 @@ let autoKickConfig: ConfigStorage<typeof autoKickConfigManifest> | undefined;
 async function main(bot: Bot, module: Module) {
     //if (!module.handling) return;
     if (!autoKickConfig) autoKickConfig = new ConfigStorage(autoKickConfigManifest, bot);
+    autokick2(bot, module, autoKickConfig);
     await autoKickConfig.waitForReady();
     await sleep(10000); // wait another 10s before running (just in case any startup issues)
     const member_list: { member: GuildMember }[] = [];
@@ -287,3 +296,7 @@ export default async function (bot: Bot, module: Module) {
         }
     });
 }
+
+type AutoKickConfigManifest = typeof autoKickConfigManifest;
+
+export type { AutoKickConfigManifest };
