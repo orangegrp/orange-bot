@@ -1,5 +1,5 @@
 import { ArgType, Bot, Command, ConfigConfig, ConfigStorage, ConfigValueType, Module } from "orange-bot-base";
-import { ButtonStyle, ComponentType, Guild, GuildMember, Message, SnowflakeUtil } from "discord.js";
+import { ButtonStyle, ComponentType, Guild, GuildMember, Message, SnowflakeUtil, TextChannel } from "discord.js";
 import { sleep, getLogger } from "orange-common-lib";
 import scheduler from "node-schedule";
 import autokick2 from "./autokick/autokick2.js";
@@ -149,7 +149,11 @@ async function onMemberInActive(bot: Bot, member: GuildMember) {
     const notif_channel_id = await autoKickConfig?.guild(member.guild).get("autokickChannel");
     if (!notif_channel_id) { logger.error("Autokick channel not set. Cannot send notifications!"); return; }
     const notif_channel = await bot.client.channels.fetch(notif_channel_id);
-    if (!notif_channel) return;
+    
+    if (!notif_channel || !(notif_channel instanceof TextChannel)) {
+        logger.error("Notification channel is not a text channel or not found.");
+        return;
+    }
 
     if (notif_channel.isTextBased()) {
         const lastActive = await autoKickConfig?.member(member.guild, member).get("lastActive") ?? 0;
