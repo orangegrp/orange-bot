@@ -21,27 +21,30 @@ async function getAllPrunableMembers(guild: Guild, bot: Bot) {
  * @param member The member to check.
  * @param guild The guild to check.
  * @param bot The bot object.
- * @param timeout The timeout in milliseconds. Defaults to 2 weeks.
+ * @param timeout The timeout in milliseconds.
+ * @param joinTimeout Timeout after joining (ms)
  * @returns true if the member sent a message within the given timeout, false otherwise.
  */
-async function checkIfMemberSentMessageRecently(member: GuildMember, guild: Guild, timeout: number = 2 * 7 * 24 * 60 * 60 * 1000,) {
+async function checkIfMemberSentMessageRecently(member: GuildMember, guild: Guild, timeout: number, joinTimeout: number): Promise<{ kick: false } | { kick: true, reason: "inactive" | "joinInactive" }> {
     if (autoKickConfig) {
         // First, check the db for any known timestamps
         const memberConfig = autoKickConfig.member(guild, member);
 
         if (await memberConfig.get("whitelisted")) {
             logger.verbose(`Ignored whitelisted member ${member.user.tag} (${member.id})`);
-            return true;
+            return { kick: false };
         }
         
         if (Date.now() - await memberConfig.get("lastActive") < timeout) {
-            return true;
+            return { kick: false };
         }
     }
-    if (member.joinedTimestamp && Date.now() - member.joinedTimestamp < timeout) {
+    if (member.joinedTimestamp && Date.now() - member.joinedTimestamp < joinTimeout) {
         logger.verbose(`Member joined recently ${member.user.tag} (${member.id})`);
-        return true;
+        return { kick: false };
     }
+
+    let foundMessage = false;
 
     const channels = await guild.channels.fetch();
     for (const [_, channel] of channels) {
@@ -54,13 +57,17 @@ async function checkIfMemberSentMessageRecently(member: GuildMember, guild: Guil
                 setLastActive(message); // store this in the db so we don't need to find it again!
 
                 if (Date.now() - message.createdTimestamp < timeout) {
-                    return true;
+                    return { kick: false };;
                 }
+                foundMessage = true;
             }
             await sleep(50); // add delay to prevent discord from rate limiting
         } catch { /* ignore */ }
     }
-    return false;
+    if (!foundMessage) {
+        return { kick: true, reason: "joinInactive" };
+    }
+    return { kick: true, reason: "inactive" };;
 }
 
 async function setLastActive(message: Message) {
@@ -83,6 +90,19 @@ const autoKickConfigManifest = {
             displayName: "Autokick Channel",
             description: "Channel to send autokick notifications in",
             permissions: "ManageChannels"
+        },
+        inactiveTime: {
+            type: ConfigValueType.integer,
+            displayName: "Inactive time (days)",
+            description: "The time a user needs to be inactive for to get an autokick notification",
+            permissions: "Administrator",
+            default: 14,
+        },
+        joinInactiveTime: {
+            type: ConfigValueType.integer,
+            displayName: "Join Inactive Time",
+            description: "The time after joining the server that a user is considered to be inactive (if they have never sent a message)",
+            default: 5,
         }
     },
     user: {
@@ -117,34 +137,43 @@ async function main(bot: Bot, module: Module) {
     if (!autoKickConfig) autoKickConfig = new ConfigStorage(autoKickConfigManifest, bot);
     await autoKickConfig.waitForReady();
     await sleep(10000); // wait another 10s before running (just in case any startup issues)
-    const member_list: { member: GuildMember }[] = [];
+    const member_list: { member: GuildMember, reason: "inactive" | "joinInactive" }[] = [];
 
     logger.info("Checking for members that are inactive ...");
     for (const [_, guild] of bot.client.guilds.cache) {
+
+        const guildConfig = autoKickConfig.guild(guild);
+
+        const inactiveTime = await guildConfig.get("inactiveTime") * 24 * 60 * 60 * 1000;
+        const joinInactiveTime = await guildConfig.get("joinInactiveTime") * 24 * 60 * 60 * 1000;
+
         const members = await getAllPrunableMembers(guild, bot);
 
         for (const [_, member] of members) {
             if (!member) continue;
             if (member.user.bot) continue;
             if (member.user.id === bot.client.user?.id) continue;
-            if (await checkIfMemberSentMessageRecently(member, guild)) {
+
+            const result = await checkIfMemberSentMessageRecently(member, guild, inactiveTime, joinInactiveTime)
+
+            if (!result.kick) {
                 logger.log(`Member sent message recently ${member.user.tag} (${member.id})`);
             } else {
                 logger.log(`Member did not send message recently ${member.user.tag} (${member.id})`);
-                if (member_list.includes({ member: member })) continue;
-                member_list.push({ member: member });
+                if (member_list.includes({ member: member, reason: result.reason })) continue;
+                member_list.push({ member: member, reason: result.reason });
             }
         }
         await sleep(1000); // sleep to avoid rate limiting
     }
     logger.ok("The pruning has completed. Sending out notifications now ...");
-    for (const { member } of member_list) {
+    for (const { member, reason } of member_list) {
         await sleep(1000);
-        await onMemberInActive(bot, member);
+        await onMemberInActive(bot, member, reason);
     }
 }
 
-async function onMemberInActive(bot: Bot, member: GuildMember) {
+async function onMemberInActive(bot: Bot, member: GuildMember, reason: "inactive" | "joinInactive") {
     const notif_channel_id = await autoKickConfig?.guild(member.guild).get("autokickChannel");
     if (!notif_channel_id) { logger.error("Autokick channel not set. Cannot send notifications!"); return; }
     const notif_channel = await bot.client.channels.fetch(notif_channel_id);
@@ -157,7 +186,8 @@ async function onMemberInActive(bot: Bot, member: GuildMember) {
             embeds: [{
                 title: `:bell: ${member.user.username} is inactive`,
                 thumbnail: { url: member.user.avatarURL() || "" },
-                description: `<@${member.user.id}> has not engaged with the community recently.`,
+                description: reason === "inactive" ? `<@${member.user.id}> has not engaged with the community recently.`
+                                                   : `<@${member.user.id}> has not engaged with the community after joining.`,
                 fields: [
                     { name: "Joined", value: member.joinedAt?.toUTCString() ?? "Unknown" },
                     { name: "Last Active", value: lastActive === 0 ? "No data" : `<t:${Math.floor(lastActive / 1000)}:R>` }
