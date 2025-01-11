@@ -6,6 +6,10 @@ class AssistantCore {
     readonly openai;
     private readonly assistant_id;
     private readonly model;
+    
+    private thread_cache: Map<string, OpenAI.Beta.Threads.Thread> = new Map();
+    private preemptive_thread_pool: OpenAI.Beta.Threads.Thread[] = [];
+
 
     /**
      * Initialize an AssistantCore for a module.
@@ -29,6 +33,16 @@ class AssistantCore {
         this.model = model;
     }
 
+    async createPreemptiveThread() {
+        if (!this.openai) return undefined;
+        if (this.preemptive_thread_pool.length > 5) return;
+        this.logger.verbose(`Creating preemptive thread...`);
+        const thread = await this.openai.beta.threads.create();
+        if (!thread) return undefined;
+        this.logger.ok(`Preemptive thread created!, ID: ${thread.id}`);
+        if (thread.id) this.preemptive_thread_pool.push(thread);
+        return thread;
+    }
     /**
      * Creates a new thread and returns the thread object.
      *
@@ -36,10 +50,39 @@ class AssistantCore {
      */
     async createNewThread() {
         if (!this.openai) return undefined;
+        if (this.preemptive_thread_pool.length > 0) {
+            this.logger.verbose(`Using preemptive thread...`);
+            const thread = this.preemptive_thread_pool.pop();
+            if (thread && thread.id) {
+                this.thread_cache.set(thread.id, thread);
+                setTimeout(() => this.thread_cache.delete(thread.id), 72 * 60 * 60 * 1000);
+                return thread;
+            }
+            this.logger.warn(`Preemptive thread had no id, falling back!`);
+        }
         this.logger.verbose(`Creating new thread...`);
         const thread = await this.openai.beta.threads.create();
         if (!thread) return undefined;
         this.logger.ok(`Thread created!, ID: ${thread.id}`);
+        if (thread.id) {
+            this.thread_cache.set(thread.id, thread);
+            setTimeout(() => this.thread_cache.delete(thread.id), 72 * 60 * 60 * 1000);
+        }
+        return thread;
+    }
+
+    /**
+     * Retrieves an existing thread and returns the thread object.
+     *
+     * @param thread_id - The ID of the thread to retrieve.
+     * @returns - The retrieved thread object, or undefined if the operation fails.
+     */
+    private async _getExistingThread(thread_id: string) {
+        if (!this.openai) return undefined;
+        this.logger.verbose(`Getting existing thread...`);
+        const thread = await this.openai.beta.threads.retrieve(thread_id);
+        if (!thread) return undefined;
+        this.logger.ok(`Thread retrieved!, ID: ${thread.id}`);
         return thread;
     }
     /**
@@ -49,11 +92,14 @@ class AssistantCore {
      * @returns - The retrieved thread object, or undefined if the operation fails.
      */
     async getExistingThread(thread_id: string) {
-        if (!this.openai) return undefined;
-        this.logger.verbose(`Getting existing thread...`);
-        const thread = await this.openai.beta.threads.retrieve(thread_id);
+        if (this.thread_cache.has(thread_id)) {
+            this.logger.verbose(`Thread retrieved from cache! ID: ${thread_id}`);
+            return this.thread_cache.get(thread_id);
+        }
+        const thread = await this._getExistingThread(thread_id);
         if (!thread) return undefined;
-        this.logger.ok(`Thread retrieved!, ID: ${thread.id}`);
+        this.thread_cache.set(thread_id, thread);
+        setTimeout(() => this.thread_cache.delete(thread_id), 72 * 60 * 60 * 1000);
         return thread;
     }
 
@@ -137,6 +183,16 @@ class AssistantCore {
         if (!result) return undefined;
         this.logger.ok(`Thread run! ID: ${thread_id}`);
         return result;
+    }
+    async runThreadStreamed(thread_id: string, assistant_id: string = this.assistant_id, model: string = this.model) {
+        if (!this.openai) return undefined;
+        this.logger.verbose(`Running thread ${thread_id} against assistant ${assistant_id} (streamed) ...`);
+        const stream = await this.openai.beta.threads.runs.create(thread_id,
+            { assistant_id: assistant_id, model: model, stream: true }
+        );
+        if (!stream) return undefined;
+        this.logger.ok(`Thread run! ID: ${thread_id}`);
+        return stream;
     }
     /**
      * Retrieves a thread run.

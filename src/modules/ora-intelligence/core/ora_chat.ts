@@ -191,6 +191,22 @@ class OraChat extends AssistantCore {
         if (!run) return false;
         return run.id;
     }
+    async runChatStreamed(thread_id: string) {
+        const thread = await super.getExistingThread(thread_id);
+        if (!thread) return false;
+        await this.waitForThread(thread.id);
+        this.thread_lock.set(thread.id, true);
+        const stream = await super.runThreadStreamed(thread.id);
+        if (!stream) return false;
+        for await (const event of stream) {
+            if (event.event === "thread.run.completed") {
+                this.logger.ok(`Thread run! ID: ${thread_id}`);
+                if (this.thread_lock.has(thread_id)) this.thread_lock.delete(thread_id);
+                return await this.getChatMessage(thread_id);
+            }
+        }
+        return undefined;
+    }
     /**
      * Runs a tool on a given thread. If no run is specified, the most recent run is used.
      * @param thread_id - The ID of the thread to run the tool on.
@@ -240,11 +256,11 @@ class OraChat extends AssistantCore {
             run = await super.getThreadRun(thread_id, run_id);
             if (typingIndicatorFunction) typingIndicatorFunction();
 
-            if (!run) { await sleep(100); continue; }
+            if (!run) { await sleep(500); continue; }
 
             this.logger.verbose(`Thread run status: ${run.status} ${run.last_error} ${run.incomplete_details?.reason}`);
 
-            if (run.status === "in_progress" || run.status === "queued") await sleep(100);
+            if (run.status === "in_progress" || run.status === "queued") await sleep(1000);
             else if (run.status === "requires_action") {
                 const toolResult = await this.runTool(thread_id, run);
                 if (!toolResult) {

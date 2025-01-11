@@ -14,6 +14,12 @@ let oraChat: OraChat | undefined = undefined;
 const CODERUNNER_SERVER = process.env.CODERUNNER_SERVER;
 const CODERUNNER_API_KEY = process.env.CODERUNNER_API_KEY;
 
+const timedelta = (start: number, end: number) => {
+    const delta = end - start;
+    const seconds = delta / 1000;
+    return `${seconds.toFixed(2)}s`;
+}
+
 export default async function (bot: Bot, module: Module) {
     oraChat = new OraChat("asst_Q0MdDbLSFkNzCovK4DXlgvq9");
 
