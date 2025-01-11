@@ -189,7 +189,7 @@ async function onMemberInActive(bot: Bot, member: GuildMember, reason: "inactive
                 description: reason === "inactive" ? `<@${member.user.id}> has not engaged with the community recently.`
                                                    : `<@${member.user.id}> has not engaged with the community after joining.`,
                 fields: [
-                    { name: "Joined", value: member.joinedAt?.toUTCString() ?? "Unknown" },
+                    { name: "Joined", value: member.joinedTimestamp ? `<t:${Math.floor(member.joinedTimestamp / 1000)}:R>` : "Unknown" },
                     { name: "Last Active", value: lastActive === 0 ? "No data" : `<t:${Math.floor(lastActive / 1000)}:R>` }
                 ]
             }],
