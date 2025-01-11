@@ -10,7 +10,6 @@ class AssistantCore {
     private thread_cache: Map<string, OpenAI.Beta.Threads.Thread> = new Map();
     private preemptive_thread_pool: OpenAI.Beta.Threads.Thread[] = [];
 
-
     /**
      * Initialize an AssistantCore for a module.
      *
@@ -33,6 +32,13 @@ class AssistantCore {
         this.model = model;
     }
 
+    /**
+     * Creates a new thread in the background when the object is initialized.
+     * The thread is stored in a pool of threads, and can be reused.
+     * The method will not create a new thread if the pool already has 5 threads.
+     * 
+     * @returns - The newly created thread object, or undefined if the operation fails.
+     */
     async createPreemptiveThread() {
         if (!this.openai) return undefined;
         if (this.preemptive_thread_pool.length > 5) return;
@@ -43,6 +49,7 @@ class AssistantCore {
         if (thread.id) this.preemptive_thread_pool.push(thread);
         return thread;
     }
+    
     /**
      * Creates a new thread and returns the thread object.
      *
@@ -184,6 +191,15 @@ class AssistantCore {
         this.logger.ok(`Thread run! ID: ${thread_id}`);
         return result;
     }
+
+    /**
+     * Starts a new thread run against an assistant and model, and returns the event stream directly.
+     *
+     * @param thread_id - The ID of the thread to run.
+     * @param assistant_id - The ID of the assistant to use. Defaults to the assistant ID used when creating this object.
+     * @param model - The model to use. Defaults to the model used when creating this object.
+     * @returns - The event stream of the thread run, or undefined if the operation fails.
+     */
     async runThreadStreamed(thread_id: string, assistant_id: string = this.assistant_id, model: string = this.model) {
         if (!this.openai) return undefined;
         this.logger.verbose(`Running thread ${thread_id} against assistant ${assistant_id} (streamed) ...`);
@@ -194,6 +210,7 @@ class AssistantCore {
         this.logger.ok(`Thread run! ID: ${thread_id}`);
         return stream;
     }
+    
     /**
      * Retrieves a thread run.
      *

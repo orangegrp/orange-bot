@@ -78,13 +78,24 @@ export default async function (bot: Bot, module: Module) {
         }
     });
 
+    bot.client.on("typingStart", async typing => {
+        if (!typing.channel || !typing.user) return;
+        if (typing.user.bot) return;
+        if (typing.user.id === bot.client.user?.id) return;
+        if (!oraChat) return;
+        oraChat.createPreemptiveThread();
+    });
+
     bot.client.on("messageCreate", async msg => {
         if (!oraChat || !shouldProcessMessage(msg, bot.client.user)) return;
+        const start_time = Date.now();
         if (msg.content.startsWith(`<@${bot.client.user?.id}>`)) {
             await handleMention(msg, bot);
         } else if (msg.reference?.messageId) {
             await handleReply(msg, bot);
         }
+        const end_time = Date.now();
+        logger.info(`Message processed in ${timedelta(start_time, end_time)}`);
     });
 }
 
@@ -144,18 +155,21 @@ async function sendChatResponses(msg: OmitPartialGroupDMChannel<Message>, chatMe
         await msg.channel.sendTyping();
         const result = getCodeBlock(msgChunk);
 
+        const text = msgChunk;
+
         if (isExecutableCode(result)) {
             const button = createRunCodeButton(msg.id);
             const msgData = await msg.reply({
-                content: msgChunk,
+                content: text,
                 allowedMentions: { parse: [] },
                 components: [button]
             });
             replies.push(msgData);
         } else {
             const msgData = await msg.reply({
-                content: msgChunk,
-                allowedMentions: { parse: [] }
+                content: text,
+                allowedMentions: { parse: [] },
+                embeds: []
             });
             replies.push(msgData);
         }
@@ -234,6 +248,10 @@ async function handleChat(thread_id: string, msg: OmitPartialGroupDMChannel<Mess
         if (!message) return false;
     }
 
+    /*  
+
+    /// This is the old implementation.
+
     msg.channel.sendTyping();
     const run = await oraChat.runChat(thread);
     if (!run) return false;
@@ -245,10 +263,17 @@ async function handleChat(thread_id: string, msg: OmitPartialGroupDMChannel<Mess
     msg.channel.sendTyping();
     const chatMessage = await oraChat.getChatMessage(thread);
     if (!chatMessage) return false;
+    */
+
+    const chatMessage = await oraChat.runChatStreamed(thread);
+    if (!chatMessage) return false;
 
     const replies = await sendChatResponses(msg, chatMessage.content);
 
-    replies.forEach(async r => await oraChat!.updateChatMap(thread, r.id));
+    replies.forEach(async r => { 
+        await r.suppressEmbeds(true);
+        await oraChat!.updateChatMap(thread, r.id)
+    });
 }
 /**
  * Handle a message that mentions the bot and has a message reference.
