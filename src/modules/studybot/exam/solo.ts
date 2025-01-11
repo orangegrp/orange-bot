@@ -1,4 +1,4 @@
-import { ActionRowBuilder, ButtonBuilder, ButtonInteraction, ButtonStyle, CacheType, ChatInputCommandInteraction, EmbedBuilder, GuildTextBasedChannel, Message, Snowflake, TextBasedChannel, TextChannel, ThreadAutoArchiveDuration } from "discord.js";
+import { ActionRowBuilder, ButtonBuilder, ButtonInteraction, ButtonStyle, CacheType, ChatInputCommandInteraction, EmbedBuilder, GuildTextBasedChannel, Message, OmitPartialGroupDMChannel, Snowflake, TextBasedChannel, TextChannel, ThreadAutoArchiveDuration } from "discord.js";
 import { getItem, S3_PUBLIC_MEDIA_BUCKET, StudyBotJson, StudyBotMultiChoiceQuestion } from "../resource.js";
 import crypto from "crypto";
 import { StudyBotChannel } from "../utils.js";
@@ -10,7 +10,7 @@ type StudyBotSoloGameSession = {
     uid: string,
     resource: StudyBotJson
     originalMessage: Message,
-    messagesStack: Message[],
+    messagesStack: OmitPartialGroupDMChannel<Message>[],
     currentQuestion: number,
     metrics: {
         correct: number,
@@ -65,7 +65,7 @@ async function sendQuestion(game: StudyBotSoloGameSession, content: string | und
         components
     });
 
-    game.messagesStack.push(msg as Message);
+    game.messagesStack.push(msg);
 }
 /**
  * Starts a solo study session for the user, given the exam reference.
@@ -157,7 +157,7 @@ async function processResponse(btnInteraction: ButtonInteraction) {
 
     if (game.currentQuestion === (game.resource.data.length - 1)) {
         const msg = await game.originalMessage.reply({ content: generic_feedback, });
-        game.messagesStack.push(msg as Message);
+        game.messagesStack.push(msg);
         await finishGame(game, game.originalMessage);
     } else {
         game.currentQuestion++;
