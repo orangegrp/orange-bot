@@ -115,7 +115,6 @@ let autoKickConfig: ConfigStorage<typeof autoKickConfigManifest> | undefined;
 async function main(bot: Bot, module: Module) {
     //if (!module.handling) return;
     if (!autoKickConfig) autoKickConfig = new ConfigStorage(autoKickConfigManifest, bot);
-    autokick2(bot, module, autoKickConfig);
     await autoKickConfig.waitForReady();
     await sleep(10000); // wait another 10s before running (just in case any startup issues)
     const member_list: { member: GuildMember }[] = [];
@@ -295,6 +294,8 @@ export default async function (bot: Bot, module: Module) {
             await interaction.reply(`Removed <@${args.user.id}> from the whitelist!`);
         }
     });
+
+    autokick2(bot, module, autoKickConfig);
 }
 
 type AutoKickConfigManifest = typeof autoKickConfigManifest;
