@@ -8,6 +8,7 @@ class AssistantCore {
     private readonly model;
     
     private thread_cache: Map<string, OpenAI.Beta.Threads.Thread> = new Map();
+    thread_run_cache: Map<string, OpenAI.Beta.Threads.Runs.Run> = new Map();
     private preemptive_thread_pool: OpenAI.Beta.Threads.Thread[] = [];
 
     /**
@@ -188,6 +189,8 @@ class AssistantCore {
             { assistant_id: assistant_id, model: model }
         );
         if (!result) return undefined;
+        this.thread_run_cache.set(result.id, result);
+        setTimeout(() => this.thread_run_cache.delete(result.id), 10 * 60 * 1000);
         this.logger.ok(`Thread run! ID: ${thread_id}`);
         return result;
     }
@@ -220,6 +223,10 @@ class AssistantCore {
      */
     async getThreadRun(thread_id: string, run_id: string) {
         if (!this.openai) return undefined;
+        if (this.thread_run_cache.has(run_id)) {
+            this.logger.verbose(`Thread run retrieved from cache! ID: ${run_id}}`);
+            return this.thread_run_cache.get(run_id);
+        }
         this.logger.verbose(`Getting thread run ${run_id} for thread ${thread_id}...`);
         const result = await this.openai.beta.threads.runs.retrieve(thread_id, run_id);
         if (!result) return undefined;

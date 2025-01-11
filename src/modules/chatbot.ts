@@ -145,16 +145,15 @@ async function handleCodeExecutionReply(interaction: ButtonInteraction, reply: M
  * @returns An array of message objects that were sent as replies.
  */
 async function sendChatResponses(msg: OmitPartialGroupDMChannel<Message>, chatMessageContent: MessageContent[]) {
+    //console.dir(chatMessageContent);
     const replies = [];
     const messageContent = chatMessageContent
-        .filter(t => t.type === "text")
+        .filter(c => c.type === "text")
         .map(t => t.text.value)
         .join("\n");
 
     for (const msgChunk of discordMessageSplitter(messageContent)) {
-        await msg.channel.sendTyping();
         const result = getCodeBlock(msgChunk);
-
         const text = msgChunk;
 
         if (isExecutableCode(result)) {
@@ -265,7 +264,7 @@ async function handleChat(thread_id: string, msg: OmitPartialGroupDMChannel<Mess
     if (!chatMessage) return false;
     */
 
-    const chatMessage = await oraChat.runChatStreamed(thread, async () => await msg.channel.sendTyping());
+    const chatMessage = await oraChat.runChatStreamed(thread, async () => msg.channel.sendTyping());
     if (!chatMessage) return false;
 
     const replies = await sendChatResponses(msg, chatMessage.content);

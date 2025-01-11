@@ -1,5 +1,5 @@
 import { Message } from "discord.js";
-import { Message as OpenAIMessage } from "openai/resources/beta/threads";
+import { MessageContent, Message as OpenAIMessage } from "openai/resources/beta/threads";
 import { AssistantCore } from "../openai/assistant_core.js";
 import { sleep } from "orange-common-lib";
 import { Run } from "openai/resources/beta/threads/runs/runs.js";
@@ -183,38 +183,55 @@ class OraChat extends AssistantCore {
      */
     async beginReadingStream(thread_id: string, stream: Stream<AssistantStreamEvent>, typingIndicatorFunction: Function | undefined = undefined): Promise<false | OpenAIMessage | undefined> {
         for await (const event of stream) {
-            if (typingIndicatorFunction) typingIndicatorFunction();
-            if (event.event === "thread.message.completed" && event.data) {
+            console.log(event.event);
+            if (event.event === "thread.run.created") {
+                if (typingIndicatorFunction) typingIndicatorFunction();
+                this.thread_run_cache.set(event.data.id, event.data);
+                setTimeout(() => this.thread_run_cache.delete(event.data.id), 10 * 60 * 1000);
+            } else if (event.event === "thread.message.completed" && event.data) {
                 if (this.thread_lock.has(thread_id)) this.thread_lock.delete(thread_id);
                 return event.data;
             } else if (event.event === "thread.run.completed") {
-                this.logger.ok(`Thread run! ID: ${thread_id}`);
+                this.logger.ok(`Thread run done! ID: ${thread_id}`);
                 if (this.thread_lock.has(thread_id)) this.thread_lock.delete(thread_id);
                 return await this.getChatMessage(thread_id);
+            } else if (event.event === "thread.run.cancelled") {
+                if (this.thread_lock.has(thread_id)) this.thread_lock.delete(thread_id);
+                return {
+                    content: [{ type: 'text', text: { value: "❌ Sorry, something went wrong on our end and this request was cancelled." } }]
+                } as any as OpenAIMessage;
             } else if (event.event === "thread.run.requires_action") {
+                if (typingIndicatorFunction) typingIndicatorFunction();
                 this.logger.info(event.data.id);
                 this.logger.ok(`Thread run requires action! ID: ${thread_id}`);
-                const run = await super.getThreadRun(thread_id, event.data.id);
-                const toolResult = await this.runTool(thread_id, run);
+                const toolResult = await this.runTool(thread_id, event.data);
                 if (!toolResult) {
                     await this.openai!.beta.threads.runs.cancel(thread_id, event.data.id);
                     continue;
                 }
-                stream = await this.openai!.beta.threads.runs.submitToolOutputs(
-                    thread_id, event.data.id, {
-                    stream: true,
-                    tool_outputs: toolResult.map(t => {
-                        return {
-                            tool_call_id: t.call_id,
-                            output: `{
-                                        "currentTime": "${new Date().toISOString()}",
-                                        "instructions": "This is a response to a tool call. When generating your response you must NOT embed any links using the traditional markdown format eg \"![text](https://example.com)\", instead you must omit the exclamation point and present it like this \"[text](https://example.com)\", this will ensure that the link is not broken. YOU MUST FOLLOW THIS RULE OTHERWISE PENALTIES WILL APPLY.",
-                                        "data": ${t.response}
-                                    }`
-                        }
-                    })
-                });
-                return await this.beginReadingStream(thread_id, stream);
+                try {
+                    stream = await this.openai!.beta.threads.runs.submitToolOutputs(
+                        thread_id, event.data.id, {
+                        stream: true,
+                        tool_outputs: toolResult.map(t => {
+                            return {
+                                tool_call_id: t.call_id,
+                                output: `{
+                                            "currentTime": "${new Date().toISOString()}",
+                                            "instructions": "This is a response to a tool call. When generating your response you must NOT embed any links using the traditional markdown format eg \"![text](https://example.com)\", instead you must omit the exclamation point and present it like this \"[text](https://example.com)\" OR just just link it directly like this: \"<https://example.com>\", this will ensure that the link is not broken. Keep your response as concise as possible, and format it as compactly as possible. YOU MUST FOLLOW THIS RULE OTHERWISE PENALTIES WILL APPLY.",
+                                            "data": ${t.response}
+                                        }`
+                            }
+                        })
+                    });
+                    if (typingIndicatorFunction) typingIndicatorFunction();
+                    return await this.beginReadingStream(thread_id, stream);
+                } catch (e) {
+                    if (this.thread_lock.has(thread_id)) this.thread_lock.delete(thread_id);
+                    return {
+                        content: [{ type: 'text', text: { value: "❌ Sorry, something went wrong on our end and this request was cancelled." } }]
+                    } as any as OpenAIMessage;
+                }
             }
         }
     }
