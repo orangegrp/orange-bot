@@ -181,9 +181,9 @@ class OraChat extends AssistantCore {
      * @param stream - The stream to read events from.
      * @returns - The completed message content, or false if the operation fails.
      */
-    async beginReadingStream(thread_id: string, stream: Stream<AssistantStreamEvent>): Promise<false | OpenAIMessage | undefined> {
+    async beginReadingStream(thread_id: string, stream: Stream<AssistantStreamEvent>, typingIndicatorFunction: Function | undefined = undefined): Promise<false | OpenAIMessage | undefined> {
         for await (const event of stream) {
-            console.log(event.event);
+            if (typingIndicatorFunction) typingIndicatorFunction();
             if (event.event === "thread.message.completed" && event.data) {
                 if (this.thread_lock.has(thread_id)) this.thread_lock.delete(thread_id);
                 return event.data;
@@ -224,14 +224,14 @@ class OraChat extends AssistantCore {
      * @param thread_id - The ID of the thread to run the AI in.
      * @returns - A promise resolving to the stream of output messages, or false if the operation fails.
      */
-    async runChatStreamed(thread_id: string) {
+    async runChatStreamed(thread_id: string, typingIndicatorFunction: Function | undefined = undefined) {
         const thread = await super.getExistingThread(thread_id);
         if (!thread) return false;
         await this.waitForThread(thread.id);
         this.thread_lock.set(thread.id, true);
         const stream = await super.runThreadStreamed(thread.id);
         if (!stream) return false;
-        return await this.beginReadingStream(thread.id, stream);
+        return await this.beginReadingStream(thread.id, stream, typingIndicatorFunction);
     }
 
     /**

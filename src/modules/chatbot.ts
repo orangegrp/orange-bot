@@ -265,7 +265,7 @@ async function handleChat(thread_id: string, msg: OmitPartialGroupDMChannel<Mess
     if (!chatMessage) return false;
     */
 
-    const chatMessage = await oraChat.runChatStreamed(thread);
+    const chatMessage = await oraChat.runChatStreamed(thread, async () => await msg.channel.sendTyping());
     if (!chatMessage) return false;
 
     const replies = await sendChatResponses(msg, chatMessage.content);
