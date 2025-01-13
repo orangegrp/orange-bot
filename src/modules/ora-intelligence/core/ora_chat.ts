@@ -204,7 +204,8 @@ class OraChat extends AssistantCore {
                 if (typingIndicatorFunction) typingIndicatorFunction();
                 this.logger.info(event.data.id);
                 this.logger.ok(`Thread run requires action! ID: ${thread_id}`);
-                const toolResult = await this.runTool(thread_id, event.data);
+
+                const toolResult = await this.runTool(thread_id, event.data, typingIndicatorFunction);
                 if (!toolResult) {
                     await this.openai!.beta.threads.runs.cancel(thread_id, event.data.id);
                     continue;
@@ -225,7 +226,7 @@ class OraChat extends AssistantCore {
                         })
                     });
                     if (typingIndicatorFunction) typingIndicatorFunction();
-                    return await this.beginReadingStream(thread_id, stream);
+                    return await this.beginReadingStream(thread_id, stream, typingIndicatorFunction);
                 } catch (e) {
                     if (this.thread_lock.has(thread_id)) this.thread_lock.delete(thread_id);
                     return {
@@ -257,7 +258,7 @@ class OraChat extends AssistantCore {
      * @param run - The run to target. If not specified, the most recent run is used.
      * @returns An array of tool call results. Each result is an object with a call_id and a response. The call_id is the ID of the tool call, and the response is the JSON response from the tool. If there is an error running the tool, the response will be a string containing the error message.
      */
-    async runTool(thread_id: string, run: Run | undefined = undefined) {
+    async runTool(thread_id: string, run: Run | undefined = undefined, typingIndicatorFunction: Function | undefined = undefined) {
         if (!run || !this.openai) return false;
 
         const steps = await this.openai.beta.threads.runs.steps.list(thread_id, run.id);
@@ -271,11 +272,11 @@ class OraChat extends AssistantCore {
 
             for (const tool_call of (step.step_details as ToolCallsStepDetails).tool_calls) {
                 if (tool_calls.find(tc => tc.call_id === tool_call.id) || tool_call.type !== "function") continue;
-
                 switch (tool_call.function.name) {
                     case "web_search":
                         const search_params = JSON.parse(tool_call.function.arguments);
                         this.logger.verbose(`Running web search for query "${search_params.searchQuery}"...`);
+                        if (typingIndicatorFunction) typingIndicatorFunction({ status: "tool_call", data: { function: tool_call.function.name, search_params: search_params } } );
                         tool_calls.push({ call_id: tool_call.id, response: JSON.stringify(await performWebSearch(search_params.searchQuery, search_params.region, search_params.searchType, search_params.freshness)) });
                         break;
                     default:
@@ -333,7 +334,7 @@ class OraChat extends AssistantCore {
 
             if (run.status === "in_progress" || run.status === "queued") await sleep(1000);
             else if (run.status === "requires_action") {
-                const toolResult = await this.runTool(thread_id, run);
+                const toolResult = await this.runTool(thread_id, run, typingIndicatorFunction);
                 if (!toolResult) {
                     await this.openai!.beta.threads.runs.cancel(thread_id, run_id);
                     continue;

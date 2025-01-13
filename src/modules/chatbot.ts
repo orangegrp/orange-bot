@@ -2,7 +2,7 @@ import { Bot, Module } from "orange-bot-base";
 import { getLogger } from "orange-common-lib";
 import { OraChat } from "./ora-intelligence/core/ora_chat.js";
 import { discordMessageSplitter, getCodeBlock } from "../core/functions.js";
-import { ActionRowBuilder, ButtonBuilder, ButtonInteraction, ButtonStyle, ClientUser, EmbedBuilder, Message, OmitPartialGroupDMChannel } from "discord.js";
+import { ActionRowBuilder, ButtonBuilder, ButtonInteraction, ButtonStyle, ClientUser, EmbedBuilder, Message, MessageFlags, OmitPartialGroupDMChannel } from "discord.js";
 import { CodeRunner } from "./code-runner/codeRunner.js";
 import { Language, LanguageAlias, languageAliases, languages } from "./code-runner/languages.js";
 import { CodeRunnerJobResult } from "./code-runner/types/codeRunner.js";
@@ -163,14 +163,15 @@ async function sendChatResponses(msg: OmitPartialGroupDMChannel<Message>, chatMe
             const msgData = await msg.reply({
                 content: text,
                 allowedMentions: { parse: [] },
-                components: [button]
+                components: [button],
+                flags: [MessageFlags.SuppressEmbeds]
             });
             replies.push(msgData);
         } else {
             const msgData = await msg.reply({
                 content: text,
                 allowedMentions: { parse: [] },
-                embeds: []
+                flags: [MessageFlags.SuppressEmbeds]
             });
             replies.push(msgData);
         }
@@ -266,10 +267,28 @@ async function handleChat(thread_id: string, msg: OmitPartialGroupDMChannel<Mess
     if (!chatMessage) return false;
     */
 
-    const chatMessage = await oraChat.runChatStreamed(thread, async () => msg.channel.sendTyping());
+    const status_messages: Message[] = [];
+    const chatMessage = await oraChat.runChatStreamed(thread, async (s: { status: string, data: any }) => {
+        msg.channel.sendTyping();
+        if (!s) return;
+        if (s.status === "tool_call") {
+            switch (s.data.function) {
+                case "web_search":
+                    const search_params = s.data.search_params;
+                    const status_message = await msg.reply( {
+                        embeds: [
+                            {description: `✨ Performing a web search for ***${search_params.searchQuery}***...`, footer: {text: "Powered by Brave Search API"}}
+                        ]
+                    });
+                    status_messages.push(status_message);
+                    break;
+            }
+        } 
+    });
     if (!chatMessage) return false;
 
     const replies = await sendChatResponses(msg, chatMessage.content);
+    status_messages.forEach(m => m.delete());
 
     replies.forEach(async r => { 
         await r.suppressEmbeds(true);
