@@ -65,6 +65,8 @@ export default async function (bot: Bot, module: Module) {
             const embed = createCodeExecutionEmbed(language, run_time, run_result);
             const reply = await interaction.editReply({ embeds: [embed] });
 
+            interaction.message.edit({ components: [] });
+
             await handleCodeExecutionReply(interaction, reply);
         } catch (error: unknown) {
             await interaction.editReply({ content: ":x: Something went wrong while trying to run the code." });
@@ -95,7 +97,7 @@ export default async function (bot: Bot, module: Module) {
             await handleReply(msg, bot);
         }
         const end_time = Date.now();
-        logger.info(`Message processed in ${timedelta(start_time, end_time)}`);
+        logger.info(`Response generated in ${timedelta(start_time, end_time)}`);
     });
 }
 
@@ -120,7 +122,7 @@ function createCodeExecutionEmbed(language: string, run_time: string, run_result
  */
 async function handleCodeExecutionReply(interaction: ButtonInteraction, reply: Message) {
     if (!reply || !oraChat) return;
-
+    
     const original_id = interaction.customId.split("_")[2];
     const original_message = await interaction.channel?.messages.fetch(original_id);
 

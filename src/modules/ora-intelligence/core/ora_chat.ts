@@ -183,7 +183,7 @@ class OraChat extends AssistantCore {
      */
     async beginReadingStream(thread_id: string, stream: Stream<AssistantStreamEvent>, typingIndicatorFunction: Function | undefined = undefined): Promise<false | OpenAIMessage | undefined> {
         for await (const event of stream) {
-            console.log(event.event);
+            this.logger.verbose(`Received event from OpenAI on stream: ${event.event}`);
             if (event.event === "thread.run.created") {
                 if (typingIndicatorFunction) typingIndicatorFunction();
                 this.thread_run_cache.set(event.data.id, event.data);
