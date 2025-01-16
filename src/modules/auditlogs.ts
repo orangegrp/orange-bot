@@ -11,7 +11,7 @@ let _bot: Bot | undefined;
 
 
 const configSchema = {
-    name: "autorole",
+    name: "auditlogs",
     displayName: "Autorole",
     guild: {
         auditChannel: {
