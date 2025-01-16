@@ -203,6 +203,10 @@ async function finishGame(game: StudyBotSoloGameSession, originalMessage: Messag
     await originalMessage.reply({ content: `${endMessage}Great work <@${game.uid}>, now I'm going to add some feedback to your answers. Give me a few seconds.` });
 
     for (const msg of game.messagesStack.reverse()) { 
+        if (!msg.channel || !(msg.channel instanceof TextChannel)) {
+            return;
+        }
+
         await msg.channel.sendTyping();
         await sleep(1000);
 
