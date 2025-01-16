@@ -109,10 +109,10 @@ async function addRole(member: GuildMember, role: Snowflake) {
         member.roles.add(role);
     }
     catch (e: any) {
-        logger.error(`Error while adding role ${role} to member ${member.user.globalName}(${member.id})`);
+        logger.error(`Error while adding role ${role} to member ${member.user.username}(${member.id})`);
         logger.error(e);
     }
-    await auditLog(member.guild, `Added role to <@${member.id}>`, `Gave role <@&${role}> to user <@${member.id}>`);
+    await auditLog(member.guild, `Added role to *${member.user.username}*`, `Gave role <@&${role}> to user <@${member.id}>`);
 }
 
 
