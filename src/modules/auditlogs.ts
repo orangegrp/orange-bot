@@ -37,6 +37,7 @@ export default async function (bot: Bot, module: Module) {
 
         if (msg.content === `${bot.prefix}setup-audit-logs`) {
             await config.guild(msg.guild).set("auditChannel", msg.channelId);
+            msg.reply("Set up audit logs for this channel!");
         }
     });
 
