@@ -127,6 +127,11 @@ export default async function (bot: Bot, module: Module) {
             return;
         }
 
+        if (!await bot.checkPermission(interaction.guildId, interaction.member, "Administrator")) {
+            bot.replyWithError(interaction, "You don't have permission to use this!");
+            return;
+        }
+
         const guildConfig = config.guild(interaction.guildId);
 
         const autoroles = await guildConfig.get("autoroles");
