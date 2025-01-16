@@ -2,7 +2,7 @@ import { Bot, Module } from "orange-bot-base";
 import { getLogger } from "orange-common-lib";
 import { OraChat } from "./ora-intelligence/core/ora_chat.js";
 import { discordMessageSplitter, getCodeBlock } from "../core/functions.js";
-import { ActionRowBuilder, ButtonBuilder, ButtonInteraction, ButtonStyle, ClientUser, EmbedBuilder, Message, OmitPartialGroupDMChannel } from "discord.js";
+import { ActionRowBuilder, ButtonBuilder, ButtonInteraction, ButtonStyle, ClientUser, EmbedBuilder, Message, MessageFlags, OmitPartialGroupDMChannel } from "discord.js";
 import { CodeRunner } from "./code-runner/codeRunner.js";
 import { Language, LanguageAlias, languageAliases, languages } from "./code-runner/languages.js";
 import { CodeRunnerJobResult } from "./code-runner/types/codeRunner.js";
@@ -13,6 +13,12 @@ let oraChat: OraChat | undefined = undefined;
 
 const CODERUNNER_SERVER = process.env.CODERUNNER_SERVER;
 const CODERUNNER_API_KEY = process.env.CODERUNNER_API_KEY;
+
+const timedelta = (start: number, end: number) => {
+    const delta = end - start;
+    const seconds = delta / 1000;
+    return `${seconds.toFixed(2)}s`;
+}
 
 export default async function (bot: Bot, module: Module) {
     oraChat = new OraChat("asst_Q0MdDbLSFkNzCovK4DXlgvq9");
@@ -59,6 +65,8 @@ export default async function (bot: Bot, module: Module) {
             const embed = createCodeExecutionEmbed(language, run_time, run_result);
             const reply = await interaction.editReply({ embeds: [embed] });
 
+            interaction.message.edit({ components: [] });
+
             await handleCodeExecutionReply(interaction, reply);
         } catch (error: unknown) {
             await interaction.editReply({ content: ":x: Something went wrong while trying to run the code." });
@@ -72,13 +80,24 @@ export default async function (bot: Bot, module: Module) {
         }
     });
 
+    bot.client.on("typingStart", async typing => {
+        if (!typing.channel || !typing.user) return;
+        if (typing.user.bot) return;
+        if (typing.user.id === bot.client.user?.id) return;
+        if (!oraChat) return;
+        oraChat.createPreemptiveThread();
+    });
+
     bot.client.on("messageCreate", async msg => {
         if (!oraChat || !shouldProcessMessage(msg, bot.client.user)) return;
+        const start_time = Date.now();
         if (msg.content.startsWith(`<@${bot.client.user?.id}>`)) {
             await handleMention(msg, bot);
         } else if (msg.reference?.messageId) {
             await handleReply(msg, bot);
         }
+        const end_time = Date.now();
+        logger.info(`Response generated in ${timedelta(start_time, end_time)}`);
     });
 }
 
@@ -103,7 +122,7 @@ function createCodeExecutionEmbed(language: string, run_time: string, run_result
  */
 async function handleCodeExecutionReply(interaction: ButtonInteraction, reply: Message) {
     if (!reply || !oraChat) return;
-
+    
     const original_id = interaction.customId.split("_")[2];
     const original_message = await interaction.channel?.messages.fetch(original_id);
 
@@ -128,28 +147,31 @@ async function handleCodeExecutionReply(interaction: ButtonInteraction, reply: M
  * @returns An array of message objects that were sent as replies.
  */
 async function sendChatResponses(msg: OmitPartialGroupDMChannel<Message>, chatMessageContent: MessageContent[]) {
+    //console.dir(chatMessageContent);
     const replies = [];
     const messageContent = chatMessageContent
-        .filter(t => t.type === "text")
+        .filter(c => c.type === "text")
         .map(t => t.text.value)
         .join("\n");
 
     for (const msgChunk of discordMessageSplitter(messageContent)) {
-        await msg.channel.sendTyping();
         const result = getCodeBlock(msgChunk);
+        const text = msgChunk;
 
         if (isExecutableCode(result)) {
             const button = createRunCodeButton(msg.id);
             const msgData = await msg.reply({
-                content: msgChunk,
+                content: text,
                 allowedMentions: { parse: [] },
-                components: [button]
+                components: [button],
+                flags: [MessageFlags.SuppressEmbeds]
             });
             replies.push(msgData);
         } else {
             const msgData = await msg.reply({
-                content: msgChunk,
-                allowedMentions: { parse: [] }
+                content: text,
+                allowedMentions: { parse: [] },
+                flags: [MessageFlags.SuppressEmbeds]
             });
             replies.push(msgData);
         }
@@ -228,6 +250,10 @@ async function handleChat(thread_id: string, msg: OmitPartialGroupDMChannel<Mess
         if (!message) return false;
     }
 
+    /*  
+
+    /// This is the old implementation.
+
     msg.channel.sendTyping();
     const run = await oraChat.runChat(thread);
     if (!run) return false;
@@ -239,10 +265,35 @@ async function handleChat(thread_id: string, msg: OmitPartialGroupDMChannel<Mess
     msg.channel.sendTyping();
     const chatMessage = await oraChat.getChatMessage(thread);
     if (!chatMessage) return false;
+    */
+
+    const status_messages: Message[] = [];
+    const chatMessage = await oraChat.runChatStreamed(thread, async (s: { status: string, data: any }) => {
+        msg.channel.sendTyping();
+        if (!s) return;
+        if (s.status === "tool_call") {
+            switch (s.data.function) {
+                case "web_search":
+                    const search_params = s.data.search_params;
+                    const status_message = await msg.reply( {
+                        embeds: [
+                            {description: `✨ Performing a web search for ***${search_params.searchQuery}***...`, footer: {text: "Powered by Brave Search API"}}
+                        ]
+                    });
+                    status_messages.push(status_message);
+                    break;
+            }
+        } 
+    });
+    if (!chatMessage) return false;
 
     const replies = await sendChatResponses(msg, chatMessage.content);
+    status_messages.forEach(m => m.delete());
 
-    replies.forEach(async r => await oraChat!.updateChatMap(thread, r.id));
+    replies.forEach(async r => { 
+        await r.suppressEmbeds(true);
+        await oraChat!.updateChatMap(thread, r.id)
+    });
 }
 /**
  * Handle a message that mentions the bot and has a message reference.

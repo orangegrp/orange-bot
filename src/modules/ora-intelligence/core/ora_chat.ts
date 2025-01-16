@@ -1,16 +1,18 @@
 import { Message } from "discord.js";
+import { MessageContent, Message as OpenAIMessage } from "openai/resources/beta/threads";
 import { AssistantCore } from "../openai/assistant_core.js";
 import { sleep } from "orange-common-lib";
 import { Run } from "openai/resources/beta/threads/runs/runs.js";
 import { ToolCallsStepDetails } from "openai/resources/beta/threads/runs/steps.js";
 import { performWebSearch } from "./web_search.js";
+import { AssistantStreamEvent } from "openai/resources/beta/assistants.js";
+import { Stream } from "openai/streaming.js";
 
 class OraChat extends AssistantCore {
     private chat_map: Map<string, string[]> = new Map();
     private thread_lock: Map<string, boolean> = new Map();
     /**
      * Creates a new OraChat object.
-     *
      * @param assistant_id - The ID of the AI assistant to use.
      * @param model - The model to use for the AI assistant. Defaults to "gpt-4o-mini".
      */
@@ -28,7 +30,6 @@ class OraChat extends AssistantCore {
     }
     /**
      * Retrieves the chat ID associated with a given thread ID.
-     *
      * @param thread_id - The ID of the thread to search for.
      * @returns - The ID of the thread if it exists, or false if it does not.
      */
@@ -39,7 +40,6 @@ class OraChat extends AssistantCore {
     }
     /**
      * Retrieves the thread ID associated with a given message ID.
-     *
      * @param message_id - The ID of the message to search for.
      * @returns - The ID of the thread if it exists, or false if it does not.
      */
@@ -107,7 +107,6 @@ class OraChat extends AssistantCore {
     }
     /**
      * Creates a new chat with the given message.
-     *
      * @param message - The message to send in the chat. If not provided, the chat will be empty.
      * @param prependMessage - Whether to prepend the message to the chat. If the message is not provided, this option is ignored.
      * @param isBot - Whether the message is from a bot or a user. Defaults to false.
@@ -166,7 +165,6 @@ class OraChat extends AssistantCore {
     }
     /**
      * Sends a reply message to the AI assistant within a specified thread.
-     *
      * @param thread_id - The ID of the thread to send the reply in.
      * @param message - The message containing the reply content to send.
      * @param replyTarget - The original message being replied to.
@@ -178,26 +176,89 @@ class OraChat extends AssistantCore {
         return this.sendMessage(thread_id, message, text_prompt);
     }
     /**
-     * Starts a new AI run in the given thread.
-     * @param thread_id - The ID of the thread to run the AI in.
-     * @returns - The ID of the run, or false if the operation fails.
+     * Reads events from a stream and handles any events that require action or message completions.
+     * @param thread_id - The ID of the thread to read events for.
+     * @param stream - The stream to read events from.
+     * @returns - The completed message content, or false if the operation fails.
      */
-    async runChat(thread_id: string) {
+    async beginReadingStream(thread_id: string, stream: Stream<AssistantStreamEvent>, typingIndicatorFunction: Function | undefined = undefined): Promise<false | OpenAIMessage | undefined> {
+        for await (const event of stream) {
+            this.logger.verbose(`Received event from OpenAI on stream: ${event.event}`);
+            if (event.event === "thread.run.created") {
+                if (typingIndicatorFunction) typingIndicatorFunction();
+                this.thread_run_cache.set(event.data.id, event.data);
+                setTimeout(() => this.thread_run_cache.delete(event.data.id), 10 * 60 * 1000);
+            } else if (event.event === "thread.message.completed" && event.data) {
+                if (this.thread_lock.has(thread_id)) this.thread_lock.delete(thread_id);
+                return event.data;
+            } else if (event.event === "thread.run.completed") {
+                this.logger.ok(`Thread run done! ID: ${thread_id}`);
+                if (this.thread_lock.has(thread_id)) this.thread_lock.delete(thread_id);
+                return await this.getChatMessage(thread_id);
+            } else if (event.event === "thread.run.cancelled") {
+                if (this.thread_lock.has(thread_id)) this.thread_lock.delete(thread_id);
+                return {
+                    content: [{ type: 'text', text: { value: "❌ Sorry, something went wrong on our end and this request was cancelled." } }]
+                } as any as OpenAIMessage;
+            } else if (event.event === "thread.run.requires_action") {
+                if (typingIndicatorFunction) typingIndicatorFunction();
+                this.logger.info(event.data.id);
+                this.logger.ok(`Thread run requires action! ID: ${thread_id}`);
+
+                const toolResult = await this.runTool(thread_id, event.data, typingIndicatorFunction);
+                if (!toolResult) {
+                    await this.openai!.beta.threads.runs.cancel(thread_id, event.data.id);
+                    continue;
+                }
+                try {
+                    stream = await this.openai!.beta.threads.runs.submitToolOutputs(
+                        thread_id, event.data.id, {
+                        stream: true,
+                        tool_outputs: toolResult.map(t => {
+                            return {
+                                tool_call_id: t.call_id,
+                                output: `{
+                                            "currentTime": "${new Date().toISOString()}",
+                                            "instructions": "This is a response to a tool call. When generating your response you must NOT embed any links using the traditional markdown format eg \"![text](https://example.com)\", instead you must omit the exclamation point and present it like this \"[text](https://example.com)\" OR just just link it directly like this: \"<https://example.com>\", this will ensure that the link is not broken. Keep your response as concise as possible, and format it as compactly as possible. YOU MUST FOLLOW THIS RULE OTHERWISE PENALTIES WILL APPLY.",
+                                            "data": ${t.response}
+                                        }`
+                            }
+                        })
+                    });
+                    if (typingIndicatorFunction) typingIndicatorFunction();
+                    return await this.beginReadingStream(thread_id, stream, typingIndicatorFunction);
+                } catch (e) {
+                    if (this.thread_lock.has(thread_id)) this.thread_lock.delete(thread_id);
+                    return {
+                        content: [{ type: 'text', text: { value: "❌ Sorry, something went wrong on our end and this request was cancelled." } }]
+                    } as any as OpenAIMessage;
+                }
+            }
+        }
+    }
+
+    /**
+     * Starts a new AI run in the given thread and returns a stream of output messages.
+     * @param thread_id - The ID of the thread to run the AI in.
+     * @returns - A promise resolving to the stream of output messages, or false if the operation fails.
+     */
+    async runChatStreamed(thread_id: string, typingIndicatorFunction: Function | undefined = undefined) {
         const thread = await super.getExistingThread(thread_id);
         if (!thread) return false;
         await this.waitForThread(thread.id);
         this.thread_lock.set(thread.id, true);
-        const run = await super.runThread(thread.id);
-        if (!run) return false;
-        return run.id;
+        const stream = await super.runThreadStreamed(thread.id);
+        if (!stream) return false;
+        return await this.beginReadingStream(thread.id, stream, typingIndicatorFunction);
     }
+
     /**
      * Runs a tool on a given thread. If no run is specified, the most recent run is used.
      * @param thread_id - The ID of the thread to run the tool on.
      * @param run - The run to target. If not specified, the most recent run is used.
      * @returns An array of tool call results. Each result is an object with a call_id and a response. The call_id is the ID of the tool call, and the response is the JSON response from the tool. If there is an error running the tool, the response will be a string containing the error message.
      */
-    async runTool(thread_id: string, run: Run | undefined = undefined) {
+    async runTool(thread_id: string, run: Run | undefined = undefined, typingIndicatorFunction: Function | undefined = undefined) {
         if (!run || !this.openai) return false;
 
         const steps = await this.openai.beta.threads.runs.steps.list(thread_id, run.id);
@@ -211,11 +272,11 @@ class OraChat extends AssistantCore {
 
             for (const tool_call of (step.step_details as ToolCallsStepDetails).tool_calls) {
                 if (tool_calls.find(tc => tc.call_id === tool_call.id) || tool_call.type !== "function") continue;
-
                 switch (tool_call.function.name) {
                     case "web_search":
                         const search_params = JSON.parse(tool_call.function.arguments);
                         this.logger.verbose(`Running web search for query "${search_params.searchQuery}"...`);
+                        if (typingIndicatorFunction) typingIndicatorFunction({ status: "tool_call", data: { function: tool_call.function.name, search_params: search_params } } );
                         tool_calls.push({ call_id: tool_call.id, response: JSON.stringify(await performWebSearch(search_params.searchQuery, search_params.region, search_params.searchType, search_params.freshness)) });
                         break;
                     default:
@@ -224,29 +285,56 @@ class OraChat extends AssistantCore {
                 }
             }
         }
-
         return tool_calls;
     }
     /**
-     * Waits for a thread to complete by repeatedly checking its status.
-     * @param thread_id - The ID of the thread to wait for.
-     * @param run_id - The ID of the run to check the status of.
-     * @param typingIndicatorFunction - An optional function to indicate typing status during the wait.
-     * @returns - The completed run object, or false if the run fails to complete.
+     * Gets the latest message from the OpenAI chat thread.
+     * @param thread_id - The ID of the thread to retrieve the message from.
+     * @returns - The latest message from the thread, or false if the operation fails.
      */
+    async getChatMessage(thread_id: string) {
+        const messages = await super.getThreadMessages(thread_id);
+        if (!messages || messages.data.length < 1) return false;
+        const lastMessage = messages.data[0];
+        if (lastMessage.role !== "assistant") return false;
+        return lastMessage;
+    }
+
+    /* DEPRECATED METHODS - ONLY TO BE USED IF REALLY NECESSARY */
+    /**
+    * @deprecated This method is deprecated. Use the newer {@link runChatStreamed} method instead.
+    * @param thread_id - The ID of the thread to run the AI in.
+    * @returns - The ID of the run, or false if the operation fails.
+    */
+    async runChat(thread_id: string) {
+        const thread = await super.getExistingThread(thread_id);
+        if (!thread) return false;
+        await this.waitForThread(thread.id);
+        this.thread_lock.set(thread.id, true);
+        const run = await super.runThread(thread.id);
+        if (!run) return false;
+        return run.id;
+    }
+    /**
+    * @deprecated This method is deprecated. Use the {@link runChatStreamed} method instead.
+    * @param thread_id - The ID of the thread to wait for.
+    * @param run_id - The ID of the run to check the status of.
+    * @param typingIndicatorFunction - An optional function to indicate typing status during the wait.
+    * @returns - The completed run object, or false if the run fails to complete.
+    */
     async waitForChat(thread_id: string, run_id: string, typingIndicatorFunction: Function | undefined = undefined) {
         let run = await super.getThreadRun(thread_id, run_id);
         for (let i = 0; i < 600; i++) {
             run = await super.getThreadRun(thread_id, run_id);
             if (typingIndicatorFunction) typingIndicatorFunction();
 
-            if (!run) { await sleep(100); continue; }
+            if (!run) { await sleep(500); continue; }
 
             this.logger.verbose(`Thread run status: ${run.status} ${run.last_error} ${run.incomplete_details?.reason}`);
 
-            if (run.status === "in_progress" || run.status === "queued") await sleep(100);
+            if (run.status === "in_progress" || run.status === "queued") await sleep(1000);
             else if (run.status === "requires_action") {
-                const toolResult = await this.runTool(thread_id, run);
+                const toolResult = await this.runTool(thread_id, run, typingIndicatorFunction);
                 if (!toolResult) {
                     await this.openai!.beta.threads.runs.cancel(thread_id, run_id);
                     continue;
@@ -271,20 +359,6 @@ class OraChat extends AssistantCore {
         if (this.thread_lock.has(thread_id)) this.thread_lock.delete(thread_id);
         if (!run) return false;
         return run;
-    }
-    /**
-     * Gets the latest message from the OpenAI chat thread.
-     * 
-     * @param thread_id - The ID of the thread to retrieve the message from.
-     * @returns - The latest message from the thread, or false if the operation fails.
-     */
-
-    async getChatMessage(thread_id: string) {
-        const messages = await super.getThreadMessages(thread_id);
-        if (!messages || messages.data.length < 1) return false;
-        const lastMessage = messages.data[0];
-        if (lastMessage.role !== "assistant") return false;
-        return lastMessage;
     }
 }
 

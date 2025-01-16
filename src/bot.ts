@@ -43,7 +43,7 @@ async function main() {
     logger.info(`Starting (${version})...`);
 
     const client = new Client({
-        intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.GuildMembers, GatewayIntentBits.MessageContent],
+        intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.GuildMembers, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildMessageTyping],
     });
 
     const INSTANCE_NAME = process.env.INSTANCE_NAME;
