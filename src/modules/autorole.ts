@@ -1,6 +1,7 @@
-import { Guild, GuildMember, RoleResolvable } from "discord.js";
+import { Guild, GuildMember, RoleResolvable, Snowflake } from "discord.js";
 import { ArgType, Bot, Command, ConfigConfig, ConfigStorage, ConfigValueType, Module } from "orange-bot-base";
 import { getLogger } from "orange-common-lib";
+import { auditLog } from "./auditlogs.js";
 
 
 const logger = getLogger("autorole");
@@ -103,7 +104,7 @@ function stringifyAutorole(autorole: { trigger: string, role: string }, opts?: {
 }
 
 
-async function addRole(member: GuildMember, role: RoleResolvable) {
+async function addRole(member: GuildMember, role: Snowflake) {
     try {
         member.roles.add(role);
     }
@@ -111,6 +112,7 @@ async function addRole(member: GuildMember, role: RoleResolvable) {
         logger.error(`Error while adding role ${role} to member ${member.user.globalName}(${member.id})`);
         logger.error(e);
     }
+    await auditLog(member.guild, `Added role to <@${member.id}>`, `Gave role <@&${role}> to user <@${member.id}>`);
 }
 
 
