@@ -58,7 +58,7 @@ const command = {
                 trigger: {
                     description: "Trigger for this autorole",
                     type: ArgType.STRING,
-                    choices: autoroleTriggers.map(value => ({ name: value, value })),
+                    choices: autoroleTriggers.map(value => ({ name: autorolePrettyNames[value], value })),
                     required: true,
                 },
                 role: {
