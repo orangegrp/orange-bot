@@ -87,9 +87,19 @@ const command = {
 } satisfies Command
 
 
+function isValidTrigger(trigger: string): trigger is AutoroleTrigger {
+    return autoroleTriggers.includes(trigger as AutoroleTrigger);
+}
 
-function stringifyAutorole(autorole: { trigger: string, role: string }) {
-    return `On \`${autorole.trigger}\`, add role <@&${autorole.role}>`;
+
+function stringifyAutorole(autorole: { trigger: string, role: string }, opts?: { roleName: string }) {
+    const trigger = autorole.trigger;
+    const prettyName = isValidTrigger(trigger) ? autorolePrettyNames[trigger] : trigger;
+
+    if (opts?.roleName) {
+        return `On \`${prettyName}\`, add role ${opts.roleName}`;
+    }
+    return `On \`${prettyName}\`, add role <@&${autorole.role}>`;
 }
 
 
@@ -151,11 +161,19 @@ export default async function (bot: Bot, module: Module) {
     module.addAutocomplete(command, "autorole", async interaction => {
         if (!interaction.inGuild()) return [];
 
+        const guild = interaction.guild ?? (await bot.getGuild(interaction.guildId))?.guild;
+        if (!guild) {
+            return [{ value: -1, name: "An error has occurred (guild not found)" }];
+        }
+
         const guildConfig = config.guild(interaction.guildId);
 
         const autoroles = await guildConfig.get("autoroles");
 
-        return await Promise.all(autoroles.map(async (autorole, index) => ({ name: stringifyAutorole(autorole), value: index })));
+        return await Promise.all(autoroles.map(async (autorole, index) => {
+            const role = await guild.roles.fetch(autorole.role)
+            return { name: stringifyAutorole(autorole, { roleName: "`" + (role?.name ?? "unknown role") + "`" }), value: index };
+        }));
     });
 
 
