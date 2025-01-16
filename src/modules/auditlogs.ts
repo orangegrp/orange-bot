@@ -30,6 +30,7 @@ export default async function (bot: Bot, module: Module) {
     _bot = bot;
     const config = new ConfigStorage(configSchema, bot);
     await config.waitForReady();
+    _config = config;
 
     module.addChatInteraction(async msg => {
         if (!msg.inGuild()) return;
