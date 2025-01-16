@@ -35,8 +35,14 @@ export default async function (bot: Bot, module: Module) {
     module.addChatInteraction(async msg => {
         if (!msg.inGuild()) return;
 
+        if (!await bot.checkPermission(msg.guildId, msg.author, "ManageGuild")) {
+            msg.reply("You don't have permission to use this!");
+            return;
+        }
+
         if (msg.content === `${bot.prefix}setup-audit-logs`) {
             await config.guild(msg.guild).set("auditChannel", msg.channelId);
+            msg.reply("Set up audit logs for this channel!");
         }
     });
 
