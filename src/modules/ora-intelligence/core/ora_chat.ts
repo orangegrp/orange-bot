@@ -182,6 +182,7 @@ class OraChat extends AssistantCore {
      * @returns - The completed message content, or false if the operation fails.
      */
     async beginReadingStream(thread_id: string, stream: Stream<AssistantStreamEvent>, typingIndicatorFunction: Function | undefined = undefined): Promise<false | OpenAIMessage | undefined> {
+        if (!this.thread_lock.has(thread_id)) this.thread_lock.set(thread_id, true);
         for await (const event of stream) {
             this.logger.verbose(`Received event from OpenAI on stream: ${event.event}`);
             if (event.event === "thread.run.created") {
