@@ -144,21 +144,24 @@ class OraChat extends AssistantCore {
     async sendMessage(thread_id: string, message: Message, prompt: string = `The current time is: {{current_time}}\nUser: "{{message.author.username}}" with the ID: <@{{message.author.id}}>, said:\n\n{{message.content}}`) {
         const thread = await super.getExistingThread(thread_id);
         if (!thread) return false;
+
         message.mentions.users.forEach(m => message.content = message.content.replace(`<@${m.id}>`, m.displayName));
         const text_prompt = prompt.replace("{{message.author.username}}", message.author.displayName)
             .replace("{{message.author.id}}", message.author.id)
             .replace("{{message.content}}", message.content)
             .replace("{{current_time}}", new Date().toISOString());
-        console.log(text_prompt);
         await this.waitForThread(thread.id);
+
         if (message.attachments.size > 0 && message.content) {
             const message_parts = await super.createMultiModalThreadMessage(thread.id, text_prompt, message.attachments.map(a => a.url));
             if (!message_parts) return false;
+
             await this.updateChatMap(thread.id, message.id);
             return message_parts.map(m => m.id);
         } else {
             const message_part = await super.createThreadMessage(thread.id, text_prompt);
             if (!message_part) return false;
+            
             await this.updateChatMap(thread.id, message.id);
             return [message_part.id];
         }
