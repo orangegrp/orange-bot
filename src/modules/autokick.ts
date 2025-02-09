@@ -16,59 +16,6 @@ async function getAllPrunableMembers(guild: Guild, bot: Bot) {
     return members.filter(m => m === m); // true
 }
 
-/**
- * Checks if a member sent a message in the guild within the given timeout. 
- * @param member The member to check.
- * @param guild The guild to check.
- * @param bot The bot object.
- * @param timeout The timeout in milliseconds.
- * @param joinTimeout Timeout after joining (ms)
- * @returns true if the member sent a message within the given timeout, false otherwise.
- */
-async function checkIfMemberSentMessageRecently(member: GuildMember, guild: Guild, timeout: number, joinTimeout: number): Promise<{ kick: false } | { kick: true, reason: "inactive" | "joinInactive" }> {
-    if (autoKickConfig) {
-        // First, check the db for any known timestamps
-        const memberConfig = autoKickConfig.member(guild, member);
-
-        if (await memberConfig.get("whitelisted")) {
-            logger.verbose(`Ignored whitelisted member ${member.user.tag} (${member.id})`);
-            return { kick: false };
-        }
-        
-        if (Date.now() - await memberConfig.get("lastActive") < timeout) {
-            return { kick: false };
-        }
-    }
-    if (member.joinedTimestamp && Date.now() - member.joinedTimestamp < joinTimeout) {
-        logger.verbose(`Member joined recently ${member.user.tag} (${member.id})`);
-        return { kick: false };
-    }
-
-    let foundMessage = false;
-
-    const channels = await guild.channels.fetch();
-    for (const [_, channel] of channels) {
-        if (!channel) continue;
-        if (!channel.isTextBased()) continue;
-        try {
-            const startTime = SnowflakeUtil.generate({ timestamp: Date.now() - timeout }).toString();
-            const messages = await channel.messages.fetch({ after: startTime });
-            for (const [_, message] of messages.filter(m => m.author?.id === member.id)) {
-                setLastActive(message); // store this in the db so we don't need to find it again!
-
-                if (Date.now() - message.createdTimestamp < timeout) {
-                    return { kick: false };;
-                }
-                foundMessage = true;
-            }
-            await sleep(50); // add delay to prevent discord from rate limiting
-        } catch { /* ignore */ }
-    }
-    if (!foundMessage) {
-        return { kick: true, reason: "joinInactive" };
-    }
-    return { kick: true, reason: "inactive" };;
-}
 
 async function setLastActive(message: Message) {
     if (!message.inGuild()) return;
