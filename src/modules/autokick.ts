@@ -215,6 +215,11 @@ async function runAutokick(bot: Bot) {
                 continue;
             }
 
+            if (await autoKickConfig.member(guild, member).get("whitelisted")) {
+                logger.log(`Member is a bot, skipping ${member.user.tag} (${member.id})`);
+                continue;
+            }
+
             if (memberData.lastActive > inactiveTime) {
                 logger.log(`Member sent message recently ${member.user.tag} (${member.id})`);
                 continue;
