@@ -3,6 +3,7 @@ import { ButtonStyle, ComponentType, Guild, GuildMember, GuildTextBasedChannel, 
 import { sleep, getLogger } from "orange-common-lib";
 import scheduler from "node-schedule";
 import autokick2 from "./autokick/autokick2.js";
+import { auditLog } from "./auditlogs.js";
 const logger = getLogger("autokick");
 
 /**
@@ -322,6 +323,7 @@ export default async function (bot: Bot, module: Module) {
                 if (!member) return;
                 await member.kick("Inactive");
                 await interaction.update({ content: `:ballot_box_with_check: **${member.user.username}** has been kicked for inactivity by <@${interaction.user.id}>.`, embeds: [], components: [] });
+                await auditLog(member.guild, `Autokick: Kicked \*${member.user.username}\*`, `Kicked <@${member.id}> for inactivity, action approved by <@${interaction.user.id}>`);
             } else if (interaction.customId.startsWith("ak_p_")) {
                 const member = await bot.client.guilds.cache.get(interaction.guildId ?? "")?.members.fetch(interaction.customId.split("_")[2]);
                 await interaction.update({ content: `:scales: <@${interaction.user.id}> has pardoned **${member?.user.username}**.`, embeds: [], components: [] });
