@@ -442,6 +442,29 @@ export default async function (bot: Bot, module: Module) {
     });
 
     autokick2(bot, module, autoKickConfig);
+
+    module.addChatInteraction(async msg => {
+        if (!msg.inGuild() || !msg.channel.isSendable()) return;
+        if (!msg.content.startsWith("?*")) return;
+
+        if (!bot.checkPermission(msg.guild, msg.author, "Administrator")) return;
+
+        if (msg.content.startsWith("?*rescanactivity")) {
+            const days = parseInt(msg.content.replace("?*rescanactivity ", ""));
+            if (days < 1 || days > 30) {
+                msg.reply(`Invalid number if days: ${days}`);
+                return;
+            }
+            msg.reply("Checking...");
+            await checkActivityInGuild(bot, msg.guild, days);
+            msg.reply("Check done!");
+        }
+        if (msg.content === "?*runautokick") {
+            msg.reply("Running...");
+            await main(bot, module);
+            msg.reply("Done!");
+        }
+    });
 }
 
 type AutoKickConfigManifest = typeof autoKickConfigManifest;
