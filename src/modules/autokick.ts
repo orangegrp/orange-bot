@@ -249,7 +249,7 @@ async function runAutokick(bot: Bot) {
 async function main(bot: Bot, module: Module) {
     //if (!module.handling) return;
     if (!autoKickConfig) autoKickConfig = new ConfigStorage(autoKickConfigManifest, bot);
-    await sleep(1000); // wait a second before running (just in case any startup issues)
+    await sleep(5000); // wait 5 seconds before running (just in case any startup issues)
 
     await runAutokick(bot);
 }
