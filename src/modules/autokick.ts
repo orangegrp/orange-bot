@@ -102,6 +102,7 @@ const autoKickConfigManifest = {
             type: ConfigValueType.integer,
             displayName: "Join Inactive Time",
             description: "The time after joining the server that a user is considered to be inactive (if they have never sent a message)",
+            permissions: "Administrator",
             default: 5,
         },
         daysToCheck: {
