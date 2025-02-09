@@ -1,5 +1,5 @@
 import { ArgType, Bot, Command, ConfigConfig, ConfigStorage, ConfigValueType, Module } from "orange-bot-base";
-import { ButtonStyle, ComponentType, Guild, GuildMember, Message, SnowflakeUtil, TextChannel } from "discord.js";
+import { ButtonStyle, ComponentType, Guild, GuildMember, GuildTextBasedChannel, Message, SnowflakeUtil } from "discord.js";
 import { sleep, getLogger } from "orange-common-lib";
 import scheduler from "node-schedule";
 import autokick2 from "./autokick/autokick2.js";
