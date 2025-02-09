@@ -1,8 +1,9 @@
 import { ArgType, Bot, Command, ConfigConfig, ConfigStorage, ConfigValueType, Module } from "orange-bot-base";
-import { ButtonStyle, ComponentType, Guild, GuildMember, Message, SnowflakeUtil, TextChannel } from "discord.js";
+import { ButtonStyle, ComponentType, Guild, GuildMember, GuildTextBasedChannel, Message, SnowflakeUtil } from "discord.js";
 import { sleep, getLogger } from "orange-common-lib";
 import scheduler from "node-schedule";
 import autokick2 from "./autokick/autokick2.js";
+import { auditLog } from "./auditlogs.js";
 const logger = getLogger("autokick");
 
 /**
@@ -16,59 +17,6 @@ async function getAllPrunableMembers(guild: Guild, bot: Bot) {
     return members.filter(m => m === m); // true
 }
 
-/**
- * Checks if a member sent a message in the guild within the given timeout. 
- * @param member The member to check.
- * @param guild The guild to check.
- * @param bot The bot object.
- * @param timeout The timeout in milliseconds.
- * @param joinTimeout Timeout after joining (ms)
- * @returns true if the member sent a message within the given timeout, false otherwise.
- */
-async function checkIfMemberSentMessageRecently(member: GuildMember, guild: Guild, timeout: number, joinTimeout: number): Promise<{ kick: false } | { kick: true, reason: "inactive" | "joinInactive" }> {
-    if (autoKickConfig) {
-        // First, check the db for any known timestamps
-        const memberConfig = autoKickConfig.member(guild, member);
-
-        if (await memberConfig.get("whitelisted")) {
-            logger.verbose(`Ignored whitelisted member ${member.user.tag} (${member.id})`);
-            return { kick: false };
-        }
-        
-        if (Date.now() - await memberConfig.get("lastActive") < timeout) {
-            return { kick: false };
-        }
-    }
-    if (member.joinedTimestamp && Date.now() - member.joinedTimestamp < joinTimeout) {
-        logger.verbose(`Member joined recently ${member.user.tag} (${member.id})`);
-        return { kick: false };
-    }
-
-    let foundMessage = false;
-
-    const channels = await guild.channels.fetch();
-    for (const [_, channel] of channels) {
-        if (!channel) continue;
-        if (!channel.isTextBased()) continue;
-        try {
-            const startTime = SnowflakeUtil.generate({ timestamp: Date.now() - timeout }).toString();
-            const messages = await channel.messages.fetch({ after: startTime });
-            for (const [_, message] of messages.filter(m => m.author?.id === member.id)) {
-                setLastActive(message); // store this in the db so we don't need to find it again!
-
-                if (Date.now() - message.createdTimestamp < timeout) {
-                    return { kick: false };;
-                }
-                foundMessage = true;
-            }
-            await sleep(50); // add delay to prevent discord from rate limiting
-        } catch { /* ignore */ }
-    }
-    if (!foundMessage) {
-        return { kick: true, reason: "joinInactive" };
-    }
-    return { kick: true, reason: "inactive" };;
-}
 
 async function setLastActive(message: Message) {
     if (!message.inGuild()) return;
@@ -102,7 +50,16 @@ const autoKickConfigManifest = {
             type: ConfigValueType.integer,
             displayName: "Join Inactive Time",
             description: "The time after joining the server that a user is considered to be inactive (if they have never sent a message)",
+            permissions: "Administrator",
             default: 5,
+        },
+        daysToCheck: {
+            type: ConfigValueType.integer,
+            displayName: "Days to check",
+            description: "How many days of messages to check when calculating inactivity",
+            permissions: "Administrator",
+            uiVisibility: "hidden",
+            default: 3,
         }
     },
     user: {
@@ -132,83 +89,188 @@ const autoKickConfigManifest = {
 
 let autoKickConfig: ConfigStorage<typeof autoKickConfigManifest> | undefined;
 
-async function main(bot: Bot, module: Module) {
-    //if (!module.handling) return;
-    if (!autoKickConfig) autoKickConfig = new ConfigStorage(autoKickConfigManifest, bot);
-    await autoKickConfig.waitForReady();
-    await sleep(10000); // wait another 10s before running (just in case any startup issues)
-    const member_list: { member: GuildMember, reason: "inactive" | "joinInactive" }[] = [];
 
-    logger.info("Checking for members that are inactive ...");
-    for (const [_, guild] of bot.client.guilds.cache) {
+type ActivityData = {
+    lastActive: number;
+    member: GuildMember;
+}
 
-        const guildConfig = autoKickConfig.guild(guild);
+/**
+ * @param bot reference to bot instance
+ * @param guild guild to check thru
+ * @param days how many days to check
+ * @returns activity data
+ */
+async function checkActivityInGuild(bot: Bot, guild: Guild, days: number) {
+    if (!autoKickConfig) throw new Error("Storage missing!");
 
-        const inactiveTime = await guildConfig.get("inactiveTime") * 24 * 60 * 60 * 1000;
-        const joinInactiveTime = await guildConfig.get("joinInactiveTime") * 24 * 60 * 60 * 1000;
+    const members = await getAllPrunableMembers(guild, bot);
+    const activityData = new Map<string, ActivityData>();
 
-        const members = await getAllPrunableMembers(guild, bot);
+    // Fetch stored activity data for all members
+    for (const member of members.values()) {
+        const lastActive = await autoKickConfig.member(guild, member).get("lastActive");
+        activityData.set(member.id, { member, lastActive });
+    }
 
-        for (const [_, member] of members) {
-            if (!member) continue;
-            if (member.user.bot) continue;
-            if (member.user.id === bot.client.user?.id) continue;
+    // Scan thru all channels
+    for (const channel of (await guild.channels.fetch()).values()) {
+        if (!channel) continue;
+        if (!channel.isTextBased()) continue;
 
-            const result = await checkIfMemberSentMessageRecently(member, guild, inactiveTime, joinInactiveTime)
+        await scanMessagesInChannel(channel, activityData, 2 * 24 * 60 * 60 * 1000);
+    }
 
-            if (!result.kick) {
-                logger.log(`Member sent message recently ${member.user.tag} (${member.id})`);
-            } else {
-                logger.log(`Member did not send message recently ${member.user.tag} (${member.id})`);
-                if (member_list.includes({ member: member, reason: result.reason })) continue;
-                member_list.push({ member: member, reason: result.reason });
+    // Store updated data in database
+    for (const member of members.values()) {
+        const memberData = activityData.get(member.id);
+        if (!memberData) continue;
+
+        autoKickConfig.member(guild, member).set("lastActive", memberData.lastActive);
+    }
+
+    return activityData;
+}
+
+async function scanMessagesInChannel(channel: GuildTextBasedChannel, activityData: Map<string, ActivityData>, days: number) {
+    const endTime = Date.now() - days * 24 * 60 * 60 * 1000;
+
+    let timestamp = Date.now();
+
+    let snowflake = SnowflakeUtil.generate({ timestamp: Date.now() }).toString();
+
+    while (timestamp > endTime) {
+        // wait just a bit so discord doesn't ratelimit this
+        await sleep(50);
+        const messages = await channel.messages.fetch({ before: snowflake });
+
+        let lastMessage: Message<boolean> | undefined;
+
+        for (const message of messages.values()) {
+            lastMessage = message;
+            
+            let memberData = activityData.get(message.author.id);
+
+            // somehow found member that wasn't listed? add them
+            if (!memberData) {
+                if (!message.member) continue;
+                memberData = { member: message.member, lastActive: message.createdTimestamp };
+                activityData.set(message.author.id, memberData);
+                continue
+            }
+
+            // if a newer message is found, update activity data
+            if (memberData.lastActive < message.createdTimestamp) {
+                memberData.lastActive = message.createdTimestamp;
             }
         }
-        await sleep(1000); // sleep to avoid rate limiting
-    }
-    logger.ok("The pruning has completed. Sending out notifications now ...");
-    for (const { member, reason } of member_list) {
-        await sleep(1000);
-        await onMemberInActive(bot, member, reason);
+
+        // this will happen if there's no messages
+        if (!lastMessage) break;
+
+        snowflake = lastMessage.id;
+        timestamp = lastMessage.createdTimestamp;
     }
 }
 
-async function onMemberInActive(bot: Bot, member: GuildMember, reason: "inactive" | "joinInactive") {
-    const notif_channel_id = await autoKickConfig?.guild(member.guild).get("autokickChannel");
-    if (!notif_channel_id) { logger.error("Autokick channel not set. Cannot send notifications!"); return; }
-    const notif_channel = await bot.client.channels.fetch(notif_channel_id);
+
+async function runAutokick(bot: Bot) {
+    if (!autoKickConfig) throw new Error("Autokick storage missing!");
+
+    logger.info("Checking for members that are inactive ...");
+
+    for (const oAuthGuild of (await bot.client.guilds.fetch()).values()) {
+        const guildConfig = await autoKickConfig.guild(oAuthGuild.id).getAll();
+
+        if (guildConfig.autokickChannel === null) {
+            logger.info(`Skipping guild ${oAuthGuild.name}, autokick channel not set.`);
+            continue;
+        }
+
+        const guild = await oAuthGuild.fetch();
+
+        const autokickChannel = await guild.channels.fetch(guildConfig.autokickChannel);
+
+        if (autokickChannel === null) {
+            logger.info(`Skipping guild ${oAuthGuild.name}, autokick channel not found.`);
+            continue;
+        }
+        if (!autokickChannel.isSendable()) {
+            logger.info(`Skipping guild ${oAuthGuild.name}, autokick channel not sendable.`);
+            continue;
+        }
+
+        logger.info(`Checking guild ${oAuthGuild.name}`);
     
-    if (!notif_channel || !(notif_channel instanceof TextChannel)) {
-        logger.error("Notification channel is not a text channel or not found.");
-        return;
-    }
+        const activityData = await checkActivityInGuild(bot, guild, guildConfig.daysToCheck);
 
-    if (notif_channel.isSendable()) {
-        const lastActive = await autoKickConfig?.member(member.guild, member).get("lastActive") ?? 0;
+        const inactiveTime = Date.now() - guildConfig.inactiveTime * 24 * 60 * 60 * 1000;
+        const joinInactiveTime = Date.now() - guildConfig.joinInactiveTime * 24 * 60 * 60 * 1000;
 
-        await notif_channel.send({
-            embeds: [{
-                title: `:bell: ${member.user.username} is inactive`,
-                thumbnail: { url: member.user.avatarURL() || "" },
-                description: reason === "inactive" ? `<@${member.user.id}> has not engaged with the community recently.`
-                                                   : `<@${member.user.id}> has not engaged with the community after joining.`,
-                fields: [
-                    { name: "Joined", value: member.joinedTimestamp ? `<t:${Math.floor(member.joinedTimestamp / 1000)}:R>` : "Unknown" },
-                    { name: "Last Active", value: lastActive === 0 ? "No data" : `<t:${Math.floor(lastActive / 1000)}:R>` }
-                ]
-            }],
-            components: [
-                {
-                    type: ComponentType.ActionRow,
-                    components: [
-                        { type: ComponentType.Button, label: "Kick", style: ButtonStyle.Danger, customId: `ak_k_${member.id}` },
-                        { type: ComponentType.Button, label: "Ignore", style: ButtonStyle.Success, customId: `ak_p_${member.id}` },
-                        { type: ComponentType.Button, label: "Whitelist", style: ButtonStyle.Primary, customId: `ak_w_${member.id}` },
-                    ]
+        for (const memberData of activityData.values()) {
+            const member = memberData.member;
+
+            if (member.user.bot) {
+                logger.log(`Member is a bot, skipping ${member.user.tag} (${member.id})`);
+                continue;
+            }
+
+            if (memberData.lastActive > inactiveTime) {
+                logger.log(`Member sent message recently ${member.user.tag} (${member.id})`);
+                continue;
+            }
+
+            if (member.joinedTimestamp) {
+                if (member.joinedTimestamp > joinInactiveTime) {
+                    logger.log(`Member joined recently ${member.user.tag} (${member.id})`);
+                    continue;
                 }
-            ]
-        });
+                else {
+                    logger.log(`Member inactive (after joining) ${member.user.tag} (${member.id})`);
+                    onMemberInActive(autokickChannel, memberData, "joinInactive");
+                    continue;
+                }
+            }
+            logger.log(`Member inactive ${member.user.tag} (${member.id})`);
+            await onMemberInActive(autokickChannel, memberData, "inactive");
+        }
     }
+    logger.ok("The pruning has completed.");
+}
+
+async function main(bot: Bot, module: Module) {
+    //if (!module.handling) return;
+    if (!autoKickConfig) autoKickConfig = new ConfigStorage(autoKickConfigManifest, bot);
+    await sleep(1000); // wait a second before running (just in case any startup issues)
+
+    await runAutokick(bot);
+}
+
+async function onMemberInActive(notificationChannel: GuildTextBasedChannel, memberData: ActivityData, reason: "inactive" | "joinInactive") {
+    const { member, lastActive } = memberData;
+
+    await notificationChannel.send({
+        embeds: [{
+            title: `:bell: ${member.user.username} is inactive`,
+            thumbnail: { url: member.user.avatarURL() || "" },
+            description: reason === "inactive" ? `<@${member.user.id}> has not engaged with the community recently.`
+                                                : `<@${member.user.id}> has not engaged with the community after joining.`,
+            fields: [
+                { name: "Joined", value: member.joinedTimestamp ? `<t:${Math.floor(member.joinedTimestamp / 1000)}:R>` : "Unknown" },
+                { name: "Last Active", value: lastActive === 0 ? "No data" : `<t:${Math.floor(lastActive / 1000)}:R>` }
+            ]
+        }],
+        components: [
+            {
+                type: ComponentType.ActionRow,
+                components: [
+                    { type: ComponentType.Button, label: "Kick", style: ButtonStyle.Danger, customId: `ak_k_${member.id}` },
+                    { type: ComponentType.Button, label: "Ignore", style: ButtonStyle.Success, customId: `ak_p_${member.id}` },
+                    { type: ComponentType.Button, label: "Whitelist", style: ButtonStyle.Primary, customId: `ak_w_${member.id}` },
+                ]
+            }
+        ]
+    });
 }
 
 const autokickCommand = {
@@ -246,7 +308,6 @@ const autokickCommand = {
 export default async function (bot: Bot, module: Module) {
    //if (!module.handling) return;
     autoKickConfig = new ConfigStorage(autoKickConfigManifest, bot);
-    await autoKickConfig.waitForReady();
 
     bot.client.on("interactionCreate", async interaction => {
         //if (!module.handling) return;
@@ -263,6 +324,7 @@ export default async function (bot: Bot, module: Module) {
                 if (!member) return;
                 await member.kick("Inactive");
                 await interaction.update({ content: `:ballot_box_with_check: **${member.user.username}** has been kicked for inactivity by <@${interaction.user.id}>.`, embeds: [], components: [] });
+                await auditLog(member.guild, `Autokick: Kicked \\*${member.user.username}\\*`, `Kicked <@${member.id}> for inactivity, action approved by <@${interaction.user.id}>`);
             } else if (interaction.customId.startsWith("ak_p_")) {
                 const member = await bot.client.guilds.cache.get(interaction.guildId ?? "")?.members.fetch(interaction.customId.split("_")[2]);
                 await interaction.update({ content: `:scales: <@${interaction.user.id}> has pardoned **${member?.user.username}**.`, embeds: [], components: [] });
@@ -330,6 +392,29 @@ export default async function (bot: Bot, module: Module) {
     });
 
     autokick2(bot, module, autoKickConfig);
+
+    module.addChatInteraction(async msg => {
+        if (!msg.inGuild() || !msg.channel.isSendable()) return;
+        if (!msg.content.startsWith("?*")) return;
+
+        if (!bot.checkPermission(msg.guild, msg.author, "Administrator")) return;
+
+        if (msg.content.startsWith("?*rescanactivity")) {
+            const days = parseInt(msg.content.replace("?*rescanactivity ", ""));
+            if (days < 1 || days > 30) {
+                msg.reply(`Invalid number if days: ${days}`);
+                return;
+            }
+            msg.reply("Checking...");
+            await checkActivityInGuild(bot, msg.guild, days);
+            msg.reply("Check done!");
+        }
+        if (msg.content === "?*runautokick") {
+            msg.reply("Running...");
+            await main(bot, module);
+            msg.reply("Done!");
+        }
+    });
 }
 
 type AutoKickConfigManifest = typeof autoKickConfigManifest;
