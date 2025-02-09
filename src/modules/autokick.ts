@@ -225,7 +225,7 @@ async function runAutokick(bot: Bot) {
                     logger.log(`Member joined recently ${member.user.tag} (${member.id})`);
                     continue;
                 }
-                else {
+                else if (memberData.lastActive < member.joinedTimestamp) {
                     logger.log(`Member inactive (after joining) ${member.user.tag} (${member.id})`);
                     onMemberInActive(autokickChannel, memberData, "joinInactive");
                     continue;
