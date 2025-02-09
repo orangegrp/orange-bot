@@ -1,7 +1,7 @@
 import { Bot, ConfigConfig, ConfigStorage, ConfigValueType } from "orange-bot-base";
 
 const configconfig = {
-    name: "stydybot",
+    name: "studybot",
     displayName: "Studybot",
     guild: {
         examChannel: {
@@ -19,7 +19,6 @@ async function getConfigStorage(bot: Bot) {
     let storage = configStorages.get(bot.instanceName);
     if (!storage) {
         storage = new ConfigStorage(configconfig, bot);
-        await storage.waitForReady();
     }
     return storage;
 }

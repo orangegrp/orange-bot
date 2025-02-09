@@ -118,7 +118,6 @@ async function addRole(member: GuildMember, role: Snowflake) {
 
 export default async function (bot: Bot, module: Module) {
     const config = new ConfigStorage(configSchema, bot);
-    await config.waitForReady();
 
 
     module.addCommand(command, async (interaction, args) => {

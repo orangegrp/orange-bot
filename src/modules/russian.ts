@@ -42,7 +42,6 @@ const russian = () => { return Math.random() < 0.17; };
  */
 export default async function (bot: Bot, module: Module) {
     const config = new ConfigStorage(configSchema, bot);
-    await config.waitForReady();
 
     module.addCommand(command, async (interaction, args) => {
         if (!interaction.inGuild()) {

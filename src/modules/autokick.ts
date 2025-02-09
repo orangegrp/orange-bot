@@ -135,7 +135,6 @@ let autoKickConfig: ConfigStorage<typeof autoKickConfigManifest> | undefined;
 async function main(bot: Bot, module: Module) {
     //if (!module.handling) return;
     if (!autoKickConfig) autoKickConfig = new ConfigStorage(autoKickConfigManifest, bot);
-    await autoKickConfig.waitForReady();
     await sleep(10000); // wait another 10s before running (just in case any startup issues)
     const member_list: { member: GuildMember, reason: "inactive" | "joinInactive" }[] = [];
 
@@ -246,7 +245,6 @@ const autokickCommand = {
 export default async function (bot: Bot, module: Module) {
    //if (!module.handling) return;
     autoKickConfig = new ConfigStorage(autoKickConfigManifest, bot);
-    await autoKickConfig.waitForReady();
 
     bot.client.on("interactionCreate", async interaction => {
         //if (!module.handling) return;
