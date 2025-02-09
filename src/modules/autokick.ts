@@ -212,6 +212,7 @@ async function runAutokick(bot: Bot) {
 
             if (member.user.bot) {
                 logger.log(`Member is a bot, skipping ${member.user.tag} (${member.id})`);
+                continue;
             }
 
             if (memberData.lastActive > inactiveTime) {
