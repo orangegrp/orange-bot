@@ -19,7 +19,6 @@ async function getConfigStorage(bot: Bot) {
     let storage = configStorages.get(bot.instanceName);
     if (!storage) {
         storage = new ConfigStorage(configconfig, bot);
-        await storage.waitForReady();
     }
     return storage;
 }
