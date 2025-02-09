@@ -1,7 +1,7 @@
 import { Bot, ConfigConfig, ConfigStorage, ConfigValueType } from "orange-bot-base";
 
 const configconfig = {
-    name: "stydybot",
+    name: "studybot",
     displayName: "Studybot",
     guild: {
         examChannel: {
